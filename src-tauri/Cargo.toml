@@ -1,0 +1,54 @@
+[package]
+name = "iptv-helper"
+version = "0.1.0"
+description = "IPTV Helper"
+authors = ["Martin"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2.11", features = [] }
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# HTTP client — backend only, not exposed to frontend directly
+# 30s connect timeout + 120s read timeout set in client.rs builder
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls", "rustls-native-certs"] }
+tokio = { version = "1", features = ["full"] }
+
+# SQLite — direct access for migrations and bulk EPG writes
+# tauri-plugin-sql manages its own connection pool for JS SELECT queries;
+# this Mutex<Connection> is for all Rust-side writes. Both use WAL mode.
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# EPG XML streaming parser
+quick-xml = { version = "0.40", features = ["async-tokio"] }
+
+# OS keyring credential storage (v1.0 stable — breaking change from 0.x)
+keyring-core = "1.0"
+
+# Structured logging (replaces log + env_logger)
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"   # rolling log files on Windows
+
+# Utilities
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows-native-keyring-store = "1.1"
+
+[target.'cfg(target_os = "android")'.dependencies]
+android-native-keyring-store = "1.0"
+ndk-context = "0.1"  # Required by android-native-keyring-store
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

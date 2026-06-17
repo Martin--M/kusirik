@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+dist/
+
+# Tauri build output
+src-tauri/target/
+
+# Tauri Android generated project — only track manually modified files
+src-tauri/gen/android/.gradle/
+src-tauri/gen/android/build/
+src-tauri/gen/android/app/build/
+src-tauri/gen/android/app/.cxx/
+src-tauri/gen/android/buildSrc/
+src-tauri/gen/android/gradle/
+src-tauri/gen/android/local.properties
+src-tauri/gen/android/gradlew
+src-tauri/gen/android/gradlew.bat
+src-tauri/gen/android/app/src/main/jniLibs/
+
+# Manually maintained files ARE tracked (not excluded):
+#   src-tauri/gen/android/app/src/main/AndroidManifest.xml
+#   src-tauri/gen/android/app/src/main/res/xml/network_security_config.xml
+#   src-tauri/gen/android/app/src/main/java/**/IntentPlugin.kt
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# AI
+.agent
+plan.md

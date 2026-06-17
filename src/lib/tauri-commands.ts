@@ -1,0 +1,81 @@
+/**
+ * Type-safe wrappers around Tauri invoke() calls.
+ * All backend command names are centralised here — never call invoke() directly from components.
+ */
+import { invoke } from '@tauri-apps/api/core'
+import type { Profile, SaveProfilePayload } from '@/types/profile'
+import type { LiveCategory, LiveStream } from '@/types/stream'
+import type { VodCategory, VodStream, VodInfo } from '@/types/vod'
+import type { SeriesCategory, Series, SeriesInfo } from '@/types/series'
+import type { EpgEntry } from '@/types/epg'
+import type { SyncStatus, DataType } from '@/types/sync'
+
+// ─── Profile ─────────────────────────────────────────────────────────────────
+
+export const saveProfile = (payload: SaveProfilePayload) =>
+  invoke<Profile>('save_profile', { payload })
+
+export const getProfile = (id: number) =>
+  invoke<Profile | null>('get_profile', { id })
+
+export const deleteProfile = (id: number) =>
+  invoke<void>('delete_profile', { id })
+
+// ─── Sync ────────────────────────────────────────────────────────────────────
+
+export const triggerSync = (dataType: DataType) =>
+  invoke<void>('trigger_sync', { dataType })
+
+export const getSyncStatus = () =>
+  invoke<SyncStatus[]>('get_sync_status')
+
+// ─── Live ────────────────────────────────────────────────────────────────────
+
+export const getLiveCategories = (profileId: number) =>
+  invoke<LiveCategory[]>('get_live_categories', { profileId })
+
+export const getLiveStreams = (profileId: number, categoryId?: string, offset = 0, limit = 100) =>
+  invoke<LiveStream[]>('get_live_streams', { profileId, categoryId, offset, limit })
+
+// ─── VOD ─────────────────────────────────────────────────────────────────────
+
+export const getVodCategories = (profileId: number) =>
+  invoke<VodCategory[]>('get_vod_categories', { profileId })
+
+export const getVodStreams = (profileId: number, categoryId?: string, offset = 0, limit = 100) =>
+  invoke<VodStream[]>('get_vod_streams', { profileId, categoryId, offset, limit })
+
+export const getVodInfo = (profileId: number, streamId: number) =>
+  invoke<VodInfo>('get_vod_info', { profileId, streamId })
+
+// ─── Series ──────────────────────────────────────────────────────────────────
+
+export const getSeriesCategories = (profileId: number) =>
+  invoke<SeriesCategory[]>('get_series_categories', { profileId })
+
+export const getSeriesList = (profileId: number, categoryId?: string, offset = 0, limit = 100) =>
+  invoke<Series[]>('get_series', { profileId, categoryId, offset, limit })
+
+export const getSeriesInfo = (profileId: number, seriesId: number) =>
+  invoke<SeriesInfo>('get_series_info', { profileId, seriesId })
+
+// ─── EPG ─────────────────────────────────────────────────────────────────────
+
+export const getEpgForChannel = (profileId: number, channelId: string, from: string, to: string) =>
+  invoke<EpgEntry[]>('get_epg_for_channel', { profileId, channelId, from, to })
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+
+export const getSetting = (key: string) =>
+  invoke<string | null>('get_setting', { key })
+
+export const setSetting = (key: string, value: string) =>
+  invoke<void>('set_setting', { key, value })
+
+// ─── Player ──────────────────────────────────────────────────────────────────
+
+export const launchPlayer = (url: string) =>
+  invoke<void>('launch_player', { url })
+
+export const copyToClipboard = (url: string) =>
+  invoke<void>('copy_to_clipboard', { url })

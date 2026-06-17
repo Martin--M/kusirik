@@ -1,0 +1,121 @@
+# IPTV Helper
+
+A modern, cross-platform IPTV client for Windows and Android 16 (API 36), built with **Tauri 2**, **Vue 3**, and **Vite**.
+
+IPTV Helper connects to any Xtream Codes-compatible server to fetch, cache, and display live channels, VOD movies, and TV series with full EPG support. Playback is handed off to your preferred external player (e.g., VLC or MX Player).
+
+---
+
+## 🚀 Key Features
+
+*   **Fast local caching**: Primary data synced from server and stored in a local SQLite database for instant load times.
+*   **Secure credentials**: Passwords are saved in the OS keyring (Windows Credential Manager / Android Keystore), never stored in plaintext on disk.
+*   **EPG Streaming Engine**: Memory-efficient parsing of large XMLTV files.
+*   **Virtualised lists**: Smooth scrolling (60 FPS) through 10,000+ channel lists.
+*   **External player handoff**: Launches VLC on Windows or intents on Android.
+
+---
+
+## 🛠️ Technology Stack
+
+*   **Frontend**: Vue 3 (Composition API with `<script setup lang="ts">`), Pinia 3 for state management, TanStack Vue Query v5 for client-side queries, and TanStack Vue Virtual for list virtualization.
+*   **Backend**: Tauri 2 (Rust), Tokio for async runtime, reqwest for API communication, rusqlite for SQL database writes, and keyring-core for credential management.
+*   **Database**: SQLite (managed with WAL mode for safe concurrent reads/writes).
+
+---
+
+## 📂 Project Structure
+
+```text
+iptv-helper/
+├── src/                      # Vue 3 Frontend
+│   ├── main.ts               # App entrypoint & plugins configuration
+│   ├── App.vue               # Layout shell & global listeners
+│   ├── index.css             # Theme variables & design system tokens
+│   ├── composables/          # Reusable logic (usePlayer, useSync, useLiveStreams)
+│   ├── views/                # Routed views (SetupView, LiveView, SettingsView)
+│   └── stores/               # State management (profile, settings, sync)
+└── src-tauri/                # Rust Backend (Tauri)
+    ├── Cargo.toml            # Backend dependencies configuration
+    ├── tauri.conf.json       # Tauri system configurations
+    └── src/
+        ├── lib.rs            # Application bootstrap & plugin registration
+        ├── main.rs           # Desktop application entrypoint
+        ├── db/               # SQLite direct access & migrations management
+        └── commands/         # Frontend-exposed commands
+```
+
+---
+
+## 💻 Local Development Setup
+
+### Prerequisites
+
+Ensure you have the following installed on your system:
+*   **Node.js** (v22 LTS)
+*   **Rust** (via `rustup`)
+*   **Android Studio & SDK** (for Android builds, targeting API 36 / Android 16)
+*   **Java 21** (JDK required by Gradle)
+
+### Installation
+
+Clone the repository and install npm dependencies:
+
+```bash
+# In the project root directory
+npm install
+```
+
+### Running Locally
+
+To run the application in development mode with hot-reloading:
+
+#### Desktop (Windows / Linux)
+```bash
+npm run dev
+# Or run with tauri CLI wrapper:
+npm run tauri:dev
+```
+
+#### Android (Emulator or Connected Device)
+Ensure your emulator is running or a device is connected via ADB, then run:
+```bash
+npm run tauri:android:dev
+```
+
+---
+
+## 📦 Build & Release
+
+To compile and package the application for production:
+
+### Desktop (Windows / Linux)
+Produces an installer (e.g., `.msi` or `.deb` depending on your host OS):
+```bash
+npm run tauri:build
+```
+
+### Android
+Produces a release APK / App Bundle:
+```bash
+npm run tauri:android:build
+```
+
+---
+
+## 🧪 Verification & Checks
+
+### Linting & Type-Checking
+Runs Vue template and TypeScript static analysis checks:
+```bash
+npm run type-check
+```
+
+### Rust Cargo Checks
+Checks that Rust code compiles and satisfies style rules:
+```bash
+cd src-tauri
+cargo check --all-targets
+cargo clippy -- -D warnings
+cargo test
+```
