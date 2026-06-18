@@ -1,10 +1,10 @@
-/// Database migrations — run once on first start, version-gated thereafter.
-///
-/// Each migration is a (version, sql) pair. The current schema version is stored
-/// in SQLite's built-in `PRAGMA user_version`. On startup:
-///   1. Read current user_version from the DB
-///   2. Apply every migration whose version > current user_version, in order
-///   3. Update user_version to the latest applied version
+//! Database migrations — run once on first start, version-gated thereafter.
+//!
+//! Each migration is a (version, sql) pair. The current schema version is stored
+//! in SQLite's built-in `PRAGMA user_version`. On startup:
+//!   1. Read current user_version from the DB
+//!   2. Apply every migration whose version > current user_version, in order
+//!   3. Update user_version to the latest applied version
 
 use anyhow::{Context, Result};
 use rusqlite::Connection;

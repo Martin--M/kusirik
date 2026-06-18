@@ -1,14 +1,14 @@
-/// Database connection bootstrap.
-///
-/// Design contract:
-/// - This module owns a single `Mutex<Connection>` used for **all Rust-side writes**:
-///   migrations, bulk EPG inserts, profile CRUD, sync log updates.
-/// - `tauri-plugin-sql` manages its own internal connection pool, used exclusively
-///   for **JS-initiated SELECT queries** from the frontend. Both paths share the same
-///   SQLite file; WAL mode makes concurrent access safe at the OS level.
-///
-/// Never call rusqlite from frontend-facing JS query paths; never call tauri-plugin-sql
-/// for write operations. Keep this boundary explicit.
+//! Database connection bootstrap.
+//!
+//! Design contract:
+//! - This module owns a single `Mutex<Connection>` used for **all Rust-side writes**:
+//!   migrations, bulk EPG inserts, profile CRUD, sync log updates.
+//! - `tauri-plugin-sql` manages its own internal connection pool, used exclusively
+//!   for **JS-initiated SELECT queries** from the frontend. Both paths share the same
+//!   SQLite file; WAL mode makes concurrent access safe at the OS level.
+//!
+//! Never call rusqlite from frontend-facing JS query paths; never call tauri-plugin-sql
+//! for write operations. Keep this boundary explicit.
 
 use anyhow::{Context, Result};
 use rusqlite::Connection;
