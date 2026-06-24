@@ -73,3 +73,113 @@ pub fn get_vod_info(conn: &Connection, profile_id: i64, stream_id: i64) -> Resul
         Ok(None)
     }
 }
+
+pub fn query_categories(conn: &Connection, profile_id: i64) -> Result<Vec<VodCategoryApi>> {
+    let mut stmt = conn.prepare(
+        "SELECT category_id, category_name
+         FROM vod_categories
+         WHERE profile_id = ?1
+         ORDER BY category_name ASC",
+    )?;
+
+    let rows = stmt.query_map(rusqlite::params![profile_id], |row| {
+        Ok(VodCategoryApi {
+            category_id: row.get(0)?,
+            category_name: row.get(1)?,
+        })
+    })?;
+
+    let mut categories = Vec::new();
+    for row in rows {
+        categories.push(row?);
+    }
+    Ok(categories)
+}
+
+pub fn query_streams(
+    conn: &Connection,
+    profile_id: i64,
+    category_id: Option<&str>,
+    offset: u32,
+    limit: u32,
+) -> Result<Vec<VodStreamApi>> {
+    let streams = match category_id {
+        None | Some("all") => {
+            let mut stmt = conn.prepare(
+                "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added
+                 FROM vod_streams
+                 WHERE profile_id = ?1
+                 ORDER BY name ASC
+                 LIMIT ?2 OFFSET ?3",
+            )?;
+            let rows = stmt.query_map(rusqlite::params![profile_id, limit, offset], |row| {
+                Ok(VodStreamApi {
+                    stream_id: row.get(0)?,
+                    name: row.get(1)?,
+                    stream_icon: row.get(2)?,
+                    category_id: row.get(3)?,
+                    rating: row.get(4)?,
+                    container_extension: row.get(5)?,
+                    added: row.get(6)?,
+                })
+            })?;
+            let mut res = Vec::new();
+            for r in rows {
+                res.push(r?);
+            }
+            res
+        }
+        Some("0") | Some("") | Some("uncategorized") => {
+            let mut stmt = conn.prepare(
+                "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added
+                 FROM vod_streams
+                 WHERE profile_id = ?1 AND (category_id = '0' OR category_id = '' OR category_id IS NULL)
+                 ORDER BY name ASC
+                 LIMIT ?2 OFFSET ?3",
+            )?;
+            let rows = stmt.query_map(rusqlite::params![profile_id, limit, offset], |row| {
+                Ok(VodStreamApi {
+                    stream_id: row.get(0)?,
+                    name: row.get(1)?,
+                    stream_icon: row.get(2)?,
+                    category_id: row.get(3)?,
+                    rating: row.get(4)?,
+                    container_extension: row.get(5)?,
+                    added: row.get(6)?,
+                })
+            })?;
+            let mut res = Vec::new();
+            for r in rows {
+                res.push(r?);
+            }
+            res
+        }
+        Some(cat_id) => {
+            let mut stmt = conn.prepare(
+                "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added
+                 FROM vod_streams
+                 WHERE profile_id = ?1 AND category_id = ?2
+                 ORDER BY name ASC
+                 LIMIT ?3 OFFSET ?4",
+            )?;
+            let rows = stmt.query_map(rusqlite::params![profile_id, cat_id, limit, offset], |row| {
+                Ok(VodStreamApi {
+                    stream_id: row.get(0)?,
+                    name: row.get(1)?,
+                    stream_icon: row.get(2)?,
+                    category_id: row.get(3)?,
+                    rating: row.get(4)?,
+                    container_extension: row.get(5)?,
+                    added: row.get(6)?,
+                })
+            })?;
+            let mut res = Vec::new();
+            for r in rows {
+                res.push(r?);
+            }
+            res
+        }
+    };
+    Ok(streams)
+}
+
