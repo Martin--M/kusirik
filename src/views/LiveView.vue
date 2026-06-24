@@ -6,6 +6,10 @@ import LiveChannelList from '@/components/live/LiveChannelList.vue'
 import CachedImage from '@/components/ui/CachedImage.vue'
 import type { LiveStream, LiveCategory } from '@/types/stream'
 import { invoke } from '@tauri-apps/api/core'
+import { useProfileStore } from '@/stores/profile.store'
+import { useSettingsStore } from '@/stores/settings.store'
+import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
+import { buildLiveUrl } from '@/lib/url-builder'
 
 const selectedCategoryId = ref<string>('all')
 const selectedStream = ref<LiveStream | null>(null)

@@ -93,5 +93,5 @@ export const setSetting = (key: string, value: string) =>
 export const launchPlayer = (url: string) =>
   invoke<void>('launch_player', { url })
 
-export const copyToClipboard = (url: string) =>
-  invoke<void>('copy_to_clipboard', { url })
+export const copyToSystemClipboard = (text: string) =>
+  invoke<void>('copy_to_clipboard', { text })
