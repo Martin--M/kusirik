@@ -99,17 +99,37 @@ watch(
   { immediate: true }
 )
 
+const containerRef = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+
 onMounted(() => {
-  loadImage()
+  if (typeof window !== 'undefined' && 'IntersectionObserver' in window && containerRef.value) {
+    observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        loadImage()
+        if (observer) {
+          observer.disconnect()
+        }
+      }
+    }, {
+      rootMargin: '200px'
+    })
+    observer.observe(containerRef.value)
+  } else {
+    loadImage()
+  }
 })
 
 onBeforeUnmount(() => {
+  if (observer) {
+    observer.disconnect()
+  }
   revokeCurrentUrl()
 })
 </script>
 
 <template>
-  <div class="cached-image-container">
+  <div ref="containerRef" class="cached-image-container">
     <div v-if="isLoading" class="skeleton-loader"></div>
     
     <img
