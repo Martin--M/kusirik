@@ -2,7 +2,20 @@
  * Type-safe wrappers around Tauri invoke() calls.
  * All backend command names are centralised here — never call invoke() directly from components.
  */
-import { invoke } from '@tauri-apps/api/core'
+import { invoke as tauriInvoke } from '@tauri-apps/api/core'
+
+function isTauri(): boolean {
+  return typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined
+}
+
+async function invoke<T>(cmd: string, args?: Record<string, any>): Promise<T> {
+  if (!isTauri()) {
+    throw new Error(
+      `Tauri environment not detected. Please run the application using 'npm run tauri:dev' or 'npm run tauri:android:dev' instead of a standard web browser.`
+    )
+  }
+  return tauriInvoke<T>(cmd, args)
+}
 import type { Profile, SaveProfilePayload } from '@/types/profile'
 import type { LiveCategory, LiveStream } from '@/types/stream'
 import type { VodCategory, VodStream, VodInfo } from '@/types/vod'

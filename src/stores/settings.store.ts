@@ -18,18 +18,22 @@ export const useSettingsStore = defineStore('settings', () => {
   )
 
   async function load() {
-    const [themeVal, playerWin, playerAnd, fmtsJson, overrideVal] = await Promise.all([
-      getSetting('theme'),
-      getSetting('player_windows'),
-      getSetting('player_android'),
-      getSetting('allowed_formats'),
-      getSetting('live_format_override'),
-    ])
-    if (themeVal) theme.value = themeVal as Theme
-    if (playerWin) playerWindows.value = playerWin
-    if (playerAnd) playerAndroid.value = playerAnd
-    if (fmtsJson) allowedFormats.value = JSON.parse(fmtsJson) as StreamFormat[]
-    if (overrideVal) liveFormatOverride.value = overrideVal
+    try {
+      const [themeVal, playerWin, playerAnd, fmtsJson, overrideVal] = await Promise.all([
+        getSetting('theme'),
+        getSetting('player_windows'),
+        getSetting('player_android'),
+        getSetting('allowed_formats'),
+        getSetting('live_format_override'),
+      ])
+      if (themeVal) theme.value = themeVal as Theme
+      if (playerWin) playerWindows.value = playerWin
+      if (playerAnd) playerAndroid.value = playerAnd
+      if (fmtsJson) allowedFormats.value = JSON.parse(fmtsJson) as StreamFormat[]
+      if (overrideVal) liveFormatOverride.value = overrideVal
+    } catch (e) {
+      console.warn('Failed to load settings from Tauri backend (ignoring in browser dev mode):', e)
+    }
   }
 
   async function setTheme(t: Theme) {
