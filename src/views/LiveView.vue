@@ -6,9 +6,9 @@ import LiveChannelList from '@/components/live/LiveChannelList.vue'
 import CachedImage from '@/components/ui/CachedImage.vue'
 import type { LiveStream, LiveCategory } from '@/types/stream'
 import { invoke } from '@tauri-apps/api/core'
+import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
 import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
 import { buildLiveUrl } from '@/lib/url-builder'
 
 const selectedCategoryId = ref<string>('all')
@@ -18,6 +18,31 @@ const sortField = ref<'name' | 'tv_archive'>('name')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 
 const isMobileDetailOpen = ref(false)
+
+const profileStore = useProfileStore()
+const settingsStore = useSettingsStore()
+
+const toast = ref({
+  show: false,
+  message: '',
+  type: 'success' as 'success' | 'error'
+})
+
+let toastTimeout: number | null = null
+
+function showToast(message: string, type: 'success' | 'error' = 'success') {
+  toast.value.message = message
+  toast.value.type = type
+  toast.value.show = true
+
+  if (toastTimeout) {
+    clearTimeout(toastTimeout)
+  }
+
+  toastTimeout = window.setTimeout(() => {
+    toast.value.show = false
+  }, 3000)
+}
 
 const { data: categoriesData, isLoading: isLoadingCategories } = useLiveCategories()
 
@@ -101,13 +126,34 @@ function toggleSort() {
 
 async function copyUrl(stream: LiveStream) {
   try {
-    // Construct dummy URL to let handoff copy it in P6
-    const serverUrl = 'http://example.com' // will be overwritten in copy command
-    const dummyUrl = `${serverUrl}/live/user/pass/${stream.stream_id}.ts`
-    await invoke('copy_to_clipboard', { url: dummyUrl })
-    alert('URL copied to clipboard!')
+    const profile = profileStore.profile
+    if (!profile) {
+      showToast('No active profile loaded.', 'error')
+      return
+    }
+
+    const password = await getSetting('password')
+    if (!password) {
+      showToast('Could not retrieve credentials.', 'error')
+      return
+    }
+
+    const format = settingsStore.liveFormat || 'ts'
+    const url = buildLiveUrl(
+      {
+        serverUrl: profile.server_url,
+        username: profile.username,
+        password,
+      },
+      stream.stream_id,
+      format
+    )
+
+    await navigator.clipboard.writeText(url)
+    showToast('URL copied to clipboard!', 'success')
   } catch (e) {
     console.error(e)
+    showToast('Failed to copy URL.', 'error')
   }
 }
 </script>
@@ -315,6 +361,21 @@ async function copyUrl(stream: LiveStream) {
             </button>
           </div>
         </div>
+      </div>
+    </transition>
+
+    <!-- Toast notification overlay -->
+    <transition name="toast-fade">
+      <div v-if="toast.show" class="toast-message" :class="toast.type">
+        <svg v-if="toast.type === 'success'" class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        <svg v-else class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span>{{ toast.message }}</span>
       </div>
     </transition>
   </div>
@@ -921,6 +982,72 @@ async function copyUrl(stream: LiveStream) {
   .slide-up-enter-from,
   .slide-up-leave-to {
     transform: translateY(100%);
+  }
+}
+
+/* Toast Messages */
+.toast-message {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 2000;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.toast-message.success {
+  background-color: rgba(34, 197, 94, 0.9);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.toast-message.error {
+  background-color: rgba(239, 68, 68, 0.9);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.toast-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: all 0.25s ease-out;
+}
+
+.toast-fade-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+@media (max-width: 768px) {
+  .toast-message {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    bottom: 80px;
+  }
+  
+  .toast-fade-enter-from {
+    transform: translate(-50%, 20px);
+  }
+  .toast-fade-leave-to {
+    transform: translate(-50%, -20px);
   }
 }
 </style>
