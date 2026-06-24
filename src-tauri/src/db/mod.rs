@@ -22,6 +22,7 @@ pub mod vod;
 pub mod series;
 pub mod epg;
 pub mod settings;
+pub mod image;
 
 /// Tauri managed state wrapper around the single rusqlite connection.
 pub struct DbConn(pub Mutex<Connection>);

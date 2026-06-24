@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 
 /// Current schema version. Bump this when adding a new migration.
-const CURRENT_VERSION: u32 = 1;
+const CURRENT_VERSION: u32 = 2;
 
 pub fn run(conn: &Connection) -> Result<()> {
     let current_version: u32 = conn
@@ -27,14 +27,28 @@ pub fn run(conn: &Connection) -> Result<()> {
         migration_v1(conn).context("Migration v1 failed")?;
     }
 
-    // Future migrations:
-    // if current_version < 2 { migration_v2(conn)?; }
+    if current_version < 2 {
+        migration_v2(conn).context("Migration v2 failed")?;
+    }
 
     // Update schema version
     conn.execute_batch(&format!("PRAGMA user_version = {CURRENT_VERSION}"))
         .context("Failed to update user_version")?;
 
     tracing::info!("Migrations complete (schema v{CURRENT_VERSION})");
+    Ok(())
+}
+
+fn migration_v2(conn: &Connection) -> Result<()> {
+    tracing::info!("Applying migration v2 — image_cache table");
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS image_cache (
+            url          TEXT PRIMARY KEY,
+            data         BLOB NOT NULL,
+            content_type TEXT,
+            fetched_at   TEXT NOT NULL
+        );"
+    ).context("Failed to execute v2 schema SQL")?;
     Ok(())
 }
 

@@ -47,3 +47,115 @@ pub fn upsert_streams(conn: &mut Connection, profile_id: i64, streams: &[LiveStr
     tx.commit()?;
     Ok(())
 }
+
+pub fn query_categories(conn: &Connection, profile_id: i64) -> Result<Vec<LiveCategoryApi>> {
+    let mut stmt = conn.prepare(
+        "SELECT category_id, category_name
+         FROM live_categories
+         WHERE profile_id = ?1
+         ORDER BY category_name ASC",
+    )?;
+
+    let rows = stmt.query_map(rusqlite::params![profile_id], |row| {
+        Ok(LiveCategoryApi {
+            category_id: row.get(0)?,
+            category_name: row.get(1)?,
+        })
+    })?;
+
+    let mut categories = Vec::new();
+    for row in rows {
+        categories.push(row?);
+    }
+    Ok(categories)
+}
+
+pub fn query_streams(
+    conn: &Connection,
+    profile_id: i64,
+    category_id: Option<&str>,
+    offset: u32,
+    limit: u32,
+) -> Result<Vec<LiveStreamApi>> {
+    let streams = match category_id {
+        None | Some("all") => {
+            let mut stmt = conn.prepare(
+                "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added
+                 FROM live_streams
+                 WHERE profile_id = ?1
+                 ORDER BY name ASC
+                 LIMIT ?2 OFFSET ?3",
+            )?;
+            let rows = stmt.query_map(rusqlite::params![profile_id, limit, offset], |row| {
+                Ok(LiveStreamApi {
+                    stream_id: row.get(0)?,
+                    name: row.get(1)?,
+                    stream_icon: row.get(2)?,
+                    epg_channel_id: row.get(3)?,
+                    category_id: row.get(4)?,
+                    tv_archive: row.get(5)?,
+                    tv_archive_duration: row.get(6)?,
+                    added: row.get(7)?,
+                })
+            })?;
+            let mut res = Vec::new();
+            for r in rows {
+                res.push(r?);
+            }
+            res
+        }
+        Some("0") | Some("") | Some("uncategorized") => {
+            let mut stmt = conn.prepare(
+                "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added
+                 FROM live_streams
+                 WHERE profile_id = ?1 AND (category_id = '0' OR category_id = '' OR category_id IS NULL)
+                 ORDER BY name ASC
+                 LIMIT ?2 OFFSET ?3",
+            )?;
+            let rows = stmt.query_map(rusqlite::params![profile_id, limit, offset], |row| {
+                Ok(LiveStreamApi {
+                    stream_id: row.get(0)?,
+                    name: row.get(1)?,
+                    stream_icon: row.get(2)?,
+                    epg_channel_id: row.get(3)?,
+                    category_id: row.get(4)?,
+                    tv_archive: row.get(5)?,
+                    tv_archive_duration: row.get(6)?,
+                    added: row.get(7)?,
+                })
+            })?;
+            let mut res = Vec::new();
+            for r in rows {
+                res.push(r?);
+            }
+            res
+        }
+        Some(cat) => {
+            let mut stmt = conn.prepare(
+                "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added
+                 FROM live_streams
+                 WHERE profile_id = ?1 AND category_id = ?2
+                 ORDER BY name ASC
+                 LIMIT ?3 OFFSET ?4",
+            )?;
+            let rows = stmt.query_map(rusqlite::params![profile_id, cat, limit, offset], |row| {
+                Ok(LiveStreamApi {
+                    stream_id: row.get(0)?,
+                    name: row.get(1)?,
+                    stream_icon: row.get(2)?,
+                    epg_channel_id: row.get(3)?,
+                    category_id: row.get(4)?,
+                    tv_archive: row.get(5)?,
+                    tv_archive_duration: row.get(6)?,
+                    added: row.get(7)?,
+                })
+            })?;
+            let mut res = Vec::new();
+            for r in rows {
+                res.push(r?);
+            }
+            res
+        }
+    };
+    Ok(streams)
+}
