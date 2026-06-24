@@ -1,15 +1,14 @@
-#![allow(unused_variables)]
-
 use tauri::State;
 use crate::db::DbConn;
+use crate::api::live::{LiveCategoryApi, LiveStreamApi};
 
 #[tauri::command]
 pub fn get_live_categories(
     state: State<'_, DbConn>,
     profile_id: i64,
-) -> Result<Vec<serde_json::Value>, String> {
-    // Implemented in P2
-    Ok(vec![])
+) -> Result<Vec<LiveCategoryApi>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    crate::db::live::query_categories(&conn, profile_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -19,7 +18,13 @@ pub fn get_live_streams(
     category_id: Option<String>,
     offset: u32,
     limit: u32,
-) -> Result<Vec<serde_json::Value>, String> {
-    // Implemented in P2
-    Ok(vec![])
+) -> Result<Vec<LiveStreamApi>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    crate::db::live::query_streams(
+        &conn,
+        profile_id,
+        category_id.as_deref(),
+        offset,
+        limit,
+    ).map_err(|e| e.to_string())
 }

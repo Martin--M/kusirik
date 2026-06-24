@@ -6,3 +6,4 @@ pub mod series;
 pub mod epg;
 pub mod settings;
 pub mod player;
+pub mod image;

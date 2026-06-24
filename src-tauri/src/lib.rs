@@ -49,6 +49,7 @@ pub fn run() {
             commands::settings::set_setting,
             commands::player::launch_player,
             commands::player::copy_to_clipboard,
+            commands::image::get_image_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
