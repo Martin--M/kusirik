@@ -207,6 +207,7 @@ async function copyUrl(stream: LiveStream) {
     <aside class="details-sidebar desktop-only">
       <transition name="fade" mode="out-in">
         <div v-if="selectedStream" :key="selectedStream.stream_id" class="details-panel">
+          <button class="close-details-btn" @click="selectedStream = null" title="Close Details">×</button>
           <div class="details-header">
             <div class="details-logo">
               <CachedImage
@@ -270,7 +271,7 @@ async function copyUrl(stream: LiveStream) {
 
     <!-- Details Bottom Sheet (Mobile Only) -->
     <transition name="slide-up">
-      <div v-if="selectedStream && isMobileDetailOpen" class="bottom-sheet-backdrop" @click="isMobileDetailOpen = false">
+      <div v-if="selectedStream && isMobileDetailOpen" class="bottom-sheet-backdrop mobile-only" @click="isMobileDetailOpen = false">
         <div class="bottom-sheet-content" @click.stop>
           <div class="drag-handle"></div>
           <button class="close-sheet" @click="isMobileDetailOpen = false">×</button>
@@ -573,6 +574,26 @@ async function copyUrl(stream: LiveStream) {
   flex-direction: column;
   padding: var(--spacing-6);
   gap: var(--spacing-6);
+  position: relative;
+}
+
+.close-details-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  transition: color var(--transition-fast);
+  z-index: 10;
+}
+
+.close-details-btn:hover {
+  color: var(--color-text);
 }
 
 .details-header {
