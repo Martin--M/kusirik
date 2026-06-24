@@ -62,24 +62,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
-name = "android-native-keyring-store"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48c6349ddff23194f8fdce2ea8849380f5a4868c1648965b70e801e104cba9b3"
-dependencies = [
- "base64 0.22.1",
- "jni",
- "keyring-core",
- "log",
- "ndk-context",
- "regex",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tracing",
-]
-
-[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2057,11 +2039,8 @@ checksum = "d98f6fed1fde3f8c21bc40a1abb88dd75e67924f9cffc3ef95607bad8017f8e2"
 name = "iptv-helper"
 version = "0.1.0"
 dependencies = [
- "android-native-keyring-store",
  "anyhow",
  "chrono",
- "keyring-core",
- "ndk-context",
  "quick-xml 0.40.1",
  "reqwest",
  "rusqlite",
@@ -2075,7 +2054,6 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "windows-native-keyring-store",
 ]
 
 [[package]]
@@ -2222,15 +2200,6 @@ dependencies = [
  "bitflags 2.13.0",
  "serde",
  "unicode-segmentation",
-]
-
-[[package]]
-name = "keyring-core"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb1e621458ca9c51aa110bd0339d4751a056b9576bf1253aee1aa560dda0fc9d"
-dependencies = [
- "log",
 ]
 
 [[package]]
@@ -2466,12 +2435,6 @@ dependencies = [
  "raw-window-handle",
  "thiserror 1.0.69",
 ]
-
-[[package]]
-name = "ndk-context"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27b02d87554356db9e9a873add8782d4ea6e3e58ea071a9adb9a2e8ddb884a8b"
 
 [[package]]
 name = "ndk-sys"
@@ -5851,19 +5814,6 @@ name = "windows-link"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
-
-[[package]]
-name = "windows-native-keyring-store"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "063426e76fdec7438d56bb777f67e318a84a25c707b07e575cb8b78e10c028f8"
-dependencies = [
- "byteorder",
- "keyring-core",
- "regex",
- "windows-sys 0.61.2",
- "zeroize",
-]
 
 [[package]]
 name = "windows-numerics"

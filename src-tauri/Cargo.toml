@@ -28,9 +28,6 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 # EPG XML streaming parser
 quick-xml = { version = "0.40", features = ["async-tokio"] }
 
-# OS keyring credential storage (v1.0 stable — breaking change from 0.x)
-keyring-core = "1.0"
-
 # Structured logging (replaces log + env_logger)
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -39,13 +36,6 @@ tracing-appender = "0.2"   # rolling log files on Windows
 # Utilities
 chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1"
-
-[target.'cfg(windows)'.dependencies]
-windows-native-keyring-store = "1.1"
-
-[target.'cfg(target_os = "android")'.dependencies]
-android-native-keyring-store = "1.0"
-ndk-context = "0.1"  # Required by android-native-keyring-store
 
 [profile.release]
 opt-level = 3
