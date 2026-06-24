@@ -1,18 +1,45 @@
-#![allow(unused_variables)]
-
 use tauri::State;
 use crate::db::DbConn;
 
 #[tauri::command]
-pub fn trigger_sync(data_type: &str) -> Result<(), String> {
-    // Implemented in P1
-    Ok(())
+pub async fn trigger_sync(
+    app: tauri::AppHandle,
+    _data_type: Option<String>,
+    force: Option<bool>,
+) -> Result<(), String> {
+    crate::sync::engine::run_sync_all(app, force.unwrap_or(false))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn get_sync_status(
     state: State<'_, DbConn>,
 ) -> Result<Vec<serde_json::Value>, String> {
-    // Implemented in P1
-    Ok(vec![])
+    let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
+    let conn = &*conn_guard;
+
+    let mut stmt = conn
+        .prepare("SELECT data_type, fetched_at, item_count, last_error FROM sync_log WHERE profile_id = 1")
+        .map_err(|e| e.to_string())?;
+
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(serde_json::json!({
+                "data_type": row.get::<_, String>(0)?,
+                "fetched_at": row.get::<_, String>(1)?,
+                "item_count": row.get::<_, Option<i64>>(2)?,
+                "last_error": row.get::<_, Option<String>>(3)?,
+            }))
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut list = vec![];
+    for r in rows {
+        if let Ok(item) = r {
+            list.push(item);
+        }
+    }
+
+    Ok(list)
 }

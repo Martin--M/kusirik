@@ -1,5 +1,7 @@
 pub mod db;
 pub mod commands;
+pub mod api;
+pub mod sync;
 
 use anyhow::Context;
 use tauri::Manager;
@@ -31,6 +33,7 @@ pub fn run() {
             commands::profile::save_profile,
             commands::profile::get_profile,
             commands::profile::delete_profile,
+            commands::profile::test_connection,
             commands::sync::trigger_sync,
             commands::sync::get_sync_status,
             commands::live::get_live_categories,
