@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { useProfileStore } from '@/stores/profile.store'
+import { getSyncStatus } from '@/lib/tauri-commands'
 
 // Hash history is required in Tauri (no server to handle path-based routing)
 const router = createRouter({
@@ -48,7 +49,7 @@ const router = createRouter({
   ],
 })
 
-// Navigation guard: redirect to /setup if no profile exists
+// Navigation guard: redirect to /setup if no profile exists or initial sync is incomplete
 router.beforeEach(async (to) => {
   const profileStore = useProfileStore()
 
@@ -59,11 +60,34 @@ router.beforeEach(async (to) => {
 
   const hasProfile = profileStore.hasProfile
 
-  if (to.meta.requiresProfile && !hasProfile) {
-    return { name: 'setup' }
+  let isSyncComplete = false
+  if (hasProfile) {
+    try {
+      const statusList = await getSyncStatus()
+      const live = statusList.find((s) => s.data_type === 'live_streams')
+      const vod = statusList.find((s) => s.data_type === 'vod_streams')
+      const series = statusList.find((s) => s.data_type === 'series')
+
+      isSyncComplete = !!(
+        live?.fetched_at &&
+        vod?.fetched_at &&
+        series?.fetched_at
+      )
+    } catch (e) {
+      console.error("Failed to check sync status in navigation guard:", e)
+    }
   }
 
-  if (to.meta.requiresNoProfile && hasProfile) {
+  if (to.meta.requiresProfile) {
+    if (!hasProfile) {
+      return { name: 'setup' }
+    }
+    if (!isSyncComplete && to.name !== 'setup') {
+      return { name: 'setup' }
+    }
+  }
+
+  if (to.meta.requiresNoProfile && hasProfile && isSyncComplete) {
     return { name: 'live' }
   }
 })

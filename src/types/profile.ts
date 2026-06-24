@@ -11,5 +11,6 @@ export interface SaveProfilePayload {
   name: string
   server_url: string
   username: string
-  password: string
+  password?: string
+  epg_mode?: 'xmltv' | 'short_epg'
 }

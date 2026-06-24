@@ -34,6 +34,9 @@ export const getProfile = (id: number) =>
 export const deleteProfile = (id: number) =>
   invoke<void>('delete_profile', { id })
 
+export const testConnection = (payload: any) =>
+  invoke<any>('test_connection', payload)
+
 // ─── Sync ────────────────────────────────────────────────────────────────────
 
 export const triggerSync = (dataType: DataType) =>

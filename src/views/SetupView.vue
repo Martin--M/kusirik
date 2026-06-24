@@ -1,15 +1,654 @@
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { testConnection, saveProfile, triggerSync, getSyncStatus, getSetting } from '@/lib/tauri-commands'
+import { useProfileStore } from '@/stores/profile.store'
+import { useSyncStore } from '@/stores/sync.store'
+import type { DataType } from '@/types/sync'
+
+const router = useRouter()
+const profileStore = useProfileStore()
+const syncStore = useSyncStore()
+
+const serverUrl = ref('')
+const username = ref('')
+const password = ref('')
+const showPassword = ref(false)
+
+const isTesting = ref(false)
+const testError = ref<string | null>(null)
+const testSuccess = ref(false)
+
+const isSaving = ref(false)
+const saveError = ref<string | null>(null)
+
+const isSyncing = ref(false)
+const syncError = ref<string | null>(null)
+
+const liveStatus = computed(() => syncStore.statuses.live_streams)
+const vodStatus = computed(() => syncStore.statuses.vod_streams)
+const seriesStatus = computed(() => syncStore.statuses.series)
+
+const syncDone = computed(() => {
+  return (
+    liveStatus.value.fetched_at !== null &&
+    vodStatus.value.fetched_at !== null &&
+    seriesStatus.value.fetched_at !== null
+  )
+})
+
+// Route to live TV once all lists have been synced successfully
+watch(syncDone, (done) => {
+  if (done && isSyncing.value) {
+    isSyncing.value = false
+    router.push('/live')
+  }
+})
+
+// Capture errors during sync
+watch(
+  [
+    () => liveStatus.value.last_error,
+    () => vodStatus.value.last_error,
+    () => seriesStatus.value.last_error,
+  ],
+  ([liveErr, vodErr, serErr]) => {
+    if (liveErr || vodErr || serErr) {
+      syncError.value = liveErr || vodErr || serErr
+      isSyncing.value = false
+    }
+  }
+)
+
+async function handleTest() {
+  if (!serverUrl.value || !username.value || !password.value) {
+    testError.value = 'Please fill in all fields'
+    return
+  }
+
+  isTesting.value = true
+  testError.value = null
+  testSuccess.value = false
+
+  try {
+    await testConnection({
+      url: serverUrl.value,
+      username: username.value,
+      password: password.value,
+    })
+    testSuccess.value = true
+  } catch (err) {
+    testError.value = String(err)
+  } finally {
+    isTesting.value = false
+  }
+}
+
+async function handleSave() {
+  isSaving.value = true
+  saveError.value = null
+
+  try {
+    const profile = await saveProfile({
+      name: 'IPTV Provider',
+      server_url: serverUrl.value,
+      username: username.value,
+      password: password.value,
+      epg_mode: 'xmltv',
+    })
+
+    profileStore.setProfile(profile)
+
+    // Trigger sequential sync
+    syncStore.reset()
+    isSyncing.value = true
+    syncError.value = null
+    await triggerSync('live_streams')
+    isSaving.value = false
+  } catch (err) {
+    saveError.value = String(err)
+    isSaving.value = false
+  }
+}
+
+onMounted(async () => {
+  if (profileStore.hasProfile && profileStore.profile) {
+    serverUrl.value = profileStore.profile.server_url
+    username.value = profileStore.profile.username
+    testSuccess.value = true
+    try {
+      const pass = await getSetting('password')
+      if (pass) password.value = pass
+    } catch (e) {
+      console.error("Failed to load saved password:", e)
+    }
+
+    try {
+      const statuses = await getSyncStatus()
+      const live = statuses.find((s) => s.data_type === 'live_streams')
+      const vod = statuses.find((s) => s.data_type === 'vod_streams')
+      const series = statuses.find((s) => s.data_type === 'series')
+
+      const isSyncComplete = !!(
+        live?.fetched_at &&
+        vod?.fetched_at &&
+        series?.fetched_at
+      )
+
+      if (isSyncComplete) {
+        // Populate all statuses since sync completed successfully
+        for (const s of statuses) {
+          if (s.fetched_at && s.item_count !== null) {
+            syncStore.onDone(s.data_type as DataType, s.item_count, s.fetched_at)
+          } else if (s.last_error) {
+            syncStore.onError(s.data_type as DataType, s.last_error)
+          }
+        }
+      } else {
+        // Sync is incomplete, so only populate successful ones to avoid triggering the error watcher
+        for (const s of statuses) {
+          if (s.fetched_at && s.item_count !== null) {
+            syncStore.onDone(s.data_type as DataType, s.item_count, s.fetched_at)
+          }
+        }
+
+        // Auto-trigger sync to resume/retry
+        isSyncing.value = true
+        syncError.value = null
+        await triggerSync('live_streams')
+      }
+    } catch (e) {
+      console.error("Failed to check sync status on mount:", e)
+    }
+  }
+})
+</script>
+
 <template>
-  <div class="setup-view">
-    <h1>Welcome to IPTV Helper</h1>
-    <p>Please enter your Xtream Codes server details to continue.</p>
-    <!-- Form implementation in P1 -->
+  <div class="setup-container">
+    <div class="glass-card">
+      <div class="header">
+        <h1 class="glow-title">IPTV Helper</h1>
+        <p class="subtitle">Connect to your Xtream Codes Server</p>
+      </div>
+
+      <!-- Main setup form -->
+      <form v-if="!isSyncing" @submit.prevent="handleSave" class="setup-form">
+        <div class="form-group">
+          <label for="server-url">Server URL</label>
+          <input
+            id="server-url"
+            v-model="serverUrl"
+            type="url"
+            placeholder="http://example.com:8080"
+            required
+            :disabled="isTesting || isSaving"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input
+            id="username"
+            v-model="username"
+            type="text"
+            placeholder="Enter username"
+            required
+            :disabled="isTesting || isSaving"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="password-wrapper">
+            <input
+              id="password"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="Enter password"
+              required
+              :disabled="isTesting || isSaving"
+            />
+            <button
+              type="button"
+              class="toggle-password"
+              @click="showPassword = !showPassword"
+              tabindex="-1"
+              :title="showPassword ? 'Hide Password' : 'Show Password'"
+            >
+              <svg v-if="showPassword" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-icon">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-icon">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Connection Test Messages -->
+        <div v-if="testError" class="alert error">
+          <span>⚠️ Connection failed: {{ testError }}</span>
+        </div>
+        <div v-if="testSuccess" class="alert success">
+          <span>✅ Connection successful! Server is ready.</span>
+        </div>
+        <div v-if="saveError" class="alert error">
+          <span>⚠️ Failed to save: {{ saveError }}</span>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+          <button
+            type="button"
+            @click="handleTest"
+            class="btn btn-secondary"
+            :disabled="isTesting || isSaving || !serverUrl || !username || !password"
+          >
+            <span v-if="isTesting" class="spinner"></span>
+            {{ isTesting ? 'Testing...' : 'Test Connection' }}
+          </button>
+
+          <button
+            type="submit"
+            class="btn btn-primary"
+            :disabled="isTesting || isSaving || !testSuccess"
+          >
+            <span v-if="isSaving" class="spinner"></span>
+            {{ isSaving ? 'Saving...' : 'Save & Sync' }}
+          </button>
+        </div>
+      </form>
+
+      <!-- Sequential Syncing Progress Screen -->
+      <div v-else class="sync-screen">
+        <h2 class="sync-title">Initializing Cache</h2>
+        <p class="sync-desc">Please wait while we sync categories and listings sequentially.</p>
+
+        <div class="sync-steps">
+          <div class="sync-step" :class="{ active: liveStatus.is_syncing, done: liveStatus.fetched_at }">
+            <div class="step-indicator">
+              <span v-if="liveStatus.is_syncing" class="spinner small"></span>
+              <span v-else-if="liveStatus.fetched_at">✓</span>
+              <span v-else>•</span>
+            </div>
+            <div class="step-details">
+              <h3>Live Channels</h3>
+              <span v-if="liveStatus.is_syncing" class="status-badge">{{ liveStatus.status || 'syncing' }}</span>
+              <span v-else-if="liveStatus.fetched_at" class="status-badge success">{{ liveStatus.item_count }} items synced</span>
+              <span v-else class="status-badge pending">Pending</span>
+            </div>
+          </div>
+
+          <div class="sync-step" :class="{ active: vodStatus.is_syncing, done: vodStatus.fetched_at }">
+            <div class="step-indicator">
+              <span v-if="vodStatus.is_syncing" class="spinner small"></span>
+              <span v-else-if="vodStatus.fetched_at">✓</span>
+              <span v-else>•</span>
+            </div>
+            <div class="step-details">
+              <h3>VOD Movies</h3>
+              <span v-if="vodStatus.is_syncing" class="status-badge">{{ vodStatus.status || 'syncing' }}</span>
+              <span v-else-if="vodStatus.fetched_at" class="status-badge success">{{ vodStatus.item_count }} items synced</span>
+              <span v-else class="status-badge pending">Pending</span>
+            </div>
+          </div>
+
+          <div class="sync-step" :class="{ active: seriesStatus.is_syncing, done: seriesStatus.fetched_at }">
+            <div class="step-indicator">
+              <span v-if="seriesStatus.is_syncing" class="spinner small"></span>
+              <span v-else-if="seriesStatus.fetched_at">✓</span>
+              <span v-else>•</span>
+            </div>
+            <div class="step-details">
+              <h3>TV Series</h3>
+              <span v-if="seriesStatus.is_syncing" class="status-badge">{{ seriesStatus.status || 'syncing' }}</span>
+              <span v-else-if="seriesStatus.fetched_at" class="status-badge success">{{ seriesStatus.item_count }} items synced</span>
+              <span v-else class="status-badge pending">Pending</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="syncError" class="alert error sync-err-alert">
+          <span>⚠️ Sync failed: {{ syncError }}</span>
+          <button @click="isSyncing = false" class="btn btn-secondary btn-retry">Back to settings</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.setup-view {
+.setup-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: radial-gradient(circle at top left, #1e293b, #0f172a 70%);
+  padding: var(--spacing-6);
+  
+  /* Force dark mode variables so label/text contrasts are perfect */
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-text: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-primary: #60a5fa;
+  --color-primary-hover: #3b82f6;
+  --color-border: #334155;
+  color: var(--color-text);
+}
+
+.glass-card {
+  width: 100%;
+  max-width: 500px;
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
   padding: var(--spacing-8);
-  max-width: 600px;
-  margin: 0 auto;
+  box-shadow: var(--shadow-md), 0 0 40px rgba(96, 165, 250, 0.05);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: var(--spacing-6);
+}
+
+.glow-title {
+  font-size: 2.2rem;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(96, 165, 250, 0.4);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.subtitle {
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-2);
+  font-size: 0.95rem;
+}
+
+.setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+}
+
+.password-wrapper input {
+  width: 100%;
+  padding-right: 42px !important;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast);
+}
+
+.toggle-password:hover {
+  color: var(--color-text);
+}
+
+.eye-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.form-group input {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3) var(--spacing-4);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: all var(--transition-fast);
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+}
+
+.form-group input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.alert {
+  padding: var(--spacing-3) var(--spacing-4);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.alert.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.alert.success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.actions {
+  display: flex;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-2);
+}
+
+.btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-4);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner.small {
+  width: 14px;
+  height: 14px;
+  border-width: 1.5px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Sync screen styling */
+.sync-screen {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sync-title {
+  font-size: 1.5rem;
+  color: #fff;
+  font-weight: 700;
+}
+
+.sync-desc {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin-top: var(--spacing-2);
+  margin-bottom: var(--spacing-6);
+}
+
+.sync-steps {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-6);
+}
+
+.sync-step {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  background: rgba(15, 23, 42, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  padding: var(--spacing-4);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-normal);
+}
+
+.sync-step.active {
+  border-color: rgba(96, 165, 250, 0.3);
+  background: rgba(96, 165, 250, 0.04);
+}
+
+.sync-step.done {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.04);
+}
+
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  font-weight: bold;
+}
+
+.active .step-indicator {
+  background: rgba(96, 165, 250, 0.15);
+  color: var(--color-primary);
+}
+
+.done .step-indicator {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.step-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.step-details h3 {
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast);
+}
+
+.active h3, .done h3 {
+  color: #fff;
+}
+
+.status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--color-text-muted);
+}
+
+.status-badge.success {
+  color: #4ade80;
+}
+
+.status-badge.pending {
+  opacity: 0.6;
+}
+
+.sync-err-alert {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.btn-retry {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: 0.85rem;
+  cursor: pointer;
 }
 </style>

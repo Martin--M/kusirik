@@ -26,6 +26,7 @@ export const useSyncStore = defineStore('sync', () => {
     statuses.value[data_type].is_syncing = true
     statuses.value[data_type].status = 'connecting'
     statuses.value[data_type].last_error = null
+    statuses.value[data_type].fetched_at = null
   }
 
   function onProgress(data_type: DataType, status: string) {
@@ -52,5 +53,11 @@ export const useSyncStore = defineStore('sync', () => {
     return s.last_error !== null && !s.is_syncing
   }
 
-  return { statuses, onStarted, onProgress, onDone, onError, isManualSyncAllowed }
+  function reset() {
+    for (const t of ALL_DATA_TYPES) {
+      statuses.value[t] = initialStatus(t)
+    }
+  }
+
+  return { statuses, onStarted, onProgress, onDone, onError, isManualSyncAllowed, reset }
 })
