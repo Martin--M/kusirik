@@ -1,6 +1,7 @@
 use tauri::State;
 use crate::db::DbConn;
-use crate::api::vod::{VodCategoryApi, VodStreamApi};
+use crate::api::vod::VodStreamApi;
+use crate::api::common::CategoryApi;
 use crate::api::XtreamClient;
 use chrono::Utc;
 
@@ -8,7 +9,7 @@ use chrono::Utc;
 pub fn get_vod_categories(
     state: State<'_, DbConn>,
     profile_id: i64,
-) -> Result<Vec<VodCategoryApi>, String> {
+) -> Result<Vec<CategoryApi>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     crate::db::vod::query_categories(&conn, profile_id).map_err(|e| e.to_string())
 }

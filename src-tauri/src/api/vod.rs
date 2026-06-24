@@ -1,13 +1,7 @@
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
 use super::client::{XtreamClient, deserialize_option_string};
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct VodCategoryApi {
-    #[serde(default, deserialize_with = "deserialize_option_string")]
-    pub category_id: Option<String>,
-    pub category_name: String,
-}
+use super::common::CategoryApi;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct VodStreamApi {
@@ -23,7 +17,7 @@ pub struct VodStreamApi {
     pub added: Option<String>,
 }
 
-pub async fn fetch_categories(client: &XtreamClient) -> Result<Vec<VodCategoryApi>> {
+pub async fn fetch_categories(client: &XtreamClient) -> Result<Vec<CategoryApi>> {
     client.fetch(Some("get_vod_categories")).await
 }
 

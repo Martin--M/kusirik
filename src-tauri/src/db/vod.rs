@@ -1,8 +1,9 @@
 use anyhow::Result;
 use rusqlite::Connection;
-use crate::api::vod::{VodCategoryApi, VodStreamApi};
+use crate::api::vod::VodStreamApi;
+use crate::api::common::CategoryApi;
 
-pub fn upsert_categories(conn: &mut Connection, profile_id: i64, categories: &[VodCategoryApi]) -> Result<()> {
+pub fn upsert_categories(conn: &mut Connection, profile_id: i64, categories: &[CategoryApi]) -> Result<()> {
     let tx = conn.transaction()?;
     {
         let mut stmt = tx.prepare_cached(
@@ -26,7 +27,7 @@ pub fn upsert_streams(conn: &mut Connection, profile_id: i64, streams: &[VodStre
             "INSERT OR REPLACE INTO vod_streams (
                 profile_id, stream_id, name, stream_icon, category_id,
                 rating, container_extension, added
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         )?;
 
         for stream in streams {
@@ -74,26 +75,8 @@ pub fn get_vod_info(conn: &Connection, profile_id: i64, stream_id: i64) -> Resul
     }
 }
 
-pub fn query_categories(conn: &Connection, profile_id: i64) -> Result<Vec<VodCategoryApi>> {
-    let mut stmt = conn.prepare(
-        "SELECT category_id, category_name
-         FROM vod_categories
-         WHERE profile_id = ?1
-         ORDER BY category_name ASC",
-    )?;
-
-    let rows = stmt.query_map(rusqlite::params![profile_id], |row| {
-        Ok(VodCategoryApi {
-            category_id: row.get(0)?,
-            category_name: row.get(1)?,
-        })
-    })?;
-
-    let mut categories = Vec::new();
-    for row in rows {
-        categories.push(row?);
-    }
-    Ok(categories)
+pub fn query_categories(conn: &Connection, profile_id: i64) -> Result<Vec<CategoryApi>> {
+    crate::db::common::query_categories_generic(conn, "vod_categories", profile_id)
 }
 
 pub fn query_streams(

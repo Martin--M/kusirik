@@ -1,8 +1,9 @@
 use anyhow::Result;
 use rusqlite::Connection;
-use crate::api::live::{LiveCategoryApi, LiveStreamApi};
+use crate::api::live::LiveStreamApi;
+use crate::api::common::CategoryApi;
 
-pub fn upsert_categories(conn: &mut Connection, profile_id: i64, categories: &[LiveCategoryApi]) -> Result<()> {
+pub fn upsert_categories(conn: &mut Connection, profile_id: i64, categories: &[CategoryApi]) -> Result<()> {
     let tx = conn.transaction()?;
     {
         let mut stmt = tx.prepare_cached(
@@ -26,7 +27,7 @@ pub fn upsert_streams(conn: &mut Connection, profile_id: i64, streams: &[LiveStr
             "INSERT OR REPLACE INTO live_streams (
                 profile_id, stream_id, name, stream_icon, epg_channel_id,
                 category_id, tv_archive, tv_archive_duration, added
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         )?;
 
         for stream in streams {
@@ -48,26 +49,8 @@ pub fn upsert_streams(conn: &mut Connection, profile_id: i64, streams: &[LiveStr
     Ok(())
 }
 
-pub fn query_categories(conn: &Connection, profile_id: i64) -> Result<Vec<LiveCategoryApi>> {
-    let mut stmt = conn.prepare(
-        "SELECT category_id, category_name
-         FROM live_categories
-         WHERE profile_id = ?1
-         ORDER BY category_name ASC",
-    )?;
-
-    let rows = stmt.query_map(rusqlite::params![profile_id], |row| {
-        Ok(LiveCategoryApi {
-            category_id: row.get(0)?,
-            category_name: row.get(1)?,
-        })
-    })?;
-
-    let mut categories = Vec::new();
-    for row in rows {
-        categories.push(row?);
-    }
-    Ok(categories)
+pub fn query_categories(conn: &Connection, profile_id: i64) -> Result<Vec<CategoryApi>> {
+    crate::db::common::query_categories_generic(conn, "live_categories", profile_id)
 }
 
 pub fn query_streams(

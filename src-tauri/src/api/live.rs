@@ -1,13 +1,7 @@
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
 use super::client::{XtreamClient, deserialize_option_string, deserialize_option_i32};
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct LiveCategoryApi {
-    #[serde(default, deserialize_with = "deserialize_option_string")]
-    pub category_id: Option<String>,
-    pub category_name: String,
-}
+use super::common::CategoryApi;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LiveStreamApi {
@@ -25,7 +19,7 @@ pub struct LiveStreamApi {
     pub added: Option<String>,
 }
 
-pub async fn fetch_categories(client: &XtreamClient) -> Result<Vec<LiveCategoryApi>> {
+pub async fn fetch_categories(client: &XtreamClient) -> Result<Vec<CategoryApi>> {
     client.fetch(Some("get_live_categories")).await
 }
 

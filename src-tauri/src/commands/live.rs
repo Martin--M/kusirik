@@ -1,12 +1,13 @@
 use tauri::State;
 use crate::db::DbConn;
-use crate::api::live::{LiveCategoryApi, LiveStreamApi};
+use crate::api::live::LiveStreamApi;
+use crate::api::common::CategoryApi;
 
 #[tauri::command]
 pub fn get_live_categories(
     state: State<'_, DbConn>,
     profile_id: i64,
-) -> Result<Vec<LiveCategoryApi>, String> {
+) -> Result<Vec<CategoryApi>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     crate::db::live::query_categories(&conn, profile_id).map_err(|e| e.to_string())
 }
