@@ -1,15 +1,16 @@
-#![allow(unused_variables)]
-
 use tauri::State;
 use crate::db::DbConn;
+use crate::api::vod::{VodCategoryApi, VodStreamApi};
+use crate::api::XtreamClient;
+use chrono::Utc;
 
 #[tauri::command]
 pub fn get_vod_categories(
     state: State<'_, DbConn>,
     profile_id: i64,
-) -> Result<Vec<serde_json::Value>, String> {
-    // Implemented in P4
-    Ok(vec![])
+) -> Result<Vec<VodCategoryApi>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    crate::db::vod::query_categories(&conn, profile_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -19,17 +20,56 @@ pub fn get_vod_streams(
     category_id: Option<String>,
     offset: u32,
     limit: u32,
-) -> Result<Vec<serde_json::Value>, String> {
-    // Implemented in P4
-    Ok(vec![])
+) -> Result<Vec<VodStreamApi>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    crate::db::vod::query_streams(
+        &conn,
+        profile_id,
+        category_id.as_deref(),
+        offset,
+        limit,
+    ).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn get_vod_info(
+pub async fn get_vod_info(
     state: State<'_, DbConn>,
     profile_id: i64,
     stream_id: i64,
 ) -> Result<serde_json::Value, String> {
-    // Implemented in P4
-    Ok(serde_json::Value::Null)
+    // 1. Check DB Cache
+    {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        if let Some((info_json, _fetched_at)) = crate::db::vod::get_vod_info(&conn, profile_id, stream_id).map_err(|e| e.to_string())? {
+            let parsed: serde_json::Value = serde_json::from_str(&info_json).map_err(|e| e.to_string())?;
+            return Ok(parsed);
+        }
+    }
+
+    // 2. Fetch on-demand from Xtream API
+    let (url, username, password) = {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        let url = crate::db::settings::get(&conn, "server_url").map_err(|e| e.to_string())?;
+        let username = crate::db::settings::get(&conn, "username").map_err(|e| e.to_string())?;
+        let password = crate::db::settings::get(&conn, "password").map_err(|e| e.to_string())?;
+        (url, username, password)
+    };
+
+    let (url, username, password) = match (url, username, password) {
+        (Some(u), Some(user), Some(pass)) => (u, user, pass),
+        _ => return Err("Credentials missing".to_string()),
+    };
+
+    let client = XtreamClient::new(url, username, password);
+    let info_val = crate::api::vod::fetch_vod_info(&client, stream_id).await.map_err(|e| e.to_string())?;
+
+    // 3. Cache in database
+    {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        let info_str = serde_json::to_string(&info_val).map_err(|e| e.to_string())?;
+        let now = Utc::now().to_rfc3339();
+        crate::db::vod::upsert_vod_info(&conn, profile_id, stream_id, &info_str, &now).map_err(|e| e.to_string())?;
+    }
+
+    Ok(info_val)
 }

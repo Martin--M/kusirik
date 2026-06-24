@@ -18,7 +18,7 @@ async function invoke<T>(cmd: string, args?: Record<string, any>): Promise<T> {
 }
 import type { Profile, SaveProfilePayload } from '@/types/profile'
 import type { LiveCategory, LiveStream } from '@/types/stream'
-import type { VodCategory, VodStream, VodInfo } from '@/types/vod'
+import type { VodCategory, VodStream } from '@/types/vod'
 import type { SeriesCategory, Series, SeriesInfo } from '@/types/series'
 import type { EpgEntry } from '@/types/epg'
 import type { SyncStatus, DataType } from '@/types/sync'
@@ -62,7 +62,7 @@ export const getVodStreams = (profileId: number, categoryId?: string, offset = 0
   invoke<VodStream[]>('get_vod_streams', { profileId, categoryId, offset, limit })
 
 export const getVodInfo = (profileId: number, streamId: number) =>
-  invoke<VodInfo>('get_vod_info', { profileId, streamId })
+  invoke<any>('get_vod_info', { profileId, streamId })
 
 // ─── Series ──────────────────────────────────────────────────────────────────
 
