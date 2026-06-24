@@ -69,3 +69,18 @@ export function buildApiUrl(params: UrlParams, action?: string, extra?: Record<s
   }
   return url
 }
+
+/**
+ * TODO: Integrate buildCatchupUrl in P3 EPG integration.
+ *   http://server.url/streaming/timeshift.php?username=username&password=password&stream=42&start=2026-06-24%3A08-20&duration=120
+ */
+export function buildCatchupUrl(
+  params: UrlParams,
+  streamId: number,
+  startDateTime: string, // format: YYYY-MM-DD:HH-MM
+  durationMinutes: number
+): string {
+  const { serverUrl, username, password } = params
+  const encodedStart = startDateTime.replace(':', '%3A')
+  return `${serverUrl}/streaming/timeshift.php?username=${username}&password=${password}&stream=${streamId}&start=${encodedStart}&duration=${durationMinutes}`
+}
