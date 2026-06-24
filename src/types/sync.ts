@@ -6,7 +6,7 @@ export interface SyncStatus {
   item_count: number | null
   last_error: string | null
   is_syncing: boolean
-  percent: number | null
+  status: string | null // "connecting", "downloading", "parsing", "writing"
 }
 
 export interface SyncStartedEvent {
@@ -15,7 +15,7 @@ export interface SyncStartedEvent {
 
 export interface SyncProgressEvent {
   data_type: DataType
-  percent: number
+  status: string // "connecting", "downloading", "parsing", "writing"
 }
 
 export interface SyncDoneEvent {

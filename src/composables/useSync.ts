@@ -31,7 +31,7 @@ export function useSync() {
 
     unlisten.push(
       await listen<SyncProgressEvent>('sync://progress', ({ payload }) => {
-        syncStore.onProgress(payload.data_type, payload.percent)
+        syncStore.onProgress(payload.data_type, payload.status)
       })
     )
 

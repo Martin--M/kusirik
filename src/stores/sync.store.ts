@@ -11,7 +11,7 @@ function initialStatus(data_type: DataType): SyncStatus {
     item_count: null,
     last_error: null,
     is_syncing: false,
-    percent: null,
+    status: null,
   }
 }
 
@@ -24,17 +24,17 @@ export const useSyncStore = defineStore('sync', () => {
 
   function onStarted(data_type: DataType) {
     statuses.value[data_type].is_syncing = true
-    statuses.value[data_type].percent = 0
+    statuses.value[data_type].status = 'connecting'
     statuses.value[data_type].last_error = null
   }
 
-  function onProgress(data_type: DataType, percent: number) {
-    statuses.value[data_type].percent = percent
+  function onProgress(data_type: DataType, status: string) {
+    statuses.value[data_type].status = status
   }
 
   function onDone(data_type: DataType, count: number, fetched_at: string) {
     statuses.value[data_type].is_syncing = false
-    statuses.value[data_type].percent = null
+    statuses.value[data_type].status = null
     statuses.value[data_type].item_count = count
     statuses.value[data_type].fetched_at = fetched_at
     statuses.value[data_type].last_error = null
@@ -42,7 +42,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   function onError(data_type: DataType, message: string) {
     statuses.value[data_type].is_syncing = false
-    statuses.value[data_type].percent = null
+    statuses.value[data_type].status = null
     statuses.value[data_type].last_error = message
   }
 
