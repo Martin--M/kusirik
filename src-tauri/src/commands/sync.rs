@@ -35,10 +35,8 @@ pub fn get_sync_status(
         .map_err(|e| e.to_string())?;
 
     let mut list = vec![];
-    for r in rows {
-        if let Ok(item) = r {
-            list.push(item);
-        }
+    for item in rows.flatten() {
+        list.push(item);
     }
 
     Ok(list)

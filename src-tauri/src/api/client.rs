@@ -77,7 +77,7 @@ impl XtreamClient {
         let body = match serde_json::from_str::<T>(&text) {
             Ok(b) => b,
             Err(e) => {
-                let action_str = action.unwrap_or("none").replace('&', "_").replace('=', "_");
+                let action_str = action.unwrap_or("none").replace(['&', '='], "_");
                 let log_dir = "/home/martin/.local/share/com.iptv.helper";
                 let log_path = format!("{}/failed_{}.txt", log_dir, action_str);
                 
