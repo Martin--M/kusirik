@@ -119,3 +119,11 @@ cargo check --all-targets
 cargo clippy -- -D warnings
 cargo test
 ```
+
+---
+
+## 📖 Architecture & Design Documentation
+For details on system internals, database layouts, and data flow architectures, refer to the following documents:
+* [System Architecture & Data Flows](file:///home/martin/dev/iptv-helper/docs/architecture.md) — Process model, sequential synchronization sequence, and rate limiters.
+* [Database Architecture & Schema](file:///home/martin/dev/iptv-helper/docs/database.md) — SQLite schema specs, WAL concurrency model, and table ERDs.
+
