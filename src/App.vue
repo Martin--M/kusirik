@@ -6,6 +6,7 @@ import { useSync } from '@/composables/useSync'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppBottomNav from '@/components/layout/AppBottomNav.vue'
 import AppTopBar from '@/components/layout/AppTopBar.vue'
+import AppToast from '@/components/ui/AppToast.vue'
 
 const settingsStore = useSettingsStore()
 const route = useRoute()
@@ -42,6 +43,9 @@ const showLayout = computed(() => {
       <!-- Mobile Bottom navigation -->
       <AppBottomNav v-if="showLayout" class="mobile-only" />
     </div>
+
+    <!-- Global Dynamic Toast Notification System -->
+    <AppToast />
   </div>
 </template>
 
