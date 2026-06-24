@@ -7,14 +7,22 @@ import { toValue } from 'vue'
 export function useVodCategories() {
   return useQuery({
     queryKey: ['vod_streams', 'categories'],
-    queryFn: () => getVodCategories(PROFILE_ID),
+    queryFn: async () => {
+      const res = await getVodCategories(PROFILE_ID)
+      res.forEach(Object.freeze)
+      return Object.freeze(res)
+    },
   })
 }
 
 export function useVodStreams(categoryId?: MaybeRefOrGetter<string | undefined>) {
   return useQuery({
     queryKey: ['vod_streams', 'streams', categoryId],
-    queryFn: () => getVodStreams(PROFILE_ID, toValue(categoryId), 0, 10000),
+    queryFn: async () => {
+      const res = await getVodStreams(PROFILE_ID, toValue(categoryId), 0, 10000)
+      res.forEach(Object.freeze)
+      return Object.freeze(res)
+    },
   })
 }
 

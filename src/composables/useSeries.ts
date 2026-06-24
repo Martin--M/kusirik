@@ -7,14 +7,22 @@ import { toValue } from 'vue'
 export function useSeriesCategories() {
   return useQuery({
     queryKey: ['series', 'categories'],
-    queryFn: () => getSeriesCategories(PROFILE_ID),
+    queryFn: async () => {
+      const res = await getSeriesCategories(PROFILE_ID)
+      res.forEach(Object.freeze)
+      return Object.freeze(res)
+    },
   })
 }
 
 export function useSeries(categoryId?: MaybeRefOrGetter<string | undefined>) {
   return useQuery({
     queryKey: ['series', 'list', categoryId],
-    queryFn: () => getSeriesList(PROFILE_ID, toValue(categoryId), 0, 10000),
+    queryFn: async () => {
+      const res = await getSeriesList(PROFILE_ID, toValue(categoryId), 0, 10000)
+      res.forEach(Object.freeze)
+      return Object.freeze(res)
+    },
   })
 }
 

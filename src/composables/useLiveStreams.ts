@@ -7,13 +7,21 @@ import { toValue } from 'vue'
 export function useLiveCategories() {
   return useQuery({
     queryKey: ['live_streams', 'categories'],
-    queryFn: () => getLiveCategories(PROFILE_ID),
+    queryFn: async () => {
+      const res = await getLiveCategories(PROFILE_ID)
+      res.forEach(Object.freeze)
+      return Object.freeze(res)
+    },
   })
 }
 
 export function useLiveStreams(categoryId?: MaybeRefOrGetter<string | undefined>) {
   return useQuery({
     queryKey: ['live_streams', 'streams', categoryId],
-    queryFn: () => getLiveStreams(PROFILE_ID, toValue(categoryId), 0, 10000),
+    queryFn: async () => {
+      const res = await getLiveStreams(PROFILE_ID, toValue(categoryId), 0, 10000)
+      res.forEach(Object.freeze)
+      return Object.freeze(res)
+    },
   })
 }
