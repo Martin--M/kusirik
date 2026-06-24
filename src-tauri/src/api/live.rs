@@ -1,0 +1,34 @@
+use serde::{Deserialize, Serialize};
+use anyhow::Result;
+use super::client::{XtreamClient, deserialize_option_string, deserialize_option_i32};
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LiveCategoryApi {
+    #[serde(default, deserialize_with = "deserialize_option_string")]
+    pub category_id: Option<String>,
+    pub category_name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LiveStreamApi {
+    pub stream_id: i64,
+    pub name: Option<String>,
+    pub stream_icon: Option<String>,
+    pub epg_channel_id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_option_string")]
+    pub category_id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_option_i32")]
+    pub tv_archive: Option<i32>,
+    #[serde(default, deserialize_with = "deserialize_option_i32")]
+    pub tv_archive_duration: Option<i32>,
+    #[serde(default, deserialize_with = "deserialize_option_string")]
+    pub added: Option<String>,
+}
+
+pub async fn fetch_categories(client: &XtreamClient) -> Result<Vec<LiveCategoryApi>> {
+    client.fetch(Some("get_live_categories")).await
+}
+
+pub async fn fetch_streams(client: &XtreamClient) -> Result<Vec<LiveStreamApi>> {
+    client.fetch(Some("get_live_streams")).await
+}

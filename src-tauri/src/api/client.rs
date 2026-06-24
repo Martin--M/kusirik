@@ -1,0 +1,187 @@
+use std::time::Duration;
+use reqwest::Client as HttpClient;
+use anyhow::{Result, Context};
+use serde::{Deserialize, Deserializer, de::DeserializeOwned};
+
+pub struct XtreamClient {
+    http: HttpClient,
+    server_url: String,
+    username: String,
+    password: String,
+    last_request_time: std::sync::Mutex<Option<std::time::Instant>>,
+}
+
+impl XtreamClient {
+    pub fn new(server_url: String, username: String, password: String) -> Self {
+        let http = HttpClient::builder()
+            .connect_timeout(Duration::from_secs(30))
+            .timeout(Duration::from_secs(120))
+            .build()
+            .unwrap_or_else(|_| HttpClient::new());
+        Self {
+            http,
+            server_url,
+            username,
+            password,
+            last_request_time: std::sync::Mutex::new(None),
+        }
+    }
+
+    pub fn get_url(&self, action: Option<&str>) -> String {
+        let mut base = format!(
+            "{}/player_api.php?username={}&password={}",
+            self.server_url.trim_end_matches('/'),
+            self.username,
+            self.password
+        );
+        if let Some(act) = action {
+            base.push_str(&format!("&action={}", act));
+        }
+        base
+    }
+
+    pub async fn fetch<T: DeserializeOwned>(&self, action: Option<&str>) -> Result<T> {
+        let wait_time = {
+            let guard = self.last_request_time.lock().unwrap();
+            guard.map(|last_time| {
+                let elapsed = last_time.elapsed();
+                let min_delay = std::time::Duration::from_secs(2);
+                if elapsed < min_delay {
+                    min_delay - elapsed
+                } else {
+                    std::time::Duration::ZERO
+                }
+            }).unwrap_or(std::time::Duration::ZERO)
+        };
+
+        if !wait_time.is_zero() {
+            tracing::debug!("Rate limiting: sleeping for {:?} before next request", wait_time);
+            tokio::time::sleep(wait_time).await;
+        }
+
+        // Update the timestamp right before the call
+        {
+            let mut guard = self.last_request_time.lock().unwrap();
+            *guard = Some(std::time::Instant::now());
+        }
+
+        let url = self.get_url(action);
+        tracing::debug!(url = %url, "Fetching Xtream API");
+        let res = self.http.get(&url).send().await.context("HTTP request failed")?;
+        let status = res.status();
+        if !status.is_success() {
+            anyhow::bail!("HTTP request returned status code {}", status);
+        }
+        
+        let text = res.text().await.context("Failed to read response body as text")?;
+        let body = match serde_json::from_str::<T>(&text) {
+            Ok(b) => b,
+            Err(e) => {
+                let action_str = action.unwrap_or("none").replace('&', "_").replace('=', "_");
+                let log_dir = "/home/martin/.local/share/com.iptv.helper";
+                let log_path = format!("{}/failed_{}.txt", log_dir, action_str);
+                
+                if let Err(dir_err) = std::fs::create_dir_all(log_dir) {
+                    tracing::error!("Failed to create debug log directory {}: {}", log_dir, dir_err);
+                }
+                
+                if let Err(write_err) = std::fs::write(&log_path, &text) {
+                    tracing::error!("Failed to write debug log to {}: {}", log_path, write_err);
+                } else {
+                    tracing::warn!("Wrote failed raw response to {}", log_path);
+                }
+                
+                anyhow::bail!("Failed to deserialize response JSON: {} (wrote raw body to {})", e, log_path);
+            }
+        };
+        Ok(body)
+    }
+}
+
+/// A custom deserializer helper that reads fields that might be strings, numbers, or null,
+/// and coerces them into an Option<String>.
+pub fn deserialize_option_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Helper {
+        String(String),
+        Float(f64),
+        Int(i64),
+        Null,
+    }
+
+    match Helper::deserialize(deserializer)? {
+        Helper::String(s) => {
+            if s.trim().is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(s))
+            }
+        }
+        Helper::Float(f) => Ok(Some(f.to_string())),
+        Helper::Int(i) => Ok(Some(i.to_string())),
+        Helper::Null => Ok(None),
+    }
+}
+
+/// A custom deserializer helper that reads fields that might be strings, numbers, or null,
+/// and coerces them into an Option<i32>.
+pub fn deserialize_option_i32<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Helper {
+        String(String),
+        Float(f64),
+        Int(i64),
+        Null,
+    }
+
+    match Helper::deserialize(deserializer)? {
+        Helper::String(s) => {
+            let s = s.trim();
+            if s.is_empty() {
+                Ok(None)
+            } else {
+                s.parse::<i32>().map(Some).map_err(serde::de::Error::custom)
+            }
+        }
+        Helper::Float(f) => Ok(Some(f as i32)),
+        Helper::Int(i) => Ok(Some(i as i32)),
+        Helper::Null => Ok(None),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::Deserialize;
+
+    #[derive(Deserialize, Debug, PartialEq)]
+    struct Dummy {
+        #[serde(deserialize_with = "deserialize_option_string")]
+        val: Option<String>,
+    }
+
+    #[test]
+    fn test_deserialize_option_string() {
+        let cases = vec![
+            (r#"{"val": 4.8}"#, Some("4.8".to_string())),
+            (r#"{"val": "6.2"}"#, Some("6.2".to_string())),
+            (r#"{"val": 7}"#, Some("7".to_string())),
+            (r#"{"val": ""}"#, None),
+            (r#"{"val": "   "}"#, None),
+            (r#"{"val": null}"#, None),
+        ];
+
+        for (json_str, expected) in cases {
+            let parsed: Dummy = serde_json::from_str(json_str).unwrap();
+            assert_eq!(parsed.val, expected, "Failed for JSON: {}", json_str);
+        }
+    }
+}
