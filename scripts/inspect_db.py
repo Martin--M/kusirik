@@ -10,8 +10,12 @@ def main():
         print(f"Error: Database file does not exist at: {db_path}")
         return
 
+    db_size_bytes = os.path.getsize(db_path)
+    db_size_mb = db_size_bytes / (1024 * 1024)
+
     print(f"==================================================")
     print(f" IPTV Helper DB Summary: {db_path}")
+    print(f" Size on Disk: {db_size_mb:.2f} MB ({db_size_bytes:,} bytes)")
     print(f"==================================================")
     
     try:
@@ -51,7 +55,27 @@ def main():
         except sqlite3.OperationalError:
             print("Sync log table not found.")
 
-        # 3. Tables & Item Counts
+        # 3. Image Cache Stats
+        print("\n--- Image Cache Analysis ---")
+        try:
+            total_cached_urls = get_count("image_cache")
+            if isinstance(total_cached_urls, int):
+                cursor.execute("SELECT COUNT(DISTINCT data), SUM(LENGTH(data)) FROM image_cache")
+                unique_blobs, total_blob_bytes = cursor.fetchone()
+                total_blob_bytes = total_blob_bytes or 0
+                total_blob_mb = total_blob_bytes / (1024 * 1024)
+                duplicate_blobs = total_cached_urls - unique_blobs if unique_blobs else 0
+                
+                print(f"Cached Image URLs    : {total_cached_urls}")
+                print(f"Unique Image Blobs   : {unique_blobs}")
+                print(f"Duplicate Image Blobs: {duplicate_blobs} (same content, different URLs)")
+                print(f"Total Image Cache Size: {total_blob_mb:.2f} MB ({total_blob_bytes:,} bytes)")
+            else:
+                print("Image cache table not found.")
+        except Exception as e:
+            print(f"Failed to analyze image cache: {e}")
+
+        # 4. Tables & Item Counts
         print("\n--- Database Row Counts ---")
         tables = [
             "live_categories",
@@ -60,7 +84,8 @@ def main():
             "vod_streams",
             "series_categories",
             "series",
-            "epg_entries"
+            "epg_entries",
+            "image_cache"
         ]
         
         for table in tables:
