@@ -5,7 +5,6 @@ import { usePlayer } from '@/composables/usePlayer'
 import LiveChannelList from '@/components/live/LiveChannelList.vue'
 import CachedImage from '@/components/ui/CachedImage.vue'
 import type { LiveStream, LiveCategory } from '@/types/stream'
-import { invoke } from '@tauri-apps/api/core'
 import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
 import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
@@ -14,7 +13,6 @@ import { buildLiveUrl } from '@/lib/url-builder'
 const selectedCategoryId = ref<string>('all')
 const selectedStream = ref<LiveStream | null>(null)
 const searchQuery = ref('')
-const sortField = ref<'name' | 'tv_archive'>('name')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 
 const isMobileDetailOpen = ref(false)
@@ -88,24 +86,13 @@ const filteredStreams = computed(() => {
     )
   }
 
-  // Apply sort
+  // Apply sort (Alphabetical only)
   return [...result].sort((a, b) => {
-    if (sortField.value === 'name') {
-      const nameA = a.name || ''
-      const nameB = b.name || ''
-      return sortOrder.value === 'asc'
-        ? nameA.localeCompare(nameB)
-        : nameB.localeCompare(nameA)
-    } else if (sortField.value === 'tv_archive') {
-      const archA = a.tv_archive || 0
-      const archB = b.tv_archive || 0
-      if (archA !== archB) {
-        return sortOrder.value === 'asc' ? archA - archB : archB - archA
-      }
-      // fallback to name alphabetical
-      return (a.name || '').localeCompare(b.name || '')
-    }
-    return 0
+    const nameA = a.name || ''
+    const nameB = b.name || ''
+    return sortOrder.value === 'asc'
+      ? nameA.localeCompare(nameB)
+      : nameB.localeCompare(nameA)
   })
 })
 
@@ -149,7 +136,7 @@ async function copyUrl(stream: LiveStream) {
       format
     )
 
-    await navigator.clipboard.writeText(url)
+    await copyToSystemClipboard(url)
     showToast('URL copied to clipboard!', 'success')
   } catch (e) {
     console.error(e)
@@ -211,11 +198,13 @@ async function copyUrl(stream: LiveStream) {
           </div>
 
           <div class="sort-controls">
-            <select v-model="sortField" class="sort-select" aria-label="Sort Field">
-              <option value="name">Alphabetical</option>
-              <option value="tv_archive">Catch-up</option>
-            </select>
-            <button class="sort-direction-btn" @click="toggleSort" :title="`Sort Direction: ${sortOrder}`">
+            <button
+              class="sort-toggle-btn"
+              @click="toggleSort"
+              :title="`Sort Direction: ${sortOrder === 'asc' ? 'A to Z' : 'Z to A'}`"
+              aria-label="Toggle Alphabetical Sort Direction"
+            >
+              <span class="sort-text-arrow">{{ sortOrder === 'asc' ? 'A → Z' : 'Z → A' }}</span>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -529,8 +518,11 @@ async function copyUrl(stream: LiveStream) {
   align-items: center;
 }
 
-.sort-select {
-  padding: var(--spacing-2) 28px var(--spacing-2) var(--spacing-3);
+.sort-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background-color: rgba(15, 23, 42, 0.4);
@@ -540,34 +532,24 @@ async function copyUrl(stream: LiveStream) {
   font-weight: 600;
   cursor: pointer;
   outline: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  background-size: 14px;
-}
-
-[data-theme='light'] .sort-select {
-  background-color: rgba(255, 255, 255, 0.6);
-}
-
-.sort-direction-btn {
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  background-color: rgba(15, 23, 42, 0.4);
-  color: var(--color-text-muted);
-  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
-.sort-direction-btn:hover {
-  color: var(--color-text);
+[data-theme='light'] .sort-toggle-btn {
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.sort-toggle-btn:hover {
+  border-color: var(--color-primary);
   background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='light'] .sort-toggle-btn:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.sort-text-arrow {
+  font-weight: 700;
 }
 
 .sort-icon {

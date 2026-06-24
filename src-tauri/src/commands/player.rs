@@ -1,5 +1,5 @@
 #[tauri::command]
-pub fn launch_player(url: String) -> Result<(), String> {
+pub fn launch_player(_url: String) -> Result<(), String> {
     // Implemented in P6
     Ok(())
 }
@@ -28,7 +28,7 @@ pub fn copy_to_clipboard(text: String) -> Result<(), String> {
 
     // Try xclip (Linux X11)
     if let Ok(mut child) = Command::new("xclip")
-        .args(&["-selection", "clipboard"])
+        .args(["-selection", "clipboard"])
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::null())

@@ -16,5 +16,4 @@ export interface LiveStream {
   added: string | null
 }
 
-export type SortField = 'name' | 'category' | 'tv_archive'
 export type SortOrder = 'asc' | 'desc'
