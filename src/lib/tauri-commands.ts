@@ -93,5 +93,11 @@ export const setSetting = (key: string, value: string) =>
 export const launchPlayer = (url: string) =>
   invoke<void>('launch_player', { url })
 
+export const resolveStreamUrl = (url: string) =>
+  invoke<string>('resolve_stream_url', { url })
+
+export const launchAndroidIntent = (url: string) =>
+  invoke<void>('plugin:intent|launchPlayer', { url })
+
 export const copyToSystemClipboard = (text: string) =>
   invoke<void>('copy_to_clipboard', { text })

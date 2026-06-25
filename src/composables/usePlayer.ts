@@ -1,14 +1,36 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
-import { launchPlayer } from '@/lib/tauri-commands'
+import { launchPlayer, resolveStreamUrl, launchAndroidIntent } from '@/lib/tauri-commands'
 import { buildLiveUrl, buildMovieUrl, buildEpisodeUrl } from '@/lib/url-builder'
 import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
+import { useToastStore } from '@/stores/toast.store'
 
 export function usePlayer() {
   const profileStore = useProfileStore()
   const settingsStore = useSettingsStore()
+  const toastStore = useToastStore()
 
   const canPlay = computed(() => profileStore.hasProfile)
+
+  const isAndroid = computed(() => {
+    return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+  })
+
+  async function startPlayback(url: string) {
+    try {
+      if (isAndroid.value) {
+        // Android requires resolving the final URL with the actual password and launching it via Intent
+        const finalUrl = await resolveStreamUrl(url)
+        await launchAndroidIntent(finalUrl)
+      } else {
+        // Desktop handles resolution and process spawning inside launch_player
+        await launchPlayer(url)
+      }
+    } catch (e: any) {
+      console.error('Playback launch failed:', e)
+      toastStore.showToast(e?.message || e || 'Failed to launch external player.', 'error')
+    }
+  }
 
   async function playLive(streamId: MaybeRefOrGetter<number>) {
     if (!profileStore.profile) return
@@ -16,13 +38,12 @@ export function usePlayer() {
       {
         serverUrl: profileStore.profile.server_url,
         username: profileStore.profile.username,
-        password: '***', // Password should be handled properly in backend
+        password: '***',
       },
       toValue(streamId),
       settingsStore.liveFormat
     )
-    // Send to backend which will inject the actual password
-    await launchPlayer(url)
+    await startPlayback(url)
   }
 
   async function playMovie(streamId: MaybeRefOrGetter<number>, containerExtension: MaybeRefOrGetter<string>) {
@@ -36,7 +57,7 @@ export function usePlayer() {
       toValue(streamId),
       toValue(containerExtension)
     )
-    await launchPlayer(url)
+    await startPlayback(url)
   }
 
   async function playEpisode(streamId: MaybeRefOrGetter<number>, containerExtension: MaybeRefOrGetter<string>) {
@@ -50,7 +71,7 @@ export function usePlayer() {
       toValue(streamId),
       toValue(containerExtension)
     )
-    await launchPlayer(url)
+    await startPlayback(url)
   }
 
   return { canPlay, playLive, playMovie, playEpisode }
