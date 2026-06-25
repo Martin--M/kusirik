@@ -49,14 +49,14 @@ graph TD
 * **Tauri Command Wrappers (`src/lib/tauri-commands.ts`)**: Center of type-safe IPC calls. The UI calls these wrappers instead of invoking commands directly.
 * **useSync Composable (`src/composables/useSync.ts`)**: Listens to global Tauri events (`sync://started`, `sync://progress`, `sync://done`, `sync://error`) emitted by the backend to coordinate frontend transitions.
 * **Lazy Image Loader ([CachedImage.vue](file:///home/martin/dev/iptv-helper/src/components/ui/CachedImage.vue))**: Uses a browser `IntersectionObserver` to defer fetching logo and poster images from the backend/database until they enter the viewport. Properly handles cleanup and object URL revocation on unmount to prevent leaks.
-* **Virtualized Movie Grid ([MovieList.vue](file:///home/martin/dev/iptv-helper/src/components/movies/MovieList.vue))**: Calculates column count and row metrics dynamically via `ResizeObserver` to virtually render large collections of movies smoothly.
+* **Virtualized Media Grids ([MovieList.vue](file:///home/martin/dev/iptv-helper/src/components/movies/MovieList.vue), [SeriesList.vue](file:///home/martin/dev/iptv-helper/src/components/series/SeriesList.vue))**: Calculates columns and row metrics dynamically via `ResizeObserver` to virtually render large collections of movies and TV series. Utilizes a unified [ListRowItem.vue](file:///home/martin/dev/iptv-helper/src/components/ui/ListRowItem.vue) shared row component to display metadata uniformally in list views.
 
 ### 2. Backend Layer
-* **Tauri Command Handlers (`src-tauri/src/commands/`)**: Receives calls from the frontend, maps input variables, and routes commands (e.g., VOD queries, EPG, or player actions).
+* **Tauri Command Handlers (`src-tauri/src/commands/`)**: Receives calls from the frontend, maps input variables, and routes commands (e.g., VOD and Series queries, EPG, or player actions).
 * **Sync Engine (`src-tauri/src/sync/engine.rs`)**: Controls sequential caching of TV elements (`live_streams` $\rightarrow$ `vod_streams` $\rightarrow$ `series`). It handles SQLite connections and writes.
 * **Xtream Client (`src-tauri/src/api/client.rs`)**: Orchestrates calls to the server. Includes robust deserializers (`deserialize_option_string`, `deserialize_option_i32`) to coerce conflicting server datatypes (e.g., `"tv_archive": "1"` vs `1`).
-* **Unified Category Modules**: Utilizes [CategoryApi](file:///home/martin/dev/iptv-helper/src-tauri/src/api/common.rs) and the generic [query_categories_generic](file:///home/martin/dev/iptv-helper/src-tauri/src/db/common.rs) function to unify categories mapping and database queries for Live and VOD.
-* **On-Demand VOD Caching**: Backend command handler `get_vod_info` manages a local SQLite cache check in the `vod_info` table, fallback to API query, and subsequent database writes.
+* **Unified Category Modules**: Utilizes [CategoryApi](file:///home/martin/dev/iptv-helper/src-tauri/src/api/common.rs) and the generic [query_categories_generic](file:///home/martin/dev/iptv-helper/src-tauri/src/db/common.rs) function to unify categories mapping and database queries for Live, VOD, and Series.
+* **On-Demand VOD & TV Series Caching**: Backend command handlers check local SQLite cache tables (`vod_info` and `series_info`), fallback to Xtream API queries on miss, cache results to the DB, and return.
 * **System Clipboard Integration**: Due to frontend sandbox limitations, copy-to-clipboard operations are delegated to Rust commands on the backend to copy URLs and EPG information reliably.
 * **Rate Limiter**: Tracks a thread-safe `last_request_time: Mutex<Option<Instant>>`. Ensures that no requests fire within 2 seconds of each other, preventing client bans.
 
@@ -124,12 +124,12 @@ To avoid overwhelming the application memory and disk channels during rapid scro
 - Only then is the target URL requested. The backend fetches the image, stores it in the `image_cache` BLOB table, and returns a binary stream.
 - The frontend loads this into a local Object URL (`blob:http...`). When the component unmounts, the observer disconnects and the Object URL is explicitly revoked to free up memory.
 
-### 2. On-Demand VOD Caching Flow
-Rather than pre-syncing heavy, detailed metadata (such as cast, synopsis, plot, and background covers) for all movies in a playlist (which could be tens of thousands of items):
-1. The frontend invokes `get_vod_info` when opening a movie detail drawer.
-2. The Tauri Core intercepts the call and checks `vod_info` SQLite table.
+### 2. On-Demand VOD & TV Series Caching Flow
+Rather than pre-syncing heavy, detailed metadata (such as cast, synopsis, plot, background covers, and the nested seasons/episodes array) for all items in a playlist (which could be tens of thousands of records):
+1. The frontend invokes `get_vod_info` or `get_series_info` when opening a media detail drawer.
+2. The Tauri Core intercepts the call and checks the `vod_info` or `series_info` SQLite table.
 3. **Cache Hit**: Instantly returns cached JSON data.
-4. **Cache Miss**: Authenticates via keyring-stored credentials, queries the Xtream API, caches the results back to `vod_info` for future hits, and returns the data.
+4. **Cache Miss**: Authenticates via keyring-stored credentials, queries the Xtream API, caches the results back to the database (`vod_info` or `series_info`) for future hits, and returns the data.
 
 ### 3. Desktop/Mobile UI Simplification
 Large view components have been broken down:

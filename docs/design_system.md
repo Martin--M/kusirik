@@ -60,3 +60,11 @@ Combines the media detail layout (play/copy actions, metadata display, images lo
 
 ### 5. Application Toasts ([AppToast.vue](file:///home/martin/dev/iptv-helper/src/components/ui/AppToast.vue))
 Mounted at the root level in `App.vue`. Listens to the global `useToastStore` to display smooth slide-in notifications with a auto-timeout of 3 seconds.
+
+### 6. Cached Image ([CachedImage.vue](file:///home/martin/dev/iptv-helper/src/components/ui/CachedImage.vue))
+Wraps image loading with placeholder fallbacks and offline BLOB cache lookup capabilities, powered by `IntersectionObserver` for lazy loading.
+
+### 7. List Row Item ([ListRowItem.vue](file:///home/martin/dev/iptv-helper/src/components/ui/ListRowItem.vue))
+A unified list row component shared between movie and series listing layouts.
+- **Features**: Structured layout with a cover image, title, rating with custom inline SVG star (visible only when rated > 0), release year, selection highlights, and hover transitions.
+
