@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import type { VodStream } from '@/types/vod'
 import CachedImage from '@/components/ui/CachedImage.vue'
+import IconStar from '@/components/icons/IconStar.vue'
+import IconPlay from '@/components/icons/IconPlay.vue'
 
 const props = defineProps<{
   movie: VodStream
@@ -47,16 +49,12 @@ const displayRating = computed(() => {
         :fallback-text="cleanTitle"
       />
       <div v-if="displayRating" class="rating-badge">
-        <svg class="star-icon" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-        </svg>
+        <IconStar class="star-icon" />
         <span>{{ displayRating }}</span>
       </div>
       <div class="card-overlay">
         <button class="play-overlay-btn" @click.stop="$emit('play', movie)" aria-label="Play Movie">
-          <svg viewBox="0 0 24 24" fill="currentColor" class="play-icon">
-            <path d="M8 5v14l11-7z" />
-          </svg>
+          <IconPlay class="play-icon" />
         </button>
       </div>
     </div>

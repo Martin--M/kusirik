@@ -12,6 +12,7 @@ import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useToastStore } from '@/stores/toast.store'
 import { buildLiveUrl } from '@/lib/url-builder'
+import IconLive from '@/components/icons/IconLive.vue'
 
 const selectedCategoryId = ref<string>('all')
 const selectedStream = ref<LiveStream | null>(null)
@@ -225,10 +226,7 @@ async function copyUrl(stream: LiveStream) {
       <template #no-selection>
         <div class="no-selection">
           <div class="tv-art">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
-              <rect x="2" y="7" width="20" height="15" rx="2" ry="2" />
-              <polyline points="17 2 12 7 7 2" />
-            </svg>
+            <IconLive />
           </div>
           <p>Select a channel to view EPG details and start playback.</p>
         </div>

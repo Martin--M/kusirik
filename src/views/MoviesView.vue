@@ -11,6 +11,8 @@ import { useProfileStore } from '@/stores/profile.store'
 import { useToastStore } from '@/stores/toast.store'
 import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
 import { buildMovieUrl } from '@/lib/url-builder'
+import IconStar from '@/components/icons/IconStar.vue'
+import IconTVGrid from '@/components/icons/IconTVGrid.vue'
 
 const selectedCategoryId = ref<string>('all')
 const selectedStream = ref<VodStream | null>(null)
@@ -214,9 +216,7 @@ async function copyUrl(movie: VodStream) {
     >
       <template #header-meta-mobile>
         <span v-if="selectedStream?.rating && parseFloat(selectedStream.rating) > 0" class="rating-text-chip">
-          <svg viewBox="0 0 24 24" fill="currentColor" style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;">
-            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-          </svg>
+          <IconStar style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;" />
           <span>{{ parseFloat(selectedStream.rating).toFixed(1) }}</span>
         </span>
       </template>
@@ -266,10 +266,7 @@ async function copyUrl(movie: VodStream) {
       <template #no-selection>
         <div class="no-selection">
           <div class="tv-art">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
-              <rect x="2" y="4" width="20" height="16" rx="2" ry="2" />
-              <path d="M12 17h.01M17 17h.01M7 17h.01 M12 12h.01M17 12h.01M7 12h.01 M12 7h.01M17 7h.01M7 7h.01" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
+            <IconTVGrid />
           </div>
           <p>Select a movie to load descriptions and start playback.</p>
         </div>

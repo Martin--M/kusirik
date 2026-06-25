@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import type { Series } from '@/types/series'
 import CachedImage from '@/components/ui/CachedImage.vue'
+import IconStar from '@/components/icons/IconStar.vue'
+import IconEye from '@/components/icons/IconEye.vue'
 
 const props = defineProps<{
   series: Series
@@ -53,17 +55,12 @@ const displayRating = computed(() => {
         :fallback-text="cleanTitle"
       />
       <div v-if="displayRating" class="rating-badge">
-        <svg class="star-icon" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-        </svg>
+        <IconStar class="star-icon" />
         <span>{{ displayRating }}</span>
       </div>
       <div class="card-overlay">
         <button class="play-overlay-btn" @click.stop="$emit('play', series)" aria-label="Open Series Details">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="detail-icon">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
+          <IconEye class="detail-icon" />
         </button>
       </div>
     </div>

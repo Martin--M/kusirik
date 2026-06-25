@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { LiveStream } from '@/types/stream'
 import CachedImage from '@/components/ui/CachedImage.vue'
+import IconClock from '@/components/icons/IconClock.vue'
+import IconPlay from '@/components/icons/IconPlay.vue'
 
 defineProps<{
   stream: LiveStream
@@ -35,10 +37,7 @@ defineEmits<{
       <div class="name-container">
         <span class="channel-name">{{ stream.name || 'Unnamed Channel' }}</span>
         <span v-if="stream.tv_archive === 1" class="archive-badge" title="Archive / Catch-up Available">
-          <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
+          <IconClock class="badge-icon" />
           <span>Catch-up</span>
         </span>
       </div>
@@ -47,9 +46,7 @@ defineEmits<{
 
     <div class="action-cell">
       <button class="play-btn" @click.stop="$emit('play', stream)" title="Play Channel">
-        <svg viewBox="0 0 24 24" fill="currentColor" class="play-icon">
-          <polygon points="5 3 19 12 5 21 5 3" />
-        </svg>
+        <IconPlay class="play-icon" />
       </button>
     </div>
   </div>

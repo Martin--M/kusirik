@@ -4,6 +4,7 @@ import { useVirtualizer } from '@tanstack/vue-virtual'
 import type { VodStream } from '@/types/vod'
 import MovieCard from './MovieCard.vue'
 import ListRowItem from '@/components/ui/ListRowItem.vue'
+import IconMovies from '@/components/icons/IconMovies.vue'
 
 const props = defineProps<{
   streams: VodStream[]
@@ -158,9 +159,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <div v-else class="empty-state">
-      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M7 4v16M17 4v16M3 8h18M3 16h18" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <IconMovies class="empty-icon" stroke-width="1.5" />
       <p>No movies found matching your filters.</p>
     </div>
   </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import IconChevron from '../icons/IconChevron.vue'
 
 defineProps<{
   modelValue: string
@@ -44,9 +45,7 @@ onBeforeUnmount(() => {
       :title="ariaLabel || 'Select Option'"
     >
       <span>{{ options[modelValue] }}</span>
-      <svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
+      <IconChevron direction="down" class="dropdown-chevron" />
     </button>
     <transition name="dropdown-fade">
       <ul v-if="isOpen" class="dropdown-menu">

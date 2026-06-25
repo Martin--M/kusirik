@@ -11,6 +11,11 @@ import { useProfileStore } from '@/stores/profile.store'
 import { useToastStore } from '@/stores/toast.store'
 import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
 import { buildEpisodeUrl } from '@/lib/url-builder'
+import IconStar from '@/components/icons/IconStar.vue'
+import IconChevron from '@/components/icons/IconChevron.vue'
+import IconPlay from '@/components/icons/IconPlay.vue'
+import IconCopy from '@/components/icons/IconCopy.vue'
+import IconTVPlus from '@/components/icons/IconTVPlus.vue'
 
 const selectedCategoryId = ref<string>('all')
 const selectedSeries = ref<Series | null>(null)
@@ -242,9 +247,7 @@ async function copyEpisodeUrl(episode: any) {
     >
       <template #header-meta-mobile>
         <span v-if="selectedSeries?.rating && parseFloat(selectedSeries.rating) > 0" class="rating-text-chip">
-          <svg viewBox="0 0 24 24" fill="currentColor" style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;">
-            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-          </svg>
+          <IconStar style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;" />
           <span>{{ parseFloat(selectedSeries.rating).toFixed(1) }}</span>
         </span>
       </template>
@@ -292,9 +295,7 @@ async function copyEpisodeUrl(episode: any) {
               <button class="season-header" @click="toggleSeason(seasonKey)">
                 <span class="season-title">Season {{ seasonKey }}</span>
                 <span class="episode-count">{{ episodesList.length }} Episodes</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="chevron-icon">
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
+                <IconChevron class="chevron-icon" />
               </button>
 
               <!-- Episodes List -->
@@ -315,15 +316,11 @@ async function copyEpisodeUrl(episode: any) {
                   </div>
                   <div class="episode-actions">
                     <button class="action-btn play-btn" @click="handlePlayEpisode(episode)">
-                      <svg viewBox="0 0 24 24" fill="currentColor" class="action-icon">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
+                      <IconPlay class="action-icon" />
                       <span>Play</span>
                     </button>
                     <button class="action-btn copy-btn" @click="copyEpisodeUrl(episode)" title="Copy URL">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon">
-                        <path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
+                      <IconCopy class="action-icon" />
                     </button>
                   </div>
                 </div>
@@ -342,11 +339,7 @@ async function copyEpisodeUrl(episode: any) {
       <template #no-selection>
         <div class="no-selection">
           <div class="tv-art">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
-              <rect x="2" y="7" width="20" height="15" rx="2" ry="2" />
-              <path d="M17 2l-5 5-5-5" stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M8 15h8M12 11v8" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
+            <IconTVPlus />
           </div>
           <p>Select a TV series to load seasons, episodes, and descriptions.</p>
         </div>

@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import CustomSelect from './CustomSelect.vue'
+import IconSearch from '../icons/IconSearch.vue'
+import IconList from '../icons/IconList.vue'
+import IconGrid from '../icons/IconGrid.vue'
+import IconSort from '../icons/IconSort.vue'
 
 const props = defineProps<{
   searchQuery: string
@@ -25,10 +29,7 @@ function toggleSort() {
 <template>
   <div class="search-sort-bar">
     <div class="search-wrapper">
-      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="11" cy="11" r="8" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-      </svg>
+      <IconSearch class="search-icon" />
       <input
         :value="searchQuery"
         @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
@@ -47,17 +48,8 @@ function toggleSort() {
         @click="emit('update:isGridView', !isGridView)"
         :title="isGridView ? 'Switch to List View' : 'Switch to Grid View'"
       >
-        <svg v-if="isGridView" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="layout-icon">
-          <line x1="4" y1="6" x2="20" y2="6" />
-          <line x1="4" y1="12" x2="20" y2="12" />
-          <line x1="4" y1="18" x2="20" y2="18" />
-        </svg>
-        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="layout-icon">
-          <rect x="3" y="3" width="7" height="7" />
-          <rect x="14" y="3" width="7" height="7" />
-          <rect x="14" y="14" width="7" height="7" />
-          <rect x="3" y="14" width="7" height="7" />
-        </svg>
+        <IconList v-if="isGridView" class="layout-icon" />
+        <IconGrid v-else class="layout-icon" />
       </button>
 
       <!-- Custom Sort Field Dropdown (optional) -->
@@ -75,17 +67,10 @@ function toggleSort() {
         @click="toggleSort"
         :title="`Sort Direction: ${sortOrder === 'asc' ? 'Ascending' : 'Descending'}`"
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
+        <IconSort
           class="sort-icon"
           :class="{ reversed: sortOrder === 'desc' }"
-        >
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <polyline points="19 12 12 19 5 12" />
-        </svg>
+        />
       </button>
     </div>
   </div>

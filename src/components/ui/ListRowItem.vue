@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import CachedImage from './CachedImage.vue'
+import IconStar from '../icons/IconStar.vue'
+import IconArrowRight from '../icons/IconArrowRight.vue'
 
 defineProps<{
   name?: string | null
@@ -33,18 +35,14 @@ defineEmits<{
       <h3 class="list-title" :title="name || ''">{{ name || 'Untitled' }}</h3>
       <div class="list-meta">
         <span v-if="rating" class="list-rating">
-          <svg viewBox="0 0 24 24" fill="currentColor" class="star-icon">
-            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-          </svg>
+          <IconStar class="star-icon" />
           <span>{{ rating }}</span>
         </span>
         <span v-if="year" class="list-year">{{ year }}</span>
       </div>
     </div>
     <button class="list-play-btn" @click.stop="$emit('play')" aria-label="Open Details">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="play-icon">
-        <path d="M5 12h14M12 5l7 7-7 7" />
-      </svg>
+      <IconArrowRight class="play-icon" />
     </button>
   </div>
 </template>

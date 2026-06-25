@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import type { LiveStream } from '@/types/stream'
 import ChannelRow from '@/components/live/ChannelRow.vue'
+import IconLive from '@/components/icons/IconLive.vue'
 
 const props = defineProps<{
   streams: LiveStream[]
@@ -59,9 +60,7 @@ const rowVirtualizer = useVirtualizer(
       </div>
     </div>
     <div v-else class="empty-state">
-      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v10a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm1 1v8h14V6H5z M12 16v2 M7 18h10" />
-      </svg>
+      <IconLive class="empty-icon" stroke-width="1.5" />
       <p>No channels found matching the filters.</p>
     </div>
   </div>
