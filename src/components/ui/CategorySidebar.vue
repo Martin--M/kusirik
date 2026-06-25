@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 interface CategoryItem {
   category_id: string
   category_name: string
@@ -14,26 +16,59 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'select', id: string): void
 }>()
+
+const sidebarWidth = ref(200)
+const isResizing = ref(false)
+
+function startResize(e: MouseEvent) {
+  isResizing.value = true
+  const startX = e.clientX
+  const startWidth = sidebarWidth.value
+
+  function doResize(moveEvent: MouseEvent) {
+    const delta = moveEvent.clientX - startX
+    const newWidth = startWidth + delta
+    // Enforce limits: min 120px, max 350px
+    sidebarWidth.value = Math.max(120, Math.min(350, newWidth))
+  }
+
+  function stopResize() {
+    isResizing.value = false
+    window.removeEventListener('mousemove', doResize)
+    window.removeEventListener('mouseup', stopResize)
+  }
+
+  window.addEventListener('mousemove', doResize)
+  window.addEventListener('mouseup', stopResize)
+}
 </script>
 
 <template>
   <!-- Sidebar Layout (Desktop) -->
-  <aside v-if="layout === 'sidebar'" class="categories-sidebar desktop-only">
-    <div v-if="isLoading" class="loading-sidebar">
-      <div v-for="i in 8" :key="i" class="skeleton-pill"></div>
-    </div>
-    <div v-else class="categories-list">
-      <button
-        v-for="cat in categories"
-        :key="cat.category_id"
-        class="category-btn"
-        :class="{ active: selectedId === cat.category_id }"
-        @click="emit('select', cat.category_id)"
-      >
-        <span class="category-name">{{ cat.category_name }}</span>
-      </button>
-    </div>
-  </aside>
+  <div
+    v-if="layout === 'sidebar'"
+    class="sidebar-wrapper desktop-only"
+    :style="{ width: `${sidebarWidth}px` }"
+  >
+    <aside class="categories-sidebar">
+      <div v-if="isLoading" class="loading-sidebar">
+        <div v-for="i in 8" :key="i" class="skeleton-pill"></div>
+      </div>
+      <div v-else class="categories-list">
+        <button
+          v-for="cat in categories"
+          :key="cat.category_id"
+          class="category-btn"
+          :class="{ active: selectedId === cat.category_id }"
+          @click="emit('select', cat.category_id)"
+        >
+          <span class="category-name">{{ cat.category_name }}</span>
+        </button>
+      </div>
+    </aside>
+    <!-- Resize Handle -->
+    <div class="resize-handle" @mousedown.prevent="startResize"></div>
+  </div>
 
   <!-- Chips Layout (Mobile) -->
   <div v-else-if="layout === 'chips'" class="mobile-categories mobile-only">
@@ -51,17 +86,40 @@ const emit = defineEmits<{
 
 <style scoped>
 /* Desktop Sidebar Styles */
+.sidebar-wrapper {
+  position: relative;
+  height: 100%;
+  flex-shrink: 0;
+  display: flex;
+}
+
 .categories-sidebar {
-  width: 260px;
+  width: 100%;
   background-color: rgba(30, 41, 59, 0.4);
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   padding: var(--spacing-4);
-  flex-shrink: 0;
   height: 100%;
   box-sizing: border-box;
+}
+
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color var(--transition-fast) ease;
+  z-index: 100;
+}
+
+.resize-handle:hover,
+.categories-sidebar:active .resize-handle {
+  background-color: var(--color-primary);
 }
 
 [data-theme='light'] .categories-sidebar {

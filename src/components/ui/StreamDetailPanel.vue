@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import CachedImage from './CachedImage.vue'
 
 withDefaults(
@@ -24,54 +25,88 @@ const emit = defineEmits<{
   (e: 'play'): void
   (e: 'copy'): void
 }>()
+
+const sidebarWidth = ref(320)
+const isResizing = ref(false)
+
+function startResize(e: MouseEvent) {
+  isResizing.value = true
+  const startX = e.clientX
+  const startWidth = sidebarWidth.value
+
+  function doResize(moveEvent: MouseEvent) {
+    const delta = moveEvent.clientX - startX
+    const newWidth = startWidth - delta
+    // Enforce limits: min 280px, max 1000px
+    sidebarWidth.value = Math.max(280, Math.min(1000, newWidth))
+  }
+
+  function stopResize() {
+    isResizing.value = false
+    window.removeEventListener('mousemove', doResize)
+    window.removeEventListener('mouseup', stopResize)
+  }
+
+  window.addEventListener('mousemove', doResize)
+  window.addEventListener('mouseup', stopResize)
+}
 </script>
 
 <template>
   <!-- Desktop Sidebar Panel -->
+  <!-- Desktop Sidebar Panel -->
   <transition name="slide-fade">
-    <aside v-if="stream" class="details-sidebar desktop-only">
-      <div class="details-panel">
-        <button class="close-details-btn" @click="emit('close')" title="Close Details">×</button>
-        
-        <div class="details-header">
-          <div class="details-poster">
-            <CachedImage
-              :src="stream.stream_icon"
-              :alt="stream.name || 'Stream Image'"
-              :fallback-text="stream.name || ''"
-            />
+    <div
+      v-if="stream"
+      class="details-sidebar-wrapper desktop-only"
+      :style="{ width: `${sidebarWidth}px` }"
+    >
+      <aside class="details-sidebar">
+        <div class="details-panel" :style="{ width: `${sidebarWidth}px` }">
+          <button class="close-details-btn" @click="emit('close')" title="Close Details">×</button>
+          
+          <div class="details-header">
+            <div class="details-poster">
+              <CachedImage
+                :src="stream.stream_icon"
+                :alt="stream.name || 'Stream Image'"
+                :fallback-text="stream.name || ''"
+              />
+            </div>
+            <h3 class="stream-name-title">{{ stream.name || 'Unnamed Stream' }}</h3>
+            <!-- Slot for subtitle, badges or extra header content -->
+            <slot name="header-meta"></slot>
           </div>
-          <h3 class="stream-name-title">{{ stream.name || 'Unnamed Stream' }}</h3>
-          <!-- Slot for subtitle, badges or extra header content -->
-          <slot name="header-meta"></slot>
-        </div>
 
-        <!-- Scrollable details list -->
-        <div class="details-scrollable-body">
-          <slot></slot>
-        </div>
+          <!-- Scrollable details list -->
+          <div class="details-scrollable-body">
+            <slot></slot>
+          </div>
 
-        <div v-if="showActions" class="action-buttons">
-          <button class="btn btn-primary" @click="emit('play')">
-            <slot name="play-icon">
-              <svg viewBox="0 0 24 24" fill="currentColor" class="btn-icon">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-            </slot>
-            {{ playButtonText || 'Play' }}
-          </button>
-          <button class="btn btn-secondary" @click="emit('copy')">
-            <slot name="copy-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-              </svg>
-            </slot>
-            {{ copyButtonText || 'Copy URL' }}
-          </button>
+          <div v-if="showActions" class="action-buttons">
+            <button class="btn btn-primary" @click="emit('play')">
+              <slot name="play-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor" class="btn-icon">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+              </slot>
+              {{ playButtonText || 'Play' }}
+            </button>
+            <button class="btn btn-secondary" @click="emit('copy')">
+              <slot name="copy-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                </svg>
+              </slot>
+              {{ copyButtonText || 'Copy URL' }}
+            </button>
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+      <!-- Resize Handle -->
+      <div class="resize-handle" @mousedown.prevent="startResize"></div>
+    </div>
   </transition>
 
   <!-- Mobile Bottom Sheet Details Panel -->
@@ -116,16 +151,39 @@ const emit = defineEmits<{
 
 <style scoped>
 /* Details Sidebar (Desktop) */
+.details-sidebar-wrapper {
+  position: relative;
+  height: 100%;
+  flex-shrink: 0;
+  display: flex;
+  transition: width var(--transition-normal) ease, opacity var(--transition-normal) ease, transform var(--transition-normal) ease;
+}
+
 .details-sidebar {
-  width: 320px;
+  width: 100%;
   background-color: rgba(30, 41, 59, 0.4);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  flex-shrink: 0;
   height: 100%;
   box-sizing: border-box;
-  transition: width var(--transition-normal) ease, opacity var(--transition-normal) ease, transform var(--transition-normal) ease;
+}
+
+.resize-handle {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color var(--transition-fast) ease;
+  z-index: 100;
+}
+
+.resize-handle:hover,
+.details-sidebar-wrapper:active .resize-handle {
+  background-color: var(--color-primary);
 }
 
 [data-theme='light'] .details-sidebar {
@@ -138,7 +196,6 @@ const emit = defineEmits<{
   padding: var(--spacing-6);
   gap: var(--spacing-6);
   position: relative;
-  width: 320px;
   box-sizing: border-box;
 }
 
@@ -243,6 +300,10 @@ const emit = defineEmits<{
 .slide-fade-leave-active {
   transition: width var(--transition-normal) ease, opacity var(--transition-normal) ease, transform var(--transition-normal) ease;
   overflow: hidden;
+}
+.slide-fade-enter-active .details-panel,
+.slide-fade-leave-active .details-panel {
+  width: 320px !important;
 }
 .slide-fade-enter-from,
 .slide-fade-leave-to {
