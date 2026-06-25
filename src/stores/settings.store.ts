@@ -8,7 +8,7 @@ export type Theme = 'dark' | 'light'
 
 export const useSettingsStore = defineStore('settings', () => {
   const theme = ref<Theme>('dark')
-  const playerWindows = ref<string>('C:\\Program Files\\VideoLAN\\VLC\\vlc.exe')
+  const playerWindows = ref<string>('')
   const playerAndroid = ref<string>('') // empty = system chooser
   const allowedFormats = ref<StreamFormat[]>(['ts'])
   const liveFormatOverride = ref<StreamFormat | null>(null)
@@ -58,6 +58,16 @@ export const useSettingsStore = defineStore('settings', () => {
     await setSetting('live_format_override', fmt ?? '')
   }
 
+  async function setPlayerAndroid(pkg: string) {
+    playerAndroid.value = pkg
+    await setSetting('player_android', pkg)
+  }
+
+  async function setAllowedFormats(fmts: StreamFormat[]) {
+    allowedFormats.value = fmts
+    await setSetting('allowed_formats', JSON.stringify(fmts))
+  }
+
   function applyTheme() {
     document.documentElement.setAttribute('data-theme', theme.value)
   }
@@ -78,6 +88,8 @@ export const useSettingsStore = defineStore('settings', () => {
     load,
     setTheme,
     setPlayerWindows,
+    setPlayerAndroid,
+    setAllowedFormats,
     setLiveFormatOverride,
     applyTheme,
     toggleSidebar,
