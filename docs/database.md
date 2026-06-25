@@ -126,6 +126,13 @@ erDiagram
         text title
         text description
     }
+
+    image_cache {
+        text url PK
+        blob data
+        text content_type
+        text fetched_at
+    }
 ```
 
 ---
@@ -169,3 +176,29 @@ Stores TV series and seasons. `series_info` caches seasons and episode JSON arra
 
 ### `epg_entries`
 Stores electronic program guide listings parsed from external sources. Starts and stops are stored in UTC ISO 8601 formats, indexed for rapid channel EPG listings.
+
+### `image_cache`
+Stores cached images (e.g. logos and posters) downloaded from external stream URLs. Storing images locally as binary BLOBs allows the application to serve images instantly and work offline.
+* **`url`** (`TEXT PRIMARY KEY`): The source image URL.
+* **`data`** (`BLOB`): Raw binary image bytes.
+* **`content_type`** (`TEXT`): HTTP `Content-Type` header (MIME type) detected when downloaded (e.g. `image/png`).
+* **`fetched_at`** (`TEXT`): ISO 8601 timestamp of when the image was fetched and cached.
+
+---
+
+## Database Inspector Script
+
+The project provides a utility script [inspect_db.py](file:///home/martin/dev/iptv-helper/scripts/inspect_db.py) to inspect the local database status, query row counts, and check the performance of the image cache.
+
+### Features
+- Reports the database file size on disk.
+- Summarizes the active configuration profiles.
+- Outputs sync logs, including success/failure history.
+- Performs cache analysis (counting total URLs, unique image blobs, and duplicate blobs to detect duplicate image storage on different urls).
+- Prints row counts for all major tables.
+
+### Usage
+Run the script using python3:
+```bash
+python3 scripts/inspect_db.py
+```
