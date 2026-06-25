@@ -31,7 +31,25 @@ pub fn launch_player(state: State<'_, DbConn>, url: String) -> Result<(), String
             .map_err(|e| e.to_string())?
             .unwrap_or_default();
 
-        if !player_path.is_empty() && Command::new(&player_path).arg(&final_url).spawn().is_ok() {
+        #[allow(unused_mut)]
+        let mut final_player_path = player_path;
+        if final_player_path.is_empty() {
+            #[cfg(target_os = "windows")]
+            {
+                let default_paths = [
+                    "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe",
+                    "C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe",
+                ];
+                for path in default_paths {
+                    if std::path::Path::new(path).exists() {
+                        final_player_path = path.to_string();
+                        break;
+                    }
+                }
+            }
+        }
+
+        if !final_player_path.is_empty() && Command::new(&final_player_path).arg(&final_url).spawn().is_ok() {
             return Ok(());
         }
 
