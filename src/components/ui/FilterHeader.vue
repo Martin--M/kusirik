@@ -5,14 +5,20 @@ import IconList from '../icons/IconList.vue'
 import IconGrid from '../icons/IconGrid.vue'
 import IconSort from '../icons/IconSort.vue'
 
-const props = defineProps<{
-  searchQuery: string
-  searchPlaceholder?: string
-  sortField?: string
-  sortLabels?: Record<string, string>
-  sortOrder: 'asc' | 'desc'
-  isGridView?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    searchQuery: string
+    searchPlaceholder?: string
+    sortField?: string
+    sortLabels?: Record<string, string>
+    sortOrder: 'asc' | 'desc'
+    isGridView?: boolean
+    showLayoutToggle?: boolean
+  }>(),
+  {
+    showLayoutToggle: false
+  }
+)
 
 const emit = defineEmits<{
   (e: 'update:searchQuery', val: string): void
@@ -43,7 +49,7 @@ function toggleSort() {
     <div class="sort-controls">
       <!-- Grid/List Toggle Button (optional) -->
       <button
-        v-if="isGridView !== undefined"
+        v-if="showLayoutToggle"
         class="layout-toggle-btn"
         @click="emit('update:isGridView', !isGridView)"
         :title="isGridView ? 'Switch to List View' : 'Switch to Grid View'"

@@ -181,6 +181,7 @@ async function copyUrl(movie: VodStream) {
           v-model:sort-order="sortOrder"
           v-model:is-grid-view="isGridView"
           :sort-labels="sortLabels"
+          show-layout-toggle
           search-placeholder="Search movies by name..."
         />
       </div>

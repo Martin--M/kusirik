@@ -215,6 +215,7 @@ async function copyEpisodeUrl(episode: any) {
           v-model:sort-order="sortOrder"
           v-model:is-grid-view="isGridView"
           :sort-labels="sortLabels"
+          show-layout-toggle
           search-placeholder="Search series by name..."
         />
       </div>
