@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { LiveStream } from '@/types/stream'
 import CachedImage from '@/components/ui/CachedImage.vue'
 import IconClock from '@/components/icons/IconClock.vue'
 import IconPlay from '@/components/icons/IconPlay.vue'
+import { useEpg } from '@/composables/useEpg'
 
-defineProps<{
+const props = defineProps<{
   stream: LiveStream
   isSelected: boolean
   index: number
@@ -14,6 +16,31 @@ defineEmits<{
   (e: 'select', stream: LiveStream): void
   (e: 'play', stream: LiveStream): void
 }>()
+
+// Fetch EPG — narrow window: 1h back, 1h forward (captures current programme)
+const { data: epgEntries } = useEpg(
+  () => props.stream.epg_channel_id,
+  1,
+  1,
+)
+
+const nowMs = Date.now()
+
+const nowPlaying = computed(() => {
+  if (!epgEntries.value?.length) return null
+  return epgEntries.value.find(e => {
+    const start = new Date(e.start).getTime()
+    const stop  = new Date(e.stop).getTime()
+    return start <= nowMs && nowMs < stop
+  }) ?? null
+})
+
+const progress = computed(() => {
+  if (!nowPlaying.value) return 0
+  const start = new Date(nowPlaying.value.start).getTime()
+  const stop  = new Date(nowPlaying.value.stop).getTime()
+  return Math.min(100, Math.max(0, ((nowMs - start) / (stop - start)) * 100))
+})
 </script>
 
 <template>
@@ -41,7 +68,18 @@ defineEmits<{
           <span>Catch-up</span>
         </span>
       </div>
-      <div class="epg-placeholder">No EPG data available (Sync to load)</div>
+
+      <!-- Now-playing strip -->
+      <template v-if="nowPlaying">
+        <div class="epg-now">
+          <span class="epg-title">{{ nowPlaying.title ?? 'Unknown programme' }}</span>
+        </div>
+        <div class="epg-bar-track">
+          <div class="epg-bar-fill" :style="{ width: progress + '%' }" />
+        </div>
+      </template>
+      <div v-else-if="!stream.epg_channel_id" class="epg-placeholder">No EPG ID</div>
+      <div v-else class="epg-placeholder">No EPG data</div>
     </div>
 
     <div class="action-cell">
@@ -148,11 +186,45 @@ defineEmits<{
 }
 
 .epg-placeholder {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  opacity: 0.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.epg-now {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.epg-title {
+  font-size: 0.78rem;
   color: var(--color-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.epg-bar-track {
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+[data-theme='light'] .epg-bar-track {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.epg-bar-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 9999px;
+  transition: width 1s linear;
 }
 
 .action-cell {

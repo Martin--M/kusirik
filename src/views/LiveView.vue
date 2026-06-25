@@ -127,6 +127,75 @@ async function copyUrl(stream: LiveStream) {
     toastStore.showToast('Failed to copy URL.', 'error')
   }
 }
+
+// ─── EPG guide setup ─────────────────────────────────────────────────────────
+import { useEpg } from '@/composables/useEpg'
+
+const selectedEpgChannelId = computed(() => selectedStream.value?.epg_channel_id || null)
+const { data: epgData, isLoading: isLoadingEpg } = useEpg(selectedEpgChannelId)
+
+const now = ref(new Date())
+// Update "now" timer to refresh progress bar
+const timer = setInterval(() => {
+  now.value = new Date()
+}, 30000)
+
+// Clean up timer on unmount
+import { onUnmounted } from 'vue'
+onUnmounted(() => {
+  clearInterval(timer)
+})
+
+const currentProgram = computed(() => {
+  if (!epgData.value) return null
+  return epgData.value.find((entry) => {
+    const start = new Date(entry.start)
+    const stop = new Date(entry.stop)
+    return start <= now.value && stop >= now.value
+  }) || null
+})
+
+const currentProgramProgress = computed(() => {
+  if (!currentProgram.value) return 0
+  const start = new Date(currentProgram.value.start).getTime()
+  const stop = new Date(currentProgram.value.stop).getTime()
+  const current = now.value.getTime()
+  if (stop === start) return 0
+  const progress = ((current - start) / (stop - start)) * 100
+  return Math.max(0, Math.min(100, progress))
+})
+
+const nextProgram = computed(() => {
+  if (!epgData.value) return null
+  const futurePrograms = epgData.value.filter((entry) => {
+    const start = new Date(entry.start)
+    return start > now.value
+  })
+  return futurePrograms[0] || null
+})
+
+const upcomingPrograms = computed(() => {
+  if (!epgData.value) return []
+  const futurePrograms = epgData.value.filter((entry) => {
+    const start = new Date(entry.start)
+    return start > now.value
+  })
+  if (futurePrograms.length > 1) {
+    return futurePrograms.slice(1)
+  }
+  return []
+})
+
+function formatEpgTime(dateStr: string): string {
+  try {
+    const date = new Date(dateStr)
+    const h = String(date.getHours()).padStart(2, '0')
+    const m = String(date.getMinutes()).padStart(2, '0')
+    return `${h}:${m}`
+  } catch (e) {
+    return ''
+  }
+}
 </script>
 
 <template>
@@ -206,20 +275,55 @@ async function copyUrl(stream: LiveStream) {
       <!-- Program guide elements inside detail layout -->
       <div class="epg-box">
         <h4 class="section-subtitle">Program Guide</h4>
-        
-        <div class="epg-placeholder-card active">
-          <div class="epg-time">Now Playing</div>
-          <div class="epg-title">EPG Data Sync Pending</div>
-          <div class="epg-desc">
-            A full program guide will populate here once the EPG sync (xmltv) has run. Keep IPTV Helper open or start a sync in Settings.
-          </div>
-          <div class="progress-bar-placeholder"></div>
+
+        <div v-if="isLoadingEpg" class="epg-loading">
+          <span class="spinner small"></span>
+          <span>Loading guide info...</span>
         </div>
 
-        <div class="epg-placeholder-card upcoming">
-          <div class="epg-time">Next Program</div>
-          <div class="epg-title">Upcoming Guide Info</div>
-          <div class="epg-desc">Details of the next scheduled broadcasts will be fetched automatically.</div>
+        <div v-else-if="!currentProgram && !nextProgram" class="epg-no-data">
+          <p>No guide details available for this channel.</p>
+        </div>
+
+        <div v-else>
+          <!-- Now Playing Program Card -->
+          <div v-if="currentProgram" class="epg-placeholder-card active">
+            <div class="epg-time">
+              Now Playing ({{ formatEpgTime(currentProgram.start) }} - {{ formatEpgTime(currentProgram.stop) }})
+            </div>
+            <div class="epg-title">{{ currentProgram.title }}</div>
+            <div v-if="currentProgram.description" class="epg-desc">
+              {{ currentProgram.description }}
+            </div>
+            <div class="progress-bar-placeholder" :title="`${Math.round(currentProgramProgress)}% elapsed`">
+              <div class="progress-bar-fill" :style="{ width: `${currentProgramProgress}%` }"></div>
+            </div>
+          </div>
+
+          <!-- Next Program Card -->
+          <div v-if="nextProgram" class="epg-placeholder-card upcoming">
+            <div class="epg-time">
+              Next Program ({{ formatEpgTime(nextProgram.start) }} - {{ formatEpgTime(nextProgram.stop) }})
+            </div>
+            <div class="epg-title">{{ nextProgram.title }}</div>
+            <div v-if="nextProgram.description" class="epg-desc">
+              {{ nextProgram.description }}
+            </div>
+          </div>
+
+          <!-- Upcoming Programs List (Scrollable) -->
+          <div v-if="upcomingPrograms.length > 0" class="epg-upcoming-section">
+            <h5 class="epg-upcoming-header">Upcoming Schedule</h5>
+            <div class="epg-upcoming-list">
+              <div v-for="item in upcomingPrograms" :key="item.id || item.start" class="epg-upcoming-item">
+                <div class="epg-upcoming-time">
+                  {{ formatEpgTime(item.start) }} - {{ formatEpgTime(item.stop) }}
+                </div>
+                <div class="epg-upcoming-title">{{ item.title }}</div>
+                <div v-if="item.description" class="epg-upcoming-desc">{{ item.description }}</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -336,22 +440,100 @@ async function copyUrl(stream: LiveStream) {
 
 .progress-bar-placeholder {
   height: 4px;
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.08);
   border-radius: 9999px;
-  margin-top: 4px;
+  margin-top: 6px;
   overflow: hidden;
-  position: relative;
 }
 
-.progress-bar-placeholder::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
+.progress-bar-fill {
   height: 100%;
-  width: 40%;
   background-color: var(--color-primary);
   border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.epg-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  padding: var(--spacing-4) 0;
+  justify-content: center;
+}
+
+.epg-no-data {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  padding: var(--spacing-4) 0;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.15);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.epg-upcoming-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--spacing-4);
+}
+
+.epg-upcoming-header {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  margin-bottom: var(--spacing-1);
+}
+
+.epg-upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: var(--spacing-2);
+}
+
+.epg-upcoming-item {
+  background: rgba(15, 23, 42, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-left: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  transition: border-color var(--transition-fast) ease, background-color var(--transition-fast) ease;
+}
+
+.epg-upcoming-item:hover {
+  background: rgba(15, 23, 42, 0.35);
+  border-left-color: var(--color-primary);
+}
+
+.epg-upcoming-time {
+  font-size: 0.75rem;
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.epg-upcoming-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.epg-upcoming-desc {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  margin-top: 2px;
 }
 
 .no-selection {
