@@ -1,17 +1,23 @@
 <script setup lang="ts">
 import CachedImage from './CachedImage.vue'
 
-defineProps<{
-  stream: {
-    stream_id: number
-    name?: string | null
-    stream_icon?: string | null
-    [key: string]: any
-  } | null
-  isMobileOpen: boolean
-  playButtonText?: string
-  copyButtonText?: string
-}>()
+withDefaults(
+  defineProps<{
+    stream: {
+      stream_id: number
+      name?: string | null
+      stream_icon?: string | null
+      [key: string]: any
+    } | null
+    isMobileOpen: boolean
+    playButtonText?: string
+    copyButtonText?: string
+    showActions?: boolean
+  }>(),
+  {
+    showActions: true
+  }
+)
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -45,7 +51,7 @@ const emit = defineEmits<{
           <slot></slot>
         </div>
 
-        <div class="action-buttons">
+        <div v-if="showActions" class="action-buttons">
           <button class="btn btn-primary" @click="emit('play')">
             <slot name="play-icon">
               <svg viewBox="0 0 24 24" fill="currentColor" class="btn-icon">
@@ -106,7 +112,7 @@ const emit = defineEmits<{
           </slot>
         </div>
 
-        <div class="action-buttons mobile">
+        <div v-if="showActions" class="action-buttons mobile">
           <button class="btn btn-primary" @click="emit('play')">
             {{ playButtonText || 'Play' }}
           </button>
