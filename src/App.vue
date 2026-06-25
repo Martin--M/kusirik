@@ -6,6 +6,7 @@ import { useSync } from '@/composables/useSync'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppBottomNav from '@/components/layout/AppBottomNav.vue'
 import AppTopBar from '@/components/layout/AppTopBar.vue'
+import AppTitleBar from '@/components/layout/AppTitleBar.vue'
 import AppToast from '@/components/ui/AppToast.vue'
 
 const settingsStore = useSettingsStore()
@@ -20,28 +21,37 @@ onMounted(async () => {
 const showLayout = computed(() => {
   return route.meta.requiresProfile === true
 })
+
+const isDesktop = computed(() => {
+  return !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+})
 </script>
 
 <template>
-  <div class="app-layout">
-    <!-- Desktop Sidebar -->
-    <AppSidebar v-if="showLayout" class="desktop-only" />
+  <div class="app-window-wrapper">
+    <!-- Custom Window Title Bar (Desktop Only) -->
+    <AppTitleBar v-if="isDesktop" />
 
-    <div class="main-container">
-      <!-- Top header bar -->
-      <AppTopBar v-if="showLayout" />
+    <div class="app-layout">
+      <!-- Desktop Sidebar -->
+      <AppSidebar v-if="showLayout" class="desktop-only" />
 
-      <!-- Main screen viewport with Keep-Alive view caching -->
-      <main class="content-area">
-        <router-view v-slot="{ Component }">
-          <keep-alive>
-            <component :is="Component" />
-          </keep-alive>
-        </router-view>
-      </main>
+      <div class="main-container">
+        <!-- Top header bar -->
+        <AppTopBar v-if="showLayout" />
 
-      <!-- Mobile Bottom navigation -->
-      <AppBottomNav v-if="showLayout" class="mobile-only" />
+        <!-- Main screen viewport with Keep-Alive view caching -->
+        <main class="content-area">
+          <router-view v-slot="{ Component }">
+            <keep-alive>
+              <component :is="Component" />
+            </keep-alive>
+          </router-view>
+        </main>
+
+        <!-- Mobile Bottom navigation -->
+        <AppBottomNav v-if="showLayout" class="mobile-only" />
+      </div>
     </div>
 
     <!-- Global Dynamic Toast Notification System -->
@@ -62,11 +72,19 @@ const showLayout = computed(() => {
   }
 }
 
-.app-layout {
+.app-window-wrapper {
   height: 100vh;
   display: flex;
+  flex-direction: column;
   background-color: var(--color-bg);
   color: var(--color-text);
+  overflow: hidden;
+}
+
+.app-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
   overflow: hidden;
 }
 
