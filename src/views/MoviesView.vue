@@ -213,8 +213,11 @@ async function copyUrl(movie: VodStream) {
       @copy="copyUrl(selectedStream!)"
     >
       <template #header-meta-mobile>
-        <span v-if="selectedStream?.rating" class="rating-text-chip">
-          ⭐ {{ parseFloat(selectedStream.rating).toFixed(1) }}
+        <span v-if="selectedStream?.rating && parseFloat(selectedStream.rating) > 0" class="rating-text-chip">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;">
+            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+          </svg>
+          <span>{{ parseFloat(selectedStream.rating).toFixed(1) }}</span>
         </span>
       </template>
 

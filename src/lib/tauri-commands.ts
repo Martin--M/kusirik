@@ -19,7 +19,7 @@ async function invoke<T>(cmd: string, args?: Record<string, any>): Promise<T> {
 import type { Profile, SaveProfilePayload } from '@/types/profile'
 import type { LiveCategory, LiveStream } from '@/types/stream'
 import type { VodCategory, VodStream } from '@/types/vod'
-import type { SeriesCategory, Series, SeriesInfo } from '@/types/series'
+import type { SeriesCategory, Series } from '@/types/series'
 import type { EpgEntry } from '@/types/epg'
 import type { SyncStatus, DataType } from '@/types/sync'
 
@@ -73,7 +73,7 @@ export const getSeriesList = (profileId: number, categoryId?: string, offset = 0
   invoke<Series[]>('get_series', { profileId, categoryId, offset, limit })
 
 export const getSeriesInfo = (profileId: number, seriesId: number) =>
-  invoke<SeriesInfo>('get_series_info', { profileId, seriesId })
+  invoke<any>('get_series_info', { profileId, seriesId })
 
 // ─── EPG ─────────────────────────────────────────────────────────────────────
 
