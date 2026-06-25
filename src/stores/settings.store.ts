@@ -12,12 +12,18 @@ export const useSettingsStore = defineStore('settings', () => {
   const playerAndroid = ref<string>('') // empty = system chooser
   const allowedFormats = ref<StreamFormat[]>(['ts'])
   const liveFormatOverride = ref<StreamFormat | null>(null)
+  const sidebarCollapsed = ref(false)
 
   const liveFormat = computed(() =>
     pickLiveFormat(allowedFormats.value, liveFormatOverride.value)
   )
 
   async function load() {
+    // Load local storage preferences
+    const storedSidebar = localStorage.getItem('sidebar_collapsed')
+    if (storedSidebar !== null) {
+      sidebarCollapsed.value = storedSidebar === 'true'
+    }
     try {
       const [themeVal, playerWin, playerAnd, fmtsJson, overrideVal] = await Promise.all([
         getSetting('theme'),
@@ -56,6 +62,11 @@ export const useSettingsStore = defineStore('settings', () => {
     document.documentElement.setAttribute('data-theme', theme.value)
   }
 
+  function toggleSidebar() {
+    sidebarCollapsed.value = !sidebarCollapsed.value
+    localStorage.setItem('sidebar_collapsed', String(sidebarCollapsed.value))
+  }
+
   return {
     theme,
     playerWindows,
@@ -63,10 +74,12 @@ export const useSettingsStore = defineStore('settings', () => {
     allowedFormats,
     liveFormatOverride,
     liveFormat,
+    sidebarCollapsed,
     load,
     setTheme,
     setPlayerWindows,
     setLiveFormatOverride,
     applyTheme,
+    toggleSidebar,
   }
 })
