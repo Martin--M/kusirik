@@ -1,6 +1,7 @@
 use anyhow::Result;
 use rusqlite::Connection;
 use crate::api::series::{SeriesCategoryApi, SeriesApi};
+use crate::api::common::CategoryApi;
 
 pub fn upsert_categories(conn: &mut Connection, profile_id: i64, categories: &[SeriesCategoryApi]) -> Result<()> {
     let tx = conn.transaction()?;
@@ -76,4 +77,78 @@ pub fn get_series_info(conn: &Connection, profile_id: i64, series_id: i64) -> Re
     } else {
         Ok(None)
     }
+}
+
+pub fn query_categories(conn: &Connection, profile_id: i64) -> Result<Vec<CategoryApi>> {
+    crate::db::common::query_categories_generic(conn, "series_categories", profile_id)
+}
+
+pub fn query_series(
+    conn: &Connection,
+    profile_id: i64,
+    category_id: Option<&str>,
+    offset: u32,
+    limit: u32,
+) -> Result<Vec<SeriesApi>> {
+    let list = match category_id {
+        None | Some("all") => {
+            let mut stmt = conn.prepare(
+                "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified
+                 FROM series
+                 WHERE profile_id = ?1
+                 ORDER BY name ASC
+                 LIMIT ?2 OFFSET ?3",
+            )?;
+            let rows = stmt.query_map(rusqlite::params![profile_id, limit, offset], |row| {
+                Ok(SeriesApi {
+                    series_id: row.get(0)?,
+                    name: row.get(1)?,
+                    cover: row.get(2)?,
+                    category_id: row.get(3)?,
+                    rating: row.get(4)?,
+                    plot: row.get(5)?,
+                    cast: row.get(6)?,
+                    director: row.get(7)?,
+                    genre: row.get(8)?,
+                    release_date: row.get(9)?,
+                    last_modified: row.get(10)?,
+                })
+            })?;
+            let mut res = Vec::new();
+            for r in rows {
+                res.push(r?);
+            }
+            res
+        }
+        Some(cat_id) => {
+            let mut stmt = conn.prepare(
+                "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified
+                 FROM series
+                 WHERE profile_id = ?1 AND category_id = ?2
+                 ORDER BY name ASC
+                 LIMIT ?3 OFFSET ?4",
+            )?;
+            let rows = stmt.query_map(rusqlite::params![profile_id, cat_id, limit, offset], |row| {
+                Ok(SeriesApi {
+                    series_id: row.get(0)?,
+                    name: row.get(1)?,
+                    cover: row.get(2)?,
+                    category_id: row.get(3)?,
+                    rating: row.get(4)?,
+                    plot: row.get(5)?,
+                    cast: row.get(6)?,
+                    director: row.get(7)?,
+                    genre: row.get(8)?,
+                    release_date: row.get(9)?,
+                    last_modified: row.get(10)?,
+                })
+            })?;
+            let mut res = Vec::new();
+            for r in rows {
+                res.push(r?);
+            }
+            res
+        }
+    };
+    Ok(list)
 }
