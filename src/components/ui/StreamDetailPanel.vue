@@ -28,9 +28,9 @@ const emit = defineEmits<{
 
 <template>
   <!-- Desktop Sidebar Panel -->
-  <aside class="details-sidebar desktop-only">
-    <transition name="fade" mode="out-in">
-      <div v-if="stream" :key="stream.stream_id" class="details-panel">
+  <transition name="slide-fade">
+    <aside v-if="stream" class="details-sidebar desktop-only">
+      <div class="details-panel">
         <button class="close-details-btn" @click="emit('close')" title="Close Details">×</button>
         
         <div class="details-header">
@@ -71,19 +71,8 @@ const emit = defineEmits<{
           </button>
         </div>
       </div>
-      <div v-else class="no-selection">
-        <slot name="no-selection">
-          <div class="tv-art">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
-              <rect x="2" y="7" width="20" height="15" rx="2" ry="2" />
-              <polyline points="17 2 12 7 7 2" />
-            </svg>
-          </div>
-          <p>Select an item to view details and start playback.</p>
-        </slot>
-      </div>
-    </transition>
-  </aside>
+    </aside>
+  </transition>
 
   <!-- Mobile Bottom Sheet Details Panel -->
   <transition name="slide-up">
@@ -136,6 +125,7 @@ const emit = defineEmits<{
   flex-shrink: 0;
   height: 100%;
   box-sizing: border-box;
+  transition: width var(--transition-normal) ease, opacity var(--transition-normal) ease, transform var(--transition-normal) ease;
 }
 
 [data-theme='light'] .details-sidebar {
@@ -148,6 +138,8 @@ const emit = defineEmits<{
   padding: var(--spacing-6);
   gap: var(--spacing-6);
   position: relative;
+  width: 320px;
+  box-sizing: border-box;
 }
 
 .close-details-btn {
@@ -246,33 +238,17 @@ const emit = defineEmits<{
   height: 18px;
 }
 
-.no-selection {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-8) var(--spacing-6);
-  color: var(--color-text-muted);
-  text-align: center;
-  gap: var(--spacing-4);
-  height: 100%;
-  flex: 1;
-}
-
-.tv-art {
-  width: 64px;
-  height: 64px;
-  opacity: 0.2;
-}
-
 /* Transitions */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity var(--transition-normal) ease;
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: width var(--transition-normal) ease, opacity var(--transition-normal) ease, transform var(--transition-normal) ease;
+  overflow: hidden;
 }
-.fade-enter-from,
-.fade-leave-to {
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  width: 0px !important;
   opacity: 0;
+  transform: translateX(40px);
 }
 
 /* Mobile Bottom Sheet Details Panel styles */
