@@ -26,6 +26,14 @@ pub fn run() {
             // Manage state for Rust commands
             app.manage(db_conn);
 
+            // Spawn background startup tasks (clean old EPG and check/run EPG sync)
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = crate::sync::engine::run_startup_tasks(app_handle).await {
+                    tracing::error!("Startup EPG tasks failed: {}", e);
+                }
+            });
+
             tracing::info!("App setup complete");
             Ok(())
         })
