@@ -12,9 +12,10 @@ IPTV Helper connects to any Xtream Codes-compatible server to fetch, cache, and 
 *   **On-Demand VOD Caching**: Heavy movie synopsis, cast list, and media details are cached locally on-demand when requested to optimize bandwidth.
 *   **Offline Image Cache**: Logos and posters are stored locally in the database as BLOBs, backed by `IntersectionObserver` lazy loading to keep runtime memory footprint low.
 *   **Secure credentials**: Passwords are saved securely using the OS keyring (Windows Credential Manager / Android Keystore) rather than plaintext files.
-*   **EPG Streaming Engine**: High-performance parsing and UTC indexing of large XMLTV files.
+*   **EPG Streaming Engine**: High-performance parsing and UTC indexing of large XMLTV files, with on-demand API fallback caching and automatic base64 text decoding.
 *   **Virtualised lists**: Custom grid list virtualization featuring dynamic size and column calculations using `ResizeObserver`.
 *   **External player handoff**: Seamlessly launches VLC or MX Player, with safe fallback copy-to-clipboard actions executed on the backend to avoid webview permission limitations.
+*   **Settings Dashboard & Preferences**: Fully featured control screen supporting visual theme toggles, player path configs, stream format overrides, connection management, and real-time synchronization tracking logs.
 
 ---
 

@@ -136,3 +136,22 @@ Large view components have been broken down:
 - Standardized filter heads ([FilterHeader.vue](file:///home/martin/dev/iptv-helper/src/components/ui/FilterHeader.vue)) consolidate search criteria and layout settings.
 - Sorted selects ([CustomSelect.vue](file:///home/martin/dev/iptv-helper/src/components/ui/CustomSelect.vue)) provide custom styled, clickable drop-down fields.
 - Drawer layouts ([StreamDetailPanel.vue](file:///home/martin/dev/iptv-helper/src/components/ui/StreamDetailPanel.vue)) combine desktop side panels and mobile bottom sheets into a unified slot-based API.
+- Dashboard Card Layouts: The settings view ([SettingsView.vue](file:///home/martin/dev/iptv-helper/src/views/SettingsView.vue)) groups statistical details (categories counts and cached items counts) inside a dedicated "Database Statistics" card, leaving the "Database Synchronization" panel simplified to category last-synced times and background sync status indicators.
+
+### 4. Collapsible & Resizable Sidebar Panels
+To prevent mouse scrollbar interference, the left category sidebar ([CategorySidebar.vue](file:///home/martin/dev/iptv-helper/src/components/ui/CategorySidebar.vue)) and right detailed stream panel ([StreamDetailPanel.vue](file:///home/martin/dev/iptv-helper/src/components/ui/StreamDetailPanel.vue)) use non-scrollable flex wrapper layouts. Overlaid drag handles are positioned outside the scrollable containers, avoiding mouse event conflicts. Collapsible state triggers toggle sidebar visibility and persist state in `localStorage`.
+
+### 5. Media Player Handoff & Password Isolation
+* **Credentials Isolation**: Stream URLs exposed to the frontend use a secure `"***"` placeholder. The Tauri backend injects the real password from the database right before player execution or copying to the clipboard.
+* **Platform Playback Delegation**: 
+  - **Desktop (Windows/Linux)**: Spawns the configured player path (e.g. VLC) via child processes, falling back to shell handler commands (`cmd.exe /c start` or `vlc`/`xdg-open`). Probes common default install paths on Windows if the path configuration is left empty.
+  - **Android**: Invokes a custom Kotlin `IntentPlugin` that launches Android's intent chooser using `ACTION_VIEW` and `video/*` mime-type, allowing stream playback in external players (such as VLC or MX Player). Only the platform-relevant player configuration input field (Windows path on desktop, android package on mobile) is displayed in the UI.
+* **Safe Operations**: Synchronization updates are gated behind confirmation alerts on the client side to avoid starting background requests accidentally.
+
+### 6. EPG (Electronic Program Guide) Subsystem
+To provide a rich program guide without overloading memory or disk resources:
+* **EPG Streaming Engine**: Built using `quick-xml`'s stream reader. It streams and parses heavy XMLTV EPG data, writing to SQLite in chunks of 2,000 entries. Progress updates are pushed to the UI via Tauri IPC events.
+* **On-Demand Fallback**: When opening a channel with no EPG entries in the local database (or when existing database entries don't cover the current active time-window), the backend fetches short EPG data on-demand from the Xtream Codes API. To avoid hammering the player API during rapid scrolling or toggling, on-demand fetches are rate-limited in-memory to once every 2 hours per channel. It also decodes base64-encoded titles/descriptions (often returned by some providers) and caches the results to the local SQLite database.
+* **UTC Timezone Normalization**: All EPG start and stop timestamps (from both XMLTV and short EPG APIs) are normalized into UTC ISO 8601 strings ending in `Z`. Since SQLite lacks native datetime columns, dates are queried using lexicographical string comparisons (`start < to AND stop > from`). Standardization to `Z` timezone suffixes prevents offset-based sorting bugs.
+* **Startup Cleanup & Sync Logic**: On startup, a background task purges EPG entries older than 48 hours to manage database size. If the last successful sync was more than 24 hours ago, it triggers an automatic background sync.
+
