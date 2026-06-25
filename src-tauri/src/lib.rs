@@ -48,6 +48,7 @@ pub fn run() {
             commands::settings::get_setting,
             commands::settings::set_setting,
             commands::player::launch_player,
+            commands::player::resolve_stream_url,
             commands::player::copy_to_clipboard,
             commands::image::get_image_data,
         ])
