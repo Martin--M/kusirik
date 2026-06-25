@@ -2,7 +2,10 @@ use tauri::State;
 use crate::db::DbConn;
 use crate::db::epg::EpgEntry;
 use chrono::{DateTime, Utc};
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 
+static LAST_FETCH_TIMES: OnceLock<Mutex<HashMap<(i64, String), DateTime<Utc>>>> = OnceLock::new();
 
 #[tauri::command]
 pub async fn get_epg_for_channel(
@@ -22,6 +25,29 @@ pub async fn get_epg_for_channel(
 
     if !list.is_empty() {
         return Ok(list);
+    }
+
+    // Check in-memory rate limit for on-demand fetches (cap to once per 2 hours per channel)
+    let should_fetch = {
+        let cache = LAST_FETCH_TIMES.get_or_init(|| Mutex::new(HashMap::new()));
+        let mut map = cache.lock().map_err(|e| e.to_string())?;
+        let now = Utc::now();
+        let key = (profile_id, channel_id.clone());
+        if let Some(&last_time) = map.get(&key) {
+            if now - last_time < chrono::Duration::hours(2) {
+                false
+            } else {
+                map.insert(key, now);
+                true
+            }
+        } else {
+            map.insert(key, now);
+            true
+        }
+    };
+
+    if !should_fetch {
+        return Ok(vec![]);
     }
 
     // 2. Fallback: If empty, do on-demand fetch if epg_channel_id maps to a stream_id in live_streams
