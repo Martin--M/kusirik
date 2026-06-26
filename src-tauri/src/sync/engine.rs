@@ -431,15 +431,11 @@ async fn sync_epg_internal(app: AppHandle, client: &XtreamClient) -> Result<usiz
                             description: None,
                         });
                     }
-                    b"title" => {
-                        if current_entry.is_some() {
-                            inside_title = true;
-                        }
+                    b"title" if current_entry.is_some() => {
+                        inside_title = true;
                     }
-                    b"desc" => {
-                        if current_entry.is_some() {
-                            inside_desc = true;
-                        }
+                    b"desc" if current_entry.is_some() => {
+                        inside_desc = true;
                     }
                     _ => {}
                 }

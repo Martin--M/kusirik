@@ -5,7 +5,8 @@ use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 
-static LAST_FETCH_TIMES: OnceLock<Mutex<HashMap<(i64, String), DateTime<Utc>>>> = OnceLock::new();
+type EpgFetchCache = HashMap<(i64, String), DateTime<Utc>>;
+static LAST_FETCH_TIMES: OnceLock<Mutex<EpgFetchCache>> = OnceLock::new();
 
 #[tauri::command]
 pub async fn get_epg_for_channel(

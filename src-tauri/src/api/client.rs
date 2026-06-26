@@ -87,7 +87,7 @@ impl XtreamClient {
                 };
                 let log_path = format!("{}/failed_{}.txt", log_dir, action_str);
                 
-                if let Err(dir_err) = std::fs::create_dir_all(log_dir) {
+                if let Err(dir_err) = std::fs::create_dir_all(&log_dir) {
                     tracing::error!("Failed to create debug log directory {}: {}", log_dir, dir_err);
                 }
                 
