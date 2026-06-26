@@ -1,10 +1,10 @@
 # System Architecture & Data Flow
 
-This document details the high-level system components, communication flows, and data synchronization patterns of the IPTV Helper application.
+This document details the high-level system components, communication flows, and data synchronization patterns of the Kusirik application.
 
 ## High-Level System Architecture
 
-IPTV Helper is built on Tauri, splitting the codebase into a frontend User Interface (running in a system webview) and a backend Core process (written in Rust).
+Kusirik is built on Tauri, splitting the codebase into a frontend User Interface (running in a system webview) and a backend Core process (written in Rust).
 
 ```mermaid
 graph TD

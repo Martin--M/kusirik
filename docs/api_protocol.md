@@ -1,6 +1,6 @@
 # Xtream Codes API Protocol Reference
 
-This document outlines the API protocol endpoints, parameters, responses, and serialization logic utilized by the IPTV Helper backend to communicate with Xtream Codes-compatible servers.
+This document outlines the API protocol endpoints, parameters, responses, and serialization logic utilized by the Kusirik backend to communicate with Xtream Codes-compatible servers.
 
 ---
 

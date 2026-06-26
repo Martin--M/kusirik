@@ -1,6 +1,6 @@
 # UI Design System & Component Guidelines
 
-This document details the visual guidelines, design tokens, and reusable component APIs that establish the IPTV Helper interface.
+This document details the visual guidelines, design tokens, and reusable component APIs that establish the Kusirik interface.
 
 ---
 
@@ -28,7 +28,7 @@ All core styles are centralized in [index.css](../src/index.css) as CSS custom p
 
 ## 🔍 Glassmorphism & Aesthetics
 
-IPTV Helper uses a modern dark-mode-first aesthetic with "glass" elements:
+Kusirik uses a modern dark-mode-first aesthetic with "glass" elements:
 - **Card Styling**: Semi-transparent background overlays on dark surfaces combined with a subtle border (`--color-border`).
 - **Typography**: Uses clean `Inter` system sans-serif fonts. Headings feature a `font-weight: 600`.
 - **Micro-Animations**: Hover animations on stream card lists scale slightly and raise shadows to create tactile depth.

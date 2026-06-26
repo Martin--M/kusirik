@@ -1,8 +1,8 @@
-# IPTV Helper
+# Kusirik
 
 A modern, cross-platform IPTV client for Windows and Android 16 (API 36), built with **Tauri 2**, **Vue 3**, and **Vite**.
 
-IPTV Helper connects to any Xtream Codes-compatible server to fetch, cache, and display live channels, VOD movies, and TV series with full EPG support. Playback is handed off to your preferred external player (e.g., VLC or MX Player).
+Kusirik connects to any Xtream Codes-compatible server to fetch, cache, and display live channels, VOD movies, and TV series with full EPG support. Playback is handed off to your preferred external player (e.g., VLC or MX Player).
 
 ---
 

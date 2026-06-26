@@ -1,6 +1,6 @@
 # Database Architecture
 
-This document describes the storage layer of the IPTV Helper application. The application utilizes SQLite as its local data cache.
+This document describes the storage layer of the Kusirik application. The application utilizes SQLite as its local data cache.
 
 ## Design Philosophy & WAL Mode
 To ensure responsiveness and avoid deadlocks, the application implements a strict **single-writer, multiple-readers** boundary between Rust and the Frontend:
