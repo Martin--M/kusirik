@@ -6,7 +6,7 @@ This document details the visual guidelines, design tokens, and reusable compone
 
 ## 🎨 Design Tokens
 
-All core styles are centralized in [index.css](file:///home/martin/dev/iptv-helper/src/index.css) as CSS custom properties.
+All core styles are centralized in [index.css](../src/index.css) as CSS custom properties.
 
 ### Colors
 | Token Name | Light Theme | Dark Theme | Purpose |
@@ -39,32 +39,32 @@ IPTV Helper uses a modern dark-mode-first aesthetic with "glass" elements:
 
 To keep routed view sizes compact, layout code is modularized into reusable components located under `src/components/ui/`:
 
-### 1. Custom Select ([CustomSelect.vue](file:///home/martin/dev/iptv-helper/src/components/ui/CustomSelect.vue))
+### 1. Custom Select ([CustomSelect.vue](../src/components/ui/CustomSelect.vue))
 Re-implements native dropdown controls with a glassmorphic select element.
 - **Features**: Close-on-click-away behavior, slot support, and keyboard escape bindings.
 
-### 2. Category Sidebar ([CategorySidebar.vue](file:///home/martin/dev/iptv-helper/src/components/ui/CategorySidebar.vue))
+### 2. Category Sidebar ([CategorySidebar.vue](../src/components/ui/CategorySidebar.vue))
 Displays stream categories. Renders responsively depending on screen constraints:
 - **Desktop**: Vertical sidebar navigation.
 - **Mobile**: Horizontal scrollable chips array.
 
-### 3. Filter Header ([FilterHeader.vue](file:///home/martin/dev/iptv-helper/src/components/ui/FilterHeader.vue))
+### 3. Filter Header ([FilterHeader.vue](../src/components/ui/FilterHeader.vue))
 Consolidates layout actions for streams:
 - Renders search input elements.
 - Hosts sorting actions, theme triggers, and layout grid density controls.
 
-### 4. Detail Panel ([StreamDetailPanel.vue](file:///home/martin/dev/iptv-helper/src/components/ui/StreamDetailPanel.vue))
+### 4. Detail Panel ([StreamDetailPanel.vue](../src/components/ui/StreamDetailPanel.vue))
 Combines the media detail layout (play/copy actions, metadata display, images loaders):
 - **Desktop**: Sliding side panel overlay.
 - **Mobile**: Swipeable bottom sheet.
 
-### 5. Application Toasts ([AppToast.vue](file:///home/martin/dev/iptv-helper/src/components/ui/AppToast.vue))
+### 5. Application Toasts ([AppToast.vue](../src/components/ui/AppToast.vue))
 Mounted at the root level in `App.vue`. Listens to the global `useToastStore` to display smooth slide-in notifications with a auto-timeout of 3 seconds.
 
-### 6. Cached Image ([CachedImage.vue](file:///home/martin/dev/iptv-helper/src/components/ui/CachedImage.vue))
+### 6. Cached Image ([CachedImage.vue](../src/components/ui/CachedImage.vue))
 Wraps image loading with placeholder fallbacks and offline BLOB cache lookup capabilities, powered by `IntersectionObserver` for lazy loading.
 
-### 7. List Row Item ([ListRowItem.vue](file:///home/martin/dev/iptv-helper/src/components/ui/ListRowItem.vue))
+### 7. List Row Item ([ListRowItem.vue](../src/components/ui/ListRowItem.vue))
 A unified list row component shared between movie and series listing layouts.
 - **Features**: Structured layout with a cover image, title, rating with custom inline SVG star (visible only when rated > 0), release year, selection highlights, and hover transitions.
 

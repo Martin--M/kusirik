@@ -43,19 +43,19 @@ graph TD
 ## Component Descriptions
 
 ### 1. Frontend Layer
-* **Vue 3 Views & Components**: Manages rendering and visual states. Implements clean, reusable layout structures (e.g. [StreamDetailPanel.vue](file:///home/martin/dev/iptv-helper/src/components/ui/StreamDetailPanel.vue) to consolidate the details panel and drawer, and [CategorySidebar.vue](file:///home/martin/dev/iptv-helper/src/components/ui/CategorySidebar.vue) for responsive layouts).
+* **Vue 3 Views & Components**: Manages rendering and visual states. Implements clean, reusable layout structures (e.g. [StreamDetailPanel.vue](../src/components/ui/StreamDetailPanel.vue) to consolidate the details panel and drawer, and [CategorySidebar.vue](../src/components/ui/CategorySidebar.vue) for responsive layouts).
 * **Pinia Sync Store**: Stores state indicators (e.g. syncing, success timestamps, counts, errors) for live tracking.
-* **Pinia Toast Store (`src/stores/toast.store.ts`)**: Manages global toast state and notifications, paired with the root-mounted [AppToast.vue](file:///home/martin/dev/iptv-helper/src/components/ui/AppToast.vue) component.
+* **Pinia Toast Store (`src/stores/toast.store.ts`)**: Manages global toast state and notifications, paired with the root-mounted [AppToast.vue](../src/components/ui/AppToast.vue) component.
 * **Tauri Command Wrappers (`src/lib/tauri-commands.ts`)**: Center of type-safe IPC calls. The UI calls these wrappers instead of invoking commands directly.
 * **useSync Composable (`src/composables/useSync.ts`)**: Listens to global Tauri events (`sync://started`, `sync://progress`, `sync://done`, `sync://error`) emitted by the backend to coordinate frontend transitions.
-* **Lazy Image Loader ([CachedImage.vue](file:///home/martin/dev/iptv-helper/src/components/ui/CachedImage.vue))**: Uses a browser `IntersectionObserver` to defer fetching logo and poster images from the backend/database until they enter the viewport. Properly handles cleanup and object URL revocation on unmount to prevent leaks.
-* **Virtualized Media Grids ([MovieList.vue](file:///home/martin/dev/iptv-helper/src/components/movies/MovieList.vue), [SeriesList.vue](file:///home/martin/dev/iptv-helper/src/components/series/SeriesList.vue))**: Calculates columns and row metrics dynamically via `ResizeObserver` to virtually render large collections of movies and TV series. Utilizes a unified [ListRowItem.vue](file:///home/martin/dev/iptv-helper/src/components/ui/ListRowItem.vue) shared row component to display metadata uniformally in list views.
+* **Lazy Image Loader ([CachedImage.vue](../src/components/ui/CachedImage.vue))**: Uses a browser `IntersectionObserver` to defer fetching logo and poster images from the backend/database until they enter the viewport. Properly handles cleanup and object URL revocation on unmount to prevent leaks.
+* **Virtualized Media Grids ([MovieList.vue](../src/components/movies/MovieList.vue), [SeriesList.vue](../src/components/series/SeriesList.vue))**: Calculates columns and row metrics dynamically via `ResizeObserver` to virtually render large collections of movies and TV series. Utilizes a unified [ListRowItem.vue](../src/components/ui/ListRowItem.vue) shared row component to display metadata uniformally in list views.
 
 ### 2. Backend Layer
 * **Tauri Command Handlers (`src-tauri/src/commands/`)**: Receives calls from the frontend, maps input variables, and routes commands (e.g., VOD and Series queries, EPG, or player actions).
 * **Sync Engine (`src-tauri/src/sync/engine.rs`)**: Controls sequential caching of TV elements (`live_streams` $\rightarrow$ `vod_streams` $\rightarrow$ `series`). It handles SQLite connections and writes.
 * **Xtream Client (`src-tauri/src/api/client.rs`)**: Orchestrates calls to the server. Includes robust deserializers (`deserialize_option_string`, `deserialize_option_i32`) to coerce conflicting server datatypes (e.g., `"tv_archive": "1"` vs `1`).
-* **Unified Category Modules**: Utilizes [CategoryApi](file:///home/martin/dev/iptv-helper/src-tauri/src/api/common.rs) and the generic [query_categories_generic](file:///home/martin/dev/iptv-helper/src-tauri/src/db/common.rs) function to unify categories mapping and database queries for Live, VOD, and Series.
+* **Unified Category Modules**: Utilizes [CategoryApi](../src-tauri/src/api/common.rs) and the generic [query_categories_generic](../src-tauri/src/db/common.rs) function to unify categories mapping and database queries for Live, VOD, and Series.
 * **On-Demand VOD & TV Series Caching**: Backend command handlers check local SQLite cache tables (`vod_info` and `series_info`), fallback to Xtream API queries on miss, cache results to the DB, and return.
 * **System Clipboard Integration**: Due to frontend sandbox limitations, copy-to-clipboard operations are delegated to Rust commands on the backend to copy URLs and EPG information reliably.
 * **Rate Limiter**: Tracks a thread-safe `last_request_time: Mutex<Option<Instant>>`. Ensures that no requests fire within 2 seconds of each other, preventing client bans.
@@ -133,13 +133,13 @@ Rather than pre-syncing heavy, detailed metadata (such as cast, synopsis, plot, 
 
 ### 3. Desktop/Mobile UI Simplification
 Large view components have been broken down:
-- Standardized filter heads ([FilterHeader.vue](file:///home/martin/dev/iptv-helper/src/components/ui/FilterHeader.vue)) consolidate search criteria and layout settings.
-- Sorted selects ([CustomSelect.vue](file:///home/martin/dev/iptv-helper/src/components/ui/CustomSelect.vue)) provide custom styled, clickable drop-down fields.
-- Drawer layouts ([StreamDetailPanel.vue](file:///home/martin/dev/iptv-helper/src/components/ui/StreamDetailPanel.vue)) combine desktop side panels and mobile bottom sheets into a unified slot-based API.
-- Dashboard Card Layouts: The settings view ([SettingsView.vue](file:///home/martin/dev/iptv-helper/src/views/SettingsView.vue)) groups statistical details (categories counts and cached items counts) inside a dedicated "Database Statistics" card, leaving the "Database Synchronization" panel simplified to category last-synced times and background sync status indicators.
+- Standardized filter heads ([FilterHeader.vue](../src/components/ui/FilterHeader.vue)) consolidate search criteria and layout settings.
+- Sorted selects ([CustomSelect.vue](../src/components/ui/CustomSelect.vue)) provide custom styled, clickable drop-down fields.
+- Drawer layouts ([StreamDetailPanel.vue](../src/components/ui/StreamDetailPanel.vue)) combine desktop side panels and mobile bottom sheets into a unified slot-based API.
+- Dashboard Card Layouts: The settings view ([SettingsView.vue](../src/views/SettingsView.vue)) groups statistical details (categories counts and cached items counts) inside a dedicated "Database Statistics" card, leaving the "Database Synchronization" panel simplified to category last-synced times and background sync status indicators.
 
 ### 4. Collapsible & Resizable Sidebar Panels
-To prevent mouse scrollbar interference, the left category sidebar ([CategorySidebar.vue](file:///home/martin/dev/iptv-helper/src/components/ui/CategorySidebar.vue)) and right detailed stream panel ([StreamDetailPanel.vue](file:///home/martin/dev/iptv-helper/src/components/ui/StreamDetailPanel.vue)) use non-scrollable flex wrapper layouts. Overlaid drag handles are positioned outside the scrollable containers, avoiding mouse event conflicts. Collapsible state triggers toggle sidebar visibility and persist state in `localStorage`.
+To prevent mouse scrollbar interference, the left category sidebar ([CategorySidebar.vue](../src/components/ui/CategorySidebar.vue)) and right detailed stream panel ([StreamDetailPanel.vue](../src/components/ui/StreamDetailPanel.vue)) use non-scrollable flex wrapper layouts. Overlaid drag handles are positioned outside the scrollable containers, avoiding mouse event conflicts. Collapsible state triggers toggle sidebar visibility and persist state in `localStorage`.
 
 ### 5. Media Player Handoff & Password Isolation
 * **Credentials Isolation**: Stream URLs exposed to the frontend use a secure `"***"` placeholder. The Tauri backend injects the real password from the database right before player execution or copying to the clipboard.

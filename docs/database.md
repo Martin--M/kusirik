@@ -188,7 +188,7 @@ Stores cached images (e.g. logos and posters) downloaded from external stream UR
 
 ## Database Inspector Script
 
-The project provides a utility script [inspect_db.py](file:///home/martin/dev/iptv-helper/scripts/inspect_db.py) to inspect the local database status, query row counts, and check the performance of the image cache.
+The project provides a utility script [inspect_db.py](../scripts/inspect_db.py) to inspect the local database status, query row counts, and check the performance of the image cache.
 
 ### Features
 - Reports the database file size on disk.

@@ -6,7 +6,7 @@ This document outlines the API protocol endpoints, parameters, responses, and se
 
 ## Base Client Configuration
 
-All backend client requests are orchestrated by [XtreamClient](file:///home/martin/dev/iptv-helper/src-tauri/src/api/client.rs). Every request appends authentication credentials directly in the query parameters:
+All backend client requests are orchestrated by [XtreamClient](../src-tauri/src/api/client.rs). Every request appends authentication credentials directly in the query parameters:
 
 ```text
 GET {server_url}/player_api.php?username={username}&password={password}&action={action}
@@ -18,7 +18,7 @@ GET {server_url}/player_api.php?username={username}&password={password}&action={
 
 ### 1. Categories Query
 
-To retrieve list categories (Live, VOD, or Series), the client queries the following actions. All category items map to the shared [CategoryApi](file:///home/martin/dev/iptv-helper/src-tauri/src/api/common.rs) struct.
+To retrieve list categories (Live, VOD, or Series), the client queries the following actions. All category items map to the shared [CategoryApi](../src-tauri/src/api/common.rs) struct.
 
 | Action | HTTP Request | Payload Struct | Description |
 | :--- | :--- | :--- | :--- |

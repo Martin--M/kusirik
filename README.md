@@ -135,8 +135,8 @@ python3 scripts/inspect_db.py
 
 ## 📖 Architecture & Design Documentation
 For details on system internals, database layouts, and data flow architectures, refer to the following documents:
-* [System Architecture & Data Flows](file:///home/martin/dev/iptv-helper/docs/architecture.md) — Process model, sequential synchronization sequence, and rate limiters.
-* [Database Architecture & Schema](file:///home/martin/dev/iptv-helper/docs/database.md) — SQLite schema specs, WAL concurrency model, and table ERDs.
-* [Xtream Codes API Protocol](file:///home/martin/dev/iptv-helper/docs/api_protocol.md) — Endpoint mappings, action parameters, and type-coercion details.
-* [UI Design System & Component Guidelines](file:///home/martin/dev/iptv-helper/docs/design_system.md) — CSS token variables, glassmorphic layout models, and reusable component APIs.
+* [System Architecture & Data Flows](docs/architecture.md) — Process model, sequential synchronization sequence, and rate limiters.
+* [Database Architecture & Schema](docs/database.md) — SQLite schema specs, WAL concurrency model, and table ERDs.
+* [Xtream Codes API Protocol](docs/api_protocol.md) — Endpoint mappings, action parameters, and type-coercion details.
+* [UI Design System & Component Guidelines](docs/design_system.md) — CSS token variables, glassmorphic layout models, and reusable component APIs.
 
