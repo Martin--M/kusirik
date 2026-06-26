@@ -38,12 +38,20 @@ const selectedMovie = ref<VodStream | null>(null)
 const selectedSeries = ref<Series | null>(null)
 const isMobileDetailOpen = ref(false)
 
+// Collapsible sections state
+const isLiveExpanded = ref(true)
+const isMoviesExpanded = ref(true)
+const isSeriesExpanded = ref(true)
+
 // Series accordion state
 const expandedSeason = ref<string | null>(null)
 
 // Watch queryText changing to close any open panels
 watch(queryText, () => {
   closeDetails()
+  isLiveExpanded.value = true
+  isMoviesExpanded.value = true
+  isSeriesExpanded.value = true
 })
 
 function closeDetails() {
@@ -181,9 +189,12 @@ function selectSeries(series: Series) {
       <!-- Results List -->
       <div v-else class="results-layout">
         <!-- Live TV Section -->
-        <section v-if="data?.live.length" class="results-section">
-          <h2 class="section-title">Live Channels ({{ data.live.length }})</h2>
-          <div class="live-list">
+        <section v-if="data?.live.length" class="results-section" :class="{ collapsed: !isLiveExpanded }">
+          <button class="section-toggle-btn" @click="isLiveExpanded = !isLiveExpanded" :title="isLiveExpanded ? 'Collapse' : 'Expand'">
+            <h2 class="section-title">Live Channels ({{ data.live.length }})</h2>
+            <IconChevron class="chevron-icon" :direction="isLiveExpanded ? 'down' : 'right'" />
+          </button>
+          <div v-show="isLiveExpanded" class="live-list">
             <ChannelRow
               v-for="(stream, idx) in data.live"
               :key="stream.stream_id"
@@ -197,9 +208,12 @@ function selectSeries(series: Series) {
         </section>
 
         <!-- Movies Section -->
-        <section v-if="data?.vod.length" class="results-section">
-          <h2 class="section-title">VOD Movies ({{ data.vod.length }})</h2>
-          <div class="media-grid">
+        <section v-if="data?.vod.length" class="results-section" :class="{ collapsed: !isMoviesExpanded }">
+          <button class="section-toggle-btn" @click="isMoviesExpanded = !isMoviesExpanded" :title="isMoviesExpanded ? 'Collapse' : 'Expand'">
+            <h2 class="section-title">VOD Movies ({{ data.vod.length }})</h2>
+            <IconChevron class="chevron-icon" :direction="isMoviesExpanded ? 'down' : 'right'" />
+          </button>
+          <div v-show="isMoviesExpanded" class="media-grid">
             <MovieCard
               v-for="movie in data.vod"
               :key="movie.stream_id"
@@ -212,9 +226,12 @@ function selectSeries(series: Series) {
         </section>
 
         <!-- TV Series Section -->
-        <section v-if="data?.series.length" class="results-section">
-          <h2 class="section-title">TV Series ({{ data.series.length }})</h2>
-          <div class="media-grid">
+        <section v-if="data?.series.length" class="results-section" :class="{ collapsed: !isSeriesExpanded }">
+          <button class="section-toggle-btn" @click="isSeriesExpanded = !isSeriesExpanded" :title="isSeriesExpanded ? 'Collapse' : 'Expand'">
+            <h2 class="section-title">TV Series ({{ data.series.length }})</h2>
+            <IconChevron class="chevron-icon" :direction="isSeriesExpanded ? 'down' : 'right'" />
+          </button>
+          <div v-show="isSeriesExpanded" class="media-grid">
             <SeriesCard
               v-for="item in data.series"
               :key="item.series_id"
@@ -477,6 +494,33 @@ function selectSeries(series: Series) {
   padding-left: var(--spacing-3);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.section-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  width: fit-content;
+  text-align: left;
+}
+
+.section-toggle-btn .chevron-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-muted);
+  transition: transform var(--transition-fast) ease, color var(--transition-fast) ease;
+}
+
+.section-toggle-btn:hover .chevron-icon {
+  color: var(--color-primary);
+}
+
+.results-section.collapsed {
+  opacity: 0.85;
 }
 
 .live-list {
