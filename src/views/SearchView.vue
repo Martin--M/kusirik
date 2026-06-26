@@ -14,10 +14,8 @@ import MovieCard from '@/components/movies/MovieCard.vue'
 import SeriesCard from '@/components/series/SeriesCard.vue'
 import StreamDetailPanel from '@/components/ui/StreamDetailPanel.vue'
 
-import IconStar from '@/components/icons/IconStar.vue'
 import IconChevron from '@/components/icons/IconChevron.vue'
 import IconPlay from '@/components/icons/IconPlay.vue'
-import IconTVGrid from '@/components/icons/IconTVGrid.vue'
 import IconSearch from '@/components/icons/IconSearch.vue'
 
 import type { LiveStream } from '@/types/stream'
@@ -44,7 +42,7 @@ const isMoviesExpanded = ref(true)
 const isSeriesExpanded = ref(true)
 
 // Series accordion state
-const expandedSeason = ref<string | null>(null)
+const expandedSeason = ref<string | number | null>(null)
 
 // Watch queryText changing to close any open panels
 watch(queryText, () => {
@@ -89,7 +87,7 @@ function handlePlayMovie(stream: VodStream) {
   playMovie(stream.stream_id, stream.container_extension || 'mp4')
 }
 
-function toggleSeason(seasonKey: string) {
+function toggleSeason(seasonKey: string | number) {
   expandedSeason.value = expandedSeason.value === seasonKey ? null : seasonKey
 }
 
