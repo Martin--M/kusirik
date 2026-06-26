@@ -18,6 +18,7 @@ const selectedCategoryId = ref<string>('all')
 const selectedStream = ref<LiveStream | null>(null)
 const searchQuery = ref('')
 const sortOrder = ref<'asc' | 'desc'>('asc')
+const showCatchupOnly = ref(false)
 
 const isMobileDetailOpen = ref(false)
 
@@ -50,14 +51,23 @@ const streamsQueryId = computed(() => {
 
 const { data: rawStreams, isLoading: isLoadingStreams } = useLiveStreams(streamsQueryId)
 
-// Reset selection when changing categories
+// Reset selection when changing categories or toggle filters
 watch(selectedCategoryId, () => {
+  selectedStream.value = null
+})
+
+watch(showCatchupOnly, () => {
   selectedStream.value = null
 })
 
 // Filter and sort streams on client side
 const filteredStreams = computed(() => {
   let result = rawStreams.value || []
+
+  // Apply catch-up filter
+  if (showCatchupOnly.value) {
+    result = result.filter((s) => s.tv_archive === 1)
+  }
 
   // Apply search query
   const query = searchQuery.value.toLowerCase().trim()
@@ -226,7 +236,17 @@ function formatEpgTime(dateStr: string): string {
           v-model:search-query="searchQuery"
           v-model:sort-order="sortOrder"
           search-placeholder="Search by name or channel ID..."
-        />
+        >
+          <label class="custom-checkbox">
+            <input type="checkbox" v-model="showCatchupOnly" class="checkbox-input" />
+            <span class="checkbox-box">
+              <svg class="checkbox-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </span>
+            <span class="checkbox-label">Catch-up Only</span>
+          </label>
+        </FilterHeader>
       </div>
 
       <!-- Virtualized Scroll List -->
@@ -368,6 +388,80 @@ function formatEpgTime(dateStr: string): string {
 
 [data-theme='light'] .filter-header {
   background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Custom Checkbox Filter */
+.custom-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast) ease;
+  margin-right: var(--spacing-2);
+}
+
+.custom-checkbox:hover {
+  color: var(--color-text);
+}
+
+.checkbox-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.checkbox-box {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background-color: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast) ease;
+}
+
+[data-theme='light'] .checkbox-box {
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.custom-checkbox:hover .checkbox-box {
+  border-color: var(--color-primary);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='light'] .custom-checkbox:hover .checkbox-box {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.checkbox-input:checked + .checkbox-box {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.checkbox-check {
+  width: 12px;
+  height: 12px;
+  color: #ffffff;
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  opacity: 0;
+  transition: stroke-dashoffset 0.15s ease-in-out, opacity 0.15s ease-in-out;
+}
+
+.checkbox-input:checked + .checkbox-box .checkbox-check {
+  stroke-dashoffset: 0;
+  opacity: 1;
+}
+
+.checkbox-label {
+  white-space: nowrap;
 }
 
 .list-wrapper {

@@ -47,6 +47,8 @@ function toggleSort() {
     </div>
 
     <div class="sort-controls">
+      <slot></slot>
+
       <!-- Grid/List Toggle Button (optional) -->
       <button
         v-if="showLayoutToggle"
@@ -191,5 +193,18 @@ function toggleSort() {
 
 .sort-icon.reversed {
   transform: rotate(180deg);
+}
+
+@media (max-width: 768px) {
+  .search-sort-bar {
+    flex-wrap: wrap;
+  }
+  .search-wrapper {
+    flex: 1 1 100%;
+  }
+  .sort-controls {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
 }
 </style>
