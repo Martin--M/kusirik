@@ -12,19 +12,20 @@ pub fn resolve_stream_url(state: State<'_, DbConn>, url: String) -> Result<Strin
 
 #[tauri::command]
 pub fn launch_player(state: State<'_, DbConn>, url: String) -> Result<(), String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    let password = crate::db::settings::get(&conn, "password")
-        .map_err(|e| e.to_string())?
-        .unwrap_or_default();
-    let final_url = url.replace("***", &password);
-
     #[cfg(target_os = "android")]
     {
+        let _ = state;
+        let _ = url;
         Err("On Android, launch_player should be handled via the native IntentPlugin.".to_string())
     }
 
     #[cfg(not(target_os = "android"))]
     {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        let password = crate::db::settings::get(&conn, "password")
+            .map_err(|e| e.to_string())?
+            .unwrap_or_default();
+        let final_url = url.replace("***", &password);
         use std::process::Command;
 
         let player_path = crate::db::settings::get(&conn, "player_windows")

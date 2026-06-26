@@ -6,6 +6,7 @@ pub mod sync;
 use anyhow::Context;
 use tauri::Manager;
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter("kusirik=debug,info")
@@ -37,6 +38,9 @@ pub fn run() {
             
             // Manage state for Rust commands
             app.manage(db_conn);
+
+            #[cfg(target_os = "android")]
+            app.handle().plugin(tauri::plugin::Builder::<tauri::Wry, ()>::new("intent").build())?;
 
             // Spawn background startup tasks (clean old EPG and check/run EPG sync)
             let app_handle = app.handle().clone();

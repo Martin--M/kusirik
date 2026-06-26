@@ -9,15 +9,15 @@ import app.tauri.plugin.Invoke
 import app.tauri.plugin.Plugin
 
 @TauriPlugin
-class IntentPlugin(activity: Activity) : Plugin(activity) {
+class IntentPlugin(private val mContext: Activity) : Plugin(mContext) {
     @Command
     fun launchPlayer(invoke: Invoke) {
-        val url = invoke.getString("url") ?: return
+        val url = invoke.getArgs().getString("url", null) ?: return
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(Uri.parse(url), "video/*")
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        activity.startActivity(Intent.createChooser(intent, "Open with"))
+        mContext.startActivity(Intent.createChooser(intent, "Open with"))
         invoke.resolve()
     }
 }

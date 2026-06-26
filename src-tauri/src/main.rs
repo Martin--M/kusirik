@@ -3,6 +3,7 @@
     windows_subsystem = "windows"
 )]
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 fn main() {
     #[cfg(target_os = "linux")]
     {

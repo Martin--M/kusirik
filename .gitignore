@@ -16,6 +16,8 @@ src-tauri/gen/android/local.properties
 src-tauri/gen/android/gradlew
 src-tauri/gen/android/gradlew.bat
 src-tauri/gen/android/app/src/main/jniLibs/
+src-tauri/gen/schemas/
+
 
 # Manually maintained files ARE tracked (not excluded):
 #   src-tauri/gen/android/app/src/main/AndroidManifest.xml
