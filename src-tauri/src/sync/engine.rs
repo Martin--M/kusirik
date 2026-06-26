@@ -54,25 +54,14 @@ pub async fn run_sync_all(app: AppHandle, force: bool) -> Result<()> {
 async fn do_sync(app: AppHandle, force: bool) -> Result<()> {
     let db_conn = app.state::<DbConn>();
 
-    // 1. Get credentials
-    let (url, username, password) = {
-        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-        let url = crate::db::settings::get(&conn, "server_url")?;
-        let username = crate::db::settings::get(&conn, "username")?;
-        let password = crate::db::settings::get(&conn, "password")?;
-        (url, username, password)
-    };
+    use tauri::Manager;
+    let client = app.state::<XtreamClient>();
 
-    let (url, username, password) = match (url, username, password) {
-        (Some(u), Some(user), Some(pass)) => (u, user, pass),
-        _ => {
-            tracing::error!("Credentials missing, aborting sync");
-            let _ = app.emit("sync://error", "Credentials missing. Please configure settings first.");
-            return Err(anyhow!("Credentials missing"));
-        }
-    };
-
-    let client = XtreamClient::new(url, username, password);
+    if !client.has_credentials() {
+        tracing::error!("Credentials missing, aborting sync");
+        let _ = app.emit("sync://error", "Credentials missing. Please configure settings first.");
+        return Err(anyhow!("Credentials missing"));
+    }
 
     // 2. Perform sequential syncs
     let data_types = vec!["live_streams", "vod_streams", "series", "epg"];
@@ -559,24 +548,14 @@ pub async fn run_startup_tasks(app: AppHandle) -> Result<()> {
 }
 
 async fn run_epg_sync_startup_background(app: AppHandle) -> Result<()> {
+    use tauri::Manager;
+    let client = app.state::<XtreamClient>();
     let db_conn = app.state::<DbConn>();
-    let (url, username, password) = {
-        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-        let url = crate::db::settings::get(&conn, "server_url")?;
-        let username = crate::db::settings::get(&conn, "username")?;
-        let password = crate::db::settings::get(&conn, "password")?;
-        (url, username, password)
-    };
 
-    let (url, username, password) = match (url, username, password) {
-        (Some(u), Some(user), Some(pass)) => (u, user, pass),
-        _ => {
-            tracing::warn!("Credentials missing on startup, skipping EPG sync");
-            return Ok(());
-        }
-    };
-
-    let client = XtreamClient::new(url, username, password);
+    if !client.has_credentials() {
+        tracing::warn!("Credentials missing on startup, skipping EPG sync");
+        return Ok(());
+    }
     let _ = app.emit("sync://started", SyncStartedPayload { data_type: "epg".to_string() });
 
     match sync_epg_internal(app.clone(), &client).await {

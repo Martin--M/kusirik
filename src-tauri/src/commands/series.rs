@@ -35,6 +35,7 @@ pub fn get_series(
 #[tauri::command]
 pub async fn get_series_info(
     state: State<'_, DbConn>,
+    client: State<'_, XtreamClient>,
     profile_id: i64,
     series_id: i64,
 ) -> Result<serde_json::Value, String> {
@@ -48,20 +49,6 @@ pub async fn get_series_info(
     }
 
     // 2. Fetch on-demand from Xtream API
-    let (url, username, password) = {
-        let conn = state.0.lock().map_err(|e| e.to_string())?;
-        let url = crate::db::settings::get(&conn, "server_url").map_err(|e| e.to_string())?;
-        let username = crate::db::settings::get(&conn, "username").map_err(|e| e.to_string())?;
-        let password = crate::db::settings::get(&conn, "password").map_err(|e| e.to_string())?;
-        (url, username, password)
-    };
-
-    let (url, username, password) = match (url, username, password) {
-        (Some(u), Some(user), Some(pass)) => (u, user, pass),
-        _ => return Err("Credentials missing".to_string()),
-    };
-
-    let client = XtreamClient::new(url, username, password);
     let info_val = crate::api::series::fetch_series_info(&client, series_id).await.map_err(|e| e.to_string())?;
 
     // 3. Cache in database

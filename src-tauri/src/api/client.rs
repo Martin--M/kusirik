@@ -3,12 +3,18 @@ use reqwest::Client as HttpClient;
 use anyhow::{Result, Context};
 use serde::{Deserialize, Deserializer, de::DeserializeOwned};
 
+#[derive(Debug, Clone, Default)]
+pub struct XtreamConfig {
+    pub server_url: String,
+    pub username: String,
+    pub password: String,
+}
+
 pub struct XtreamClient {
     http: HttpClient,
-    server_url: String,
-    username: String,
-    password: String,
+    config: std::sync::RwLock<XtreamConfig>,
     last_request_time: std::sync::Mutex<Option<std::time::Instant>>,
+    last_short_epg_time: std::sync::Mutex<Option<std::time::Instant>>,
 }
 
 impl XtreamClient {
@@ -20,19 +26,38 @@ impl XtreamClient {
             .unwrap_or_else(|_| HttpClient::new());
         Self {
             http,
-            server_url,
-            username,
-            password,
+            config: std::sync::RwLock::new(XtreamConfig {
+                server_url,
+                username,
+                password,
+            }),
             last_request_time: std::sync::Mutex::new(None),
+            last_short_epg_time: std::sync::Mutex::new(None),
         }
     }
 
+    pub fn update_credentials(&self, server_url: String, username: String, password: String) {
+        let mut guard = self.config.write().unwrap();
+        guard.server_url = server_url;
+        guard.username = username;
+        guard.password = password;
+        tracing::info!("XtreamClient credentials updated in-memory");
+    }
+
+    pub fn has_credentials(&self) -> bool {
+        let config = self.config.read().unwrap();
+        !config.server_url.trim().is_empty() 
+            && !config.username.trim().is_empty() 
+            && !config.password.trim().is_empty()
+    }
+
     pub fn get_url(&self, action: Option<&str>) -> String {
+        let config = self.config.read().unwrap();
         let mut base = format!(
             "{}/player_api.php?username={}&password={}",
-            self.server_url.trim_end_matches('/'),
-            self.username,
-            self.password
+            config.server_url.trim_end_matches('/'),
+            config.username,
+            config.password
         );
         if let Some(act) = action {
             base.push_str(&format!("&action={}", act));
@@ -41,7 +66,20 @@ impl XtreamClient {
     }
 
     pub async fn fetch<T: DeserializeOwned>(&self, action: Option<&str>) -> Result<T> {
-        let wait_time = {
+        let is_short_epg = action.map(|a| a.starts_with("get_short_epg")).unwrap_or(false);
+
+        let wait_time = if is_short_epg {
+            let guard = self.last_short_epg_time.lock().unwrap();
+            guard.map(|last_time| {
+                let elapsed = last_time.elapsed();
+                let min_delay = std::time::Duration::from_millis(500);
+                if elapsed < min_delay {
+                    min_delay - elapsed
+                } else {
+                    std::time::Duration::ZERO
+                }
+            }).unwrap_or(std::time::Duration::ZERO)
+        } else {
             let guard = self.last_request_time.lock().unwrap();
             guard.map(|last_time| {
                 let elapsed = last_time.elapsed();
@@ -60,7 +98,10 @@ impl XtreamClient {
         }
 
         // Update the timestamp right before the call
-        {
+        if is_short_epg {
+            let mut guard = self.last_short_epg_time.lock().unwrap();
+            *guard = Some(std::time::Instant::now());
+        } else {
             let mut guard = self.last_request_time.lock().unwrap();
             *guard = Some(std::time::Instant::now());
         }

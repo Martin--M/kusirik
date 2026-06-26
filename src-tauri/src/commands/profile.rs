@@ -33,6 +33,7 @@ pub struct SaveProfilePayload {
 #[tauri::command]
 pub async fn save_profile(
     state: State<'_, DbConn>,
+    client: State<'_, XtreamClient>,
     payload: SaveProfilePayload,
 ) -> Result<serde_json::Value, String> {
     let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
@@ -61,6 +62,13 @@ pub async fn save_profile(
         crate::db::settings::set(conn, "password", pass).map_err(|e| e.to_string())?;
     }
     crate::db::settings::set(conn, "epg_mode", &epg_mode).map_err(|e| e.to_string())?;
+
+    // Update managed client config
+    client.update_credentials(
+        payload.server_url.clone(),
+        payload.username.clone(),
+        payload.password.clone().unwrap_or_default(),
+    );
 
     Ok(json!({
         "id": 1,
@@ -97,6 +105,7 @@ pub fn get_profile(
 #[tauri::command]
 pub fn delete_profile(
     state: State<'_, DbConn>,
+    client: State<'_, XtreamClient>,
     id: i64,
 ) -> Result<(), String> {
     let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
@@ -107,6 +116,9 @@ pub fn delete_profile(
     let _ = crate::db::settings::set(conn, "server_url", "");
     let _ = crate::db::settings::set(conn, "username", "");
     let _ = crate::db::settings::set(conn, "password", "");
+
+    // Clear managed client config
+    client.update_credentials("".to_string(), "".to_string(), "".to_string());
 
     Ok(())
 }

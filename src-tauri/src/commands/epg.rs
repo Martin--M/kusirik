@@ -11,6 +11,7 @@ static LAST_FETCH_TIMES: OnceLock<Mutex<EpgFetchCache>> = OnceLock::new();
 #[tauri::command]
 pub async fn get_epg_for_channel(
     state: State<'_, DbConn>,
+    client: State<'_, crate::api::XtreamClient>,
     profile_id: i64,
     channel_id: String,
     from: String,
@@ -70,22 +71,6 @@ pub async fn get_epg_for_channel(
         Some(id) => id,
         None => return Ok(vec![]),
     };
-
-    // Load credentials
-    let (url, username, password) = {
-        let conn = db_conn.0.lock().map_err(|e| e.to_string())?;
-        let url = crate::db::settings::get(&conn, "server_url").map_err(|e| e.to_string())?;
-        let username = crate::db::settings::get(&conn, "username").map_err(|e| e.to_string())?;
-        let password = crate::db::settings::get(&conn, "password").map_err(|e| e.to_string())?;
-        (url, username, password)
-    };
-
-    let (url, username, password) = match (url, username, password) {
-        (Some(u), Some(user), Some(pass)) => (u, user, pass),
-        _ => return Ok(vec![]),
-    };
-
-    let client = crate::api::XtreamClient::new(url, username, password);
 
     // Fetch EPG listings on demand
     let listings_res = crate::api::epg::fetch_short_epg(&client, stream_id).await;
