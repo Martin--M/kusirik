@@ -166,3 +166,35 @@ pub fn query_streams(
     Ok(streams)
 }
 
+pub fn search_streams(
+    conn: &Connection,
+    profile_id: i64,
+    query: &str,
+    limit: u32,
+) -> Result<Vec<VodStreamApi>> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added
+         FROM vod_streams
+         WHERE profile_id = ?1 AND name LIKE ?2
+         ORDER BY name ASC
+         LIMIT ?3",
+    )?;
+    let rows = stmt.query_map(rusqlite::params![profile_id, query, limit], |row| {
+        Ok(VodStreamApi {
+            stream_id: row.get(0)?,
+            name: row.get(1)?,
+            stream_icon: row.get(2)?,
+            category_id: row.get(3)?,
+            rating: row.get(4)?,
+            container_extension: row.get(5)?,
+            added: row.get(6)?,
+        })
+    })?;
+    let mut res = Vec::new();
+    for r in rows {
+        res.push(r?);
+    }
+    Ok(res)
+}
+
+

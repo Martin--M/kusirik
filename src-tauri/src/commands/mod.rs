@@ -7,3 +7,5 @@ pub mod epg;
 pub mod settings;
 pub mod player;
 pub mod image;
+pub mod search;
+

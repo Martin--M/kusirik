@@ -59,6 +59,7 @@ pub fn run() {
             commands::player::resolve_stream_url,
             commands::player::copy_to_clipboard,
             commands::image::get_image_data,
+            commands::search::search_all_media,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

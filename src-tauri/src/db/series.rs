@@ -152,3 +152,39 @@ pub fn query_series(
     };
     Ok(list)
 }
+
+pub fn search_series(
+    conn: &Connection,
+    profile_id: i64,
+    query: &str,
+    limit: u32,
+) -> Result<Vec<SeriesApi>> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified
+         FROM series
+         WHERE profile_id = ?1 AND name LIKE ?2
+         ORDER BY name ASC
+         LIMIT ?3",
+    )?;
+    let rows = stmt.query_map(rusqlite::params![profile_id, query, limit], |row| {
+        Ok(SeriesApi {
+            series_id: row.get(0)?,
+            name: row.get(1)?,
+            cover: row.get(2)?,
+            category_id: row.get(3)?,
+            rating: row.get(4)?,
+            plot: row.get(5)?,
+            cast: row.get(6)?,
+            director: row.get(7)?,
+            genre: row.get(8)?,
+            release_date: row.get(9)?,
+            last_modified: row.get(10)?,
+        })
+    })?;
+    let mut res = Vec::new();
+    for r in rows {
+        res.push(r?);
+    }
+    Ok(res)
+}
+
