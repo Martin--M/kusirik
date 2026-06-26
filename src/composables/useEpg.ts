@@ -2,7 +2,16 @@ import { useQuery } from '@tanstack/vue-query'
 import { getEpgForChannel } from '@/lib/tauri-commands'
 import { PROFILE_ID } from '@/stores/profile.store'
 import type { MaybeRefOrGetter } from 'vue'
-import { toValue } from 'vue'
+import { toValue, ref } from 'vue'
+
+// Global ticking clock to keep track of current time across all channel rows
+export const globalNow = ref(Date.now())
+
+if (typeof window !== 'undefined') {
+  setInterval(() => {
+    globalNow.value = Date.now()
+  }, 30000) // Update every 30 seconds
+}
 
 /**
  * Fetch EPG entries for a channel around the current time.
@@ -30,5 +39,6 @@ export function useEpg(
       return getEpgForChannel(PROFILE_ID, id, from, to)
     },
     enabled: () => !!toValue(channelId),
+    refetchInterval: 15 * 60 * 1000, // Refetch EPG data from backend every 15 minutes
   })
 }

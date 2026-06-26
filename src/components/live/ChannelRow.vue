@@ -4,7 +4,7 @@ import type { LiveStream } from '@/types/stream'
 import CachedImage from '@/components/ui/CachedImage.vue'
 import IconClock from '@/components/icons/IconClock.vue'
 import IconPlay from '@/components/icons/IconPlay.vue'
-import { useEpg } from '@/composables/useEpg'
+import { useEpg, globalNow } from '@/composables/useEpg'
 
 const props = defineProps<{
   stream: LiveStream
@@ -24,14 +24,13 @@ const { data: epgEntries } = useEpg(
   1,
 )
 
-const nowMs = Date.now()
-
 const nowPlaying = computed(() => {
   if (!epgEntries.value?.length) return null
+  const now = globalNow.value
   return epgEntries.value.find(e => {
     const start = new Date(e.start).getTime()
     const stop  = new Date(e.stop).getTime()
-    return start <= nowMs && nowMs < stop
+    return start <= now && now < stop
   }) ?? null
 })
 
@@ -39,7 +38,7 @@ const progress = computed(() => {
   if (!nowPlaying.value) return 0
   const start = new Date(nowPlaying.value.start).getTime()
   const stop  = new Date(nowPlaying.value.stop).getTime()
-  return Math.min(100, Math.max(0, ((nowMs - start) / (stop - start)) * 100))
+  return Math.min(100, Math.max(0, ((globalNow.value - start) / (stop - start)) * 100))
 })
 </script>
 
