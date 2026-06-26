@@ -1,4 +1,4 @@
-package com.iptv.helper
+package com.martinm.kusirik
 
 import android.app.Activity
 import android.content.Intent

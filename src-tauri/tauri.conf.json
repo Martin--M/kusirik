@@ -1,7 +1,7 @@
 {
   "productName": "kusirik",
   "version": "0.1.0",
-  "identifier": "com.iptv.helper",
+  "identifier": "com.martinm.kusirik",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",

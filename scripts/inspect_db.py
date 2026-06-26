@@ -4,7 +4,7 @@ import sqlite3
 
 def main():
     # Resolve the default database path
-    db_path = os.path.expanduser('~/.local/share/com.iptv.helper/iptv.db')
+    db_path = os.path.expanduser('~/.local/share/com.martinm.kusirik/iptv.db')
     
     if not os.path.exists(db_path):
         print(f"Error: Database file does not exist at: {db_path}")
@@ -14,7 +14,7 @@ def main():
     db_size_mb = db_size_bytes / (1024 * 1024)
 
     print(f"==================================================")
-    print(f" IPTV Helper DB Summary: {db_path}")
+    print(f" Kusirik DB Summary: {db_path}")
     print(f" Size on Disk: {db_size_mb:.2f} MB ({db_size_bytes:,} bytes)")
     print(f"==================================================")
     

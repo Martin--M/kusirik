@@ -8,7 +8,7 @@ use tauri::Manager;
 
 pub fn run() {
     tracing_subscriber::fmt()
-        .with_env_filter("iptv_helper=debug,info")
+        .with_env_filter("kusirik=debug,info")
         .init();
 
     tauri::Builder::default()

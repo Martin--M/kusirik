@@ -30,7 +30,7 @@ IPTV Helper connects to any Xtream Codes-compatible server to fetch, cache, and 
 ## 📂 Project Structure
 
 ```text
-iptv-helper/
+kusirik/
 ├── scripts/                  # Helper utilities (inspect_db.py)
 ├── src/                      # Vue 3 Frontend
 │   ├── main.ts               # App entrypoint & plugins configuration

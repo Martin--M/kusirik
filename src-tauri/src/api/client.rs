@@ -78,7 +78,13 @@ impl XtreamClient {
             Ok(b) => b,
             Err(e) => {
                 let action_str = action.unwrap_or("none").replace(['&', '='], "_");
-                let log_dir = "/home/martin/.local/share/com.iptv.helper";
+                let log_dir = if let Ok(home) = std::env::var("HOME") {
+                    format!("{}/.local/share/com.martinm.kusirik", home)
+                } else if let Ok(profile) = std::env::var("USERPROFILE") {
+                    format!("{}/AppData/Local/com.martinm.kusirik", profile)
+                } else {
+                    "/tmp/com.martinm.kusirik".to_string()
+                };
                 let log_path = format!("{}/failed_{}.txt", log_dir, action_str);
                 
                 if let Err(dir_err) = std::fs::create_dir_all(log_dir) {

@@ -9,5 +9,5 @@ fn main() {
         // Fixes WebKitGTK/WSL2 rendering lockups & blank screen issues
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
-    iptv_helper::run()
+    kusirik::run()
 }

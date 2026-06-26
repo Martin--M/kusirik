@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   server_url      TEXT    NOT NULL,
   username        TEXT    NOT NULL,
   -- password lives in the OS keyring under:
-  --   service: "iptv-helper"  account: "profile-<id>"
+  --   service: "kusirik"  account: "profile-<id>"
   epg_mode        TEXT    NOT NULL DEFAULT 'xmltv',
   created_at      TEXT    NOT NULL
 );
