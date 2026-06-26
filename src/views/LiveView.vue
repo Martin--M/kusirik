@@ -13,6 +13,7 @@ import { useSettingsStore } from '@/stores/settings.store'
 import { useToastStore } from '@/stores/toast.store'
 import { buildLiveUrl } from '@/lib/url-builder'
 import IconLive from '@/components/icons/IconLive.vue'
+import IconCheck from '@/components/icons/IconCheck.vue'
 
 const selectedCategoryId = ref<string>('all')
 const selectedStream = ref<LiveStream | null>(null)
@@ -240,9 +241,7 @@ function formatEpgTime(dateStr: string): string {
           <label class="custom-checkbox">
             <input type="checkbox" v-model="showCatchupOnly" class="checkbox-input" />
             <span class="checkbox-box">
-              <svg class="checkbox-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
+              <IconCheck class="checkbox-check" />
             </span>
             <span class="checkbox-label">Catch-up Only</span>
           </label>
