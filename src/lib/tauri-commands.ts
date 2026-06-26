@@ -101,3 +101,15 @@ export const launchAndroidIntent = (url: string) =>
 
 export const copyToSystemClipboard = (text: string) =>
   invoke<void>('copy_to_clipboard', { text })
+
+// ─── Search ──────────────────────────────────────────────────────────────────
+
+export interface SearchResults {
+  live: LiveStream[]
+  vod: VodStream[]
+  series: Series[]
+}
+
+export const searchAllMedia = (profileId: number, query: string) =>
+  invoke<SearchResults>('search_all_media', { profileId, query })
+

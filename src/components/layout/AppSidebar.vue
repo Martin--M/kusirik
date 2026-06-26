@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settings.store'
 import IconLive from '../icons/IconLive.vue'
@@ -7,6 +7,7 @@ import IconMovies from '../icons/IconMovies.vue'
 import IconSeries from '../icons/IconSeries.vue'
 import IconSettings from '../icons/IconSettings.vue'
 import IconChevron from '../icons/IconChevron.vue'
+import IconSearch from '../icons/IconSearch.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,6 +22,33 @@ const navItems = [
 
 const activeRouteName = computed(() => route.name)
 const isCollapsed = computed(() => settingsStore.sidebarCollapsed)
+const searchQuery = ref('')
+
+// Watch query param in URL to keep the input text synced (e.g. if the user uses browser back button)
+watch(
+  () => route.query.q,
+  (newQ) => {
+    searchQuery.value = (newQ as string) || ''
+  },
+  { immediate: true }
+)
+
+function handleSearchInput() {
+  const val = searchQuery.value.trim()
+  const targetQuery = val ? { q: val } : {}
+  if (route.name !== 'search') {
+    router.push({ name: 'search', query: targetQuery })
+  } else {
+    router.replace({ name: 'search', query: targetQuery })
+  }
+}
+
+function focusSearchInput() {
+  if (isCollapsed.value) {
+    settingsStore.toggleSidebar()
+  }
+  router.push({ name: 'search', query: searchQuery.value ? { q: searchQuery.value } : {} })
+}
 
 function navigate(name: string) {
   router.push({ name })
@@ -43,6 +71,22 @@ function navigate(name: string) {
       </button>
     </div>
     
+    <div class="search-container" :class="{ collapsed: isCollapsed }">
+      <button v-if="isCollapsed" class="search-icon-btn" @click="focusSearchInput" title="Search">
+        <IconSearch class="search-icon" />
+      </button>
+      <div v-else class="search-input-wrapper">
+        <IconSearch class="search-input-icon" />
+        <input
+          v-model="searchQuery"
+          @input="handleSearchInput"
+          type="text"
+          placeholder="Search..."
+          class="sidebar-search-input"
+        />
+      </div>
+    </div>
+
     <nav class="nav-menu">
       <button
         v-for="item in navItems"
@@ -234,5 +278,84 @@ function navigate(name: string) {
   max-width: 0;
   pointer-events: none;
   margin: 0;
+}
+
+.search-container {
+  margin-bottom: var(--spacing-6);
+  padding: 0 var(--spacing-2);
+  transition: all var(--transition-normal) ease;
+}
+
+.search-container.collapsed {
+  display: flex;
+  justify-content: center;
+  padding: 0;
+}
+
+.search-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+}
+
+.search-icon-btn:hover {
+  color: var(--color-text);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.search-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.search-input-icon {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.sidebar-search-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 var(--spacing-3) 0 36px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: all var(--transition-fast) ease;
+}
+
+.sidebar-search-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme='light'] .sidebar-search-input {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme='light'] .sidebar-search-input:focus {
+  background: rgba(0, 0, 0, 0.04);
 }
 </style>
