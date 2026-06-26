@@ -19,7 +19,7 @@ const title = computed(() => {
     case 'search':
       return 'Search'
     default:
-      return 'IPTV Helper'
+      return 'Kusirik'
   }
 })
 

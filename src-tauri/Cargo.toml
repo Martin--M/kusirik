@@ -1,7 +1,7 @@
 [package]
 name = "iptv-helper"
 version = "0.1.0"
-description = "IPTV Helper"
+description = "Kusirik - IPTV Engine"
 authors = ["Martin"]
 edition = "2021"
 

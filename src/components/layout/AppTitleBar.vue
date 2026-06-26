@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import IconClose from '../icons/IconClose.vue'
+import IconLogo from '../icons/IconLogo.vue'
 
 const isMaximized = ref(false)
 let appWindow: any = null
@@ -82,8 +83,8 @@ function handleDblClick(e: MouseEvent) {
   >
     <!-- Left Section: Logo & Name -->
     <div class="logo-section" data-tauri-drag-region>
-      <div class="app-logo" data-tauri-drag-region></div>
-      <span class="app-name" data-tauri-drag-region>IPTV Helper</span>
+      <IconLogo class="app-logo-svg" data-tauri-drag-region />
+      <span class="app-name" data-tauri-drag-region>kusirik</span>
     </div>
 
     <!-- Center Spacer (Drag Region) -->
@@ -144,11 +145,11 @@ function handleDblClick(e: MouseEvent) {
   color: var(--color-text-muted);
 }
 
-.app-logo {
-  width: 12px;
-  height: 12px;
-  background-color: var(--color-primary);
-  border-radius: 3px;
+.app-logo-svg {
+  width: 14px;
+  height: 14px;
+  color: var(--color-primary);
+  flex-shrink: 0;
 }
 
 .app-name {

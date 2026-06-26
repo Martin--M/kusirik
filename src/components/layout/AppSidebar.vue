@@ -8,6 +8,7 @@ import IconSeries from '../icons/IconSeries.vue'
 import IconSettings from '../icons/IconSettings.vue'
 import IconChevron from '../icons/IconChevron.vue'
 import IconSearch from '../icons/IconSearch.vue'
+import IconLogo from '../icons/IconLogo.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -59,8 +60,11 @@ function navigate(name: string) {
   <aside class="app-sidebar" :class="{ collapsed: isCollapsed }">
     <div class="logo-container">
       <div class="logo-left">
-        <div class="logo-icon"></div>
-        <span class="logo-text">IPTV Helper</span>
+        <IconLogo class="logo-icon-svg" />
+        <div class="logo-text-wrapper">
+          <span class="logo-text">kusirik</span>
+          <span class="logo-subtext">IPTV Engine</span>
+        </div>
       </div>
       <button
         class="collapse-toggle-btn"
@@ -149,28 +153,39 @@ function navigate(name: string) {
   justify-content: center;
 }
 
-.logo-icon {
+.logo-icon-svg {
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--color-primary), #a855f7);
-  box-shadow: 0 0 15px rgba(96, 165, 250, 0.3);
+  color: var(--color-primary);
+  filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.3));
   flex-shrink: 0;
+  transition: transform var(--transition-fast) ease;
+}
+
+.logo-left:hover .logo-icon-svg {
+  transform: scale(1.05);
+}
+
+.logo-text-wrapper {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
 }
 
 .logo-text {
   font-size: 1.25rem;
   font-weight: 800;
   letter-spacing: -0.025em;
-  background: linear-gradient(135deg, #fff, var(--color-text-muted));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--color-text);
+  text-transform: capitalize;
 }
 
-[data-theme='light'] .logo-text {
-  background: linear-gradient(135deg, var(--color-text), #555);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.logo-subtext {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .nav-menu {
@@ -264,6 +279,7 @@ function navigate(name: string) {
 }
 
 .logo-text,
+.logo-subtext,
 .nav-label {
   white-space: nowrap;
   opacity: 1;
@@ -273,6 +289,7 @@ function navigate(name: string) {
 }
 
 .app-sidebar.collapsed .logo-text,
+.app-sidebar.collapsed .logo-subtext,
 .app-sidebar.collapsed .nav-label {
   opacity: 0;
   max-width: 0;

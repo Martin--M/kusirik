@@ -7,6 +7,7 @@ import { useSyncStore } from '@/stores/sync.store'
 import type { DataType } from '@/types/sync'
 import IconEye from '../components/icons/IconEye.vue'
 import IconEyeOff from '../components/icons/IconEyeOff.vue'
+import IconLogo from '../components/icons/IconLogo.vue'
 
 const router = useRouter()
 const profileStore = useProfileStore()
@@ -170,8 +171,9 @@ onMounted(async () => {
   <div class="setup-container">
     <div class="glass-card">
       <div class="header">
-        <h1 class="glow-title">IPTV Helper</h1>
-        <p class="subtitle">Connect to your Xtream Codes Server</p>
+        <IconLogo class="setup-logo-svg" />
+        <h1 class="glow-title">kusirik</h1>
+        <p class="subtitle">Kusirik - IPTV Engine</p>
       </div>
 
       <!-- Main setup form -->
@@ -351,6 +353,15 @@ onMounted(async () => {
 .header {
   text-align: center;
   margin-bottom: var(--spacing-6);
+}
+
+.setup-logo-svg {
+  width: 48px;
+  height: 48px;
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-3);
+  filter: drop-shadow(0 0 12px rgba(96, 165, 250, 0.4));
+  display: inline-block;
 }
 
 .glow-title {
