@@ -11,7 +11,7 @@ Kusirik connects to any Xtream Codes-compatible server to fetch, cache, and disp
 *   **Fast local caching**: Primary metadata (Live, VOD, and Series) is synced from the server and cached in SQLite for instant startup and navigation.
 *   **On-Demand VOD Caching**: Heavy movie synopsis, cast list, and media details are cached locally on-demand when requested to optimize bandwidth.
 *   **Offline Image Cache**: Logos and posters are stored locally in the database as BLOBs, backed by `IntersectionObserver` lazy loading to keep runtime memory footprint low.
-*   **Secure credentials**: Passwords are saved securely using the OS keyring (Windows Credential Manager / Android Keystore) rather than plaintext files.
+*   **Credentials cache**: Server URLs, usernames, and passwords are saved locally in the SQLite settings database, isolated from the frontend and exposed only on-demand during streaming resolution.
 *   **EPG Streaming Engine**: High-performance parsing and UTC indexing of large XMLTV files, with on-demand API fallback caching and automatic base64 text decoding.
 *   **Virtualised lists**: Custom grid list virtualization featuring dynamic size and column calculations using `ResizeObserver`.
 *   **External player handoff**: Seamlessly launches VLC or MX Player, with safe fallback copy-to-clipboard actions executed on the backend to avoid webview permission limitations.
@@ -22,7 +22,7 @@ Kusirik connects to any Xtream Codes-compatible server to fetch, cache, and disp
 ## 🛠️ Technology Stack
 
 *   **Frontend**: Vue 3 (Composition API with `<script setup lang="ts">`), Pinia 3 for state management, TanStack Vue Query v5 for client-side queries, and TanStack Vue Virtual for list virtualization.
-*   **Backend**: Tauri 2 (Rust), Tokio for async runtime, reqwest for API communication, rusqlite for SQL database writes, and keyring-core for credential management.
+*   **Backend**: Tauri 2 (Rust), Tokio for async runtime, reqwest for API communication, and rusqlite for SQL database writes.
 *   **Database**: SQLite (managed with WAL mode for safe concurrent reads/writes).
 
 ---

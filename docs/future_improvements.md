@@ -50,3 +50,25 @@ For simple integrations (like firing a single Android intent), we can bypass Kot
 
 #### Drawbacks
 * Rust JNI syntax is verbose and harder to maintain/debug compared to idiomatic Kotlin.
+
+---
+
+## 3. Secure Credentials Storage (OS Keyring / Android Keystore)
+
+### Current Setup
+User credentials (server URL, username, and password) are currently stored in plaintext inside the local SQLite database (`settings` table). While the password is isolated from the frontend (represented by `"***"` in WebView communications), storing raw passwords in local databases poses a security vulnerability if the host device/file system is compromised.
+
+### Proposed Improvement
+Integrate native OS credential manager services to encrypt and secure the user's password using the Rust `keyring` crate.
+
+#### Desktop (Windows/Linux/macOS)
+Use the `keyring` crate to communicate with:
+* **Windows**: Credential Manager (via SChannel DPAPI).
+* **Linux**: Freedesktop Secret Service API (KWallet / GNOME Keyring).
+* **macOS**: Apple Keychain Services.
+
+#### Android
+Integrate with the native Android Keystore system. Because standard platform keyring services are unavailable on Android via raw OS calls, this will require a native Android/Kotlin wrapper plugin (or using JNI) to:
+1. Generate an AES/RSA key inside Android Keystore Provider.
+2. Encrypt/decrypt the password string when saving or reading from the database.
+3. Save the encrypted ciphertext to SQLite, keeping the cryptographic keys inside the hardware-backed secure enclave.

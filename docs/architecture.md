@@ -129,7 +129,7 @@ Rather than pre-syncing heavy, detailed metadata (such as cast, synopsis, plot, 
 1. The frontend invokes `get_vod_info` or `get_series_info` when opening a media detail drawer.
 2. The Tauri Core intercepts the call and checks the `vod_info` or `series_info` SQLite table.
 3. **Cache Hit**: Instantly returns cached JSON data.
-4. **Cache Miss**: Authenticates via keyring-stored credentials, queries the Xtream API, caches the results back to the database (`vod_info` or `series_info`) for future hits, and returns the data.
+4. **Cache Miss**: Authenticates via database-stored credentials, queries the Xtream API, caches the results back to the database (`vod_info` or `series_info`) for future hits, and returns the data.
 
 ### 3. Desktop/Mobile UI Simplification
 Large view components have been broken down:
