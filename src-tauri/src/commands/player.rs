@@ -142,3 +142,27 @@ pub fn copy_to_clipboard(text: String) -> Result<(), String> {
 
     Err("No clipboard utility (clip.exe, xclip, or wl-copy) succeeded.".to_string())
 }
+
+pub struct AndroidIntentState(pub Option<tauri::plugin::PluginHandle<tauri::Wry>>);
+
+#[tauri::command]
+pub fn launch_android_intent(
+    state: State<'_, AndroidIntentState>,
+    url: String,
+) -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    {
+        if let Some(ref plugin) = state.0 {
+            plugin.run_mobile_plugin::<()>("launchPlayer", serde_json::json!({ "url": url }))
+                .map_err(|e| e.to_string())
+        } else {
+            Err("Android intent plugin handle not initialized.".to_string())
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = state;
+        let _ = url;
+        Err("launch_android_intent is only supported on Android.".to_string())
+    }
+}

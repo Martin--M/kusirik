@@ -40,7 +40,26 @@ pub fn run() {
             app.manage(db_conn);
 
             #[cfg(target_os = "android")]
-            app.handle().plugin(tauri::plugin::Builder::<tauri::Wry, ()>::new("intent").build())?;
+            let intent_handle = {
+                let handle_arc = std::sync::Arc::new(std::sync::Mutex::new(None));
+                let handle_clone = handle_arc.clone();
+                app.handle().plugin(
+                    tauri::plugin::Builder::<tauri::Wry, ()>::new("intent")
+                        .setup(move |_app, api| {
+                            let h = api.register_android_plugin("com.martinm.kusirik", "IntentPlugin")?;
+                            *handle_clone.lock().unwrap() = Some(h);
+                            Ok(())
+                        })
+                        .build()
+                )?;
+                let h = handle_arc.lock().unwrap().take();
+                h
+            };
+
+            #[cfg(not(target_os = "android"))]
+            let intent_handle = None;
+
+            app.manage(commands::player::AndroidIntentState(intent_handle));
 
             // Spawn background startup tasks (clean old EPG and check/run EPG sync)
             let app_handle = app.handle().clone();
@@ -73,6 +92,7 @@ pub fn run() {
             commands::settings::set_setting,
             commands::player::launch_player,
             commands::player::resolve_stream_url,
+            commands::player::launch_android_intent,
             commands::player::copy_to_clipboard,
             commands::image::get_image_data,
             commands::search::search_all_media,

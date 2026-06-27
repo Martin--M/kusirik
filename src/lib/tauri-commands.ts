@@ -97,7 +97,7 @@ export const resolveStreamUrl = (url: string) =>
   invoke<string>('resolve_stream_url', { url })
 
 export const launchAndroidIntent = (url: string) =>
-  invoke<void>('plugin:intent|launchPlayer', { url })
+  invoke<void>('launch_android_intent', { url })
 
 export const copyToSystemClipboard = (text: string) =>
   invoke<void>('copy_to_clipboard', { text })
