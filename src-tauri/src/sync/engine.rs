@@ -358,7 +358,10 @@ async fn sync_epg_internal(app: AppHandle, client: &XtreamClient) -> Result<usiz
     let xmltv_url = client.get_url(None).replace("player_api.php", "xmltv.php");
     tracing::info!(url = %xmltv_url, "Fetching XMLTV EPG data");
 
-    let res = reqwest::Client::new()
+    let res = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .build()
+        .context("Failed to build HTTP client")?
         .get(&xmltv_url)
         .send()
         .await

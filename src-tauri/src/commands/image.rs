@@ -33,6 +33,7 @@ pub async fn get_image_data(
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(30))
+        .danger_accept_invalid_certs(true)
         .build()
         .map_err(|e| e.to_string())?;
 

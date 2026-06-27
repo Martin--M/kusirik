@@ -22,6 +22,7 @@ impl XtreamClient {
         let http = HttpClient::builder()
             .connect_timeout(Duration::from_secs(30))
             .timeout(Duration::from_secs(120))
+            .danger_accept_invalid_certs(true)
             .build()
             .unwrap_or_else(|_| HttpClient::new());
         Self {
