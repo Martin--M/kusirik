@@ -10,11 +10,7 @@ src-tauri/gen/android/.gradle/
 src-tauri/gen/android/build/
 src-tauri/gen/android/app/build/
 src-tauri/gen/android/app/.cxx/
-src-tauri/gen/android/buildSrc/
-src-tauri/gen/android/gradle/
 src-tauri/gen/android/local.properties
-src-tauri/gen/android/gradlew
-src-tauri/gen/android/gradlew.bat
 src-tauri/gen/android/app/src/main/jniLibs/
 src-tauri/gen/schemas/
 
