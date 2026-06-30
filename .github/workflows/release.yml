@@ -55,8 +55,19 @@ jobs:
       - name: Build Tauri Windows Installer
         run: npm run tauri:build
 
+      - name: Rename Windows Installer
+        shell: bash
+        run: |
+          MSI_PATH=$(find src-tauri/target/release/bundle/msi -name "*.msi" | head -n 1)
+          if [ -n "$MSI_PATH" ]; then
+            mv "$MSI_PATH" "src-tauri/target/release/bundle/msi/kusirik-${{ github.ref_name }}.msi"
+          else
+            echo "Error: No MSI file found!"
+            exit 1
+          fi
+
       - name: Upload Windows Asset to Release
-        run: gh release upload ${{ github.ref_name }} src-tauri/target/release/bundle/msi/*.msi --clobber
+        run: gh release upload ${{ github.ref_name }} src-tauri/target/release/bundle/msi/kusirik-${{ github.ref_name }}.msi --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -107,19 +118,28 @@ jobs:
         run: |
           echo "$ANDROID_KEY_BASE64" | base64 --decode > release.keystore
           BUILD_TOOLS_PATH=$(ls -d ${ANDROID_HOME}/build-tools/* | sort -V | tail -1)
-          UNSIGNED_APK=$(find src-tauri/gen/android/app/build/outputs/apk/universal/release -name "*.apk" ! -name "*signed*")
+          
+          # Find the unsigned APK robustly across outputs
+          UNSIGNED_APK=$(find src-tauri/gen/android/app/build/outputs -name "*unsigned.apk" | head -n 1)
+          if [ -z "$UNSIGNED_APK" ]; then
+            echo "Error: No unsigned APK found in build outputs!"
+            exit 1
+          fi
+          
+          # Ensure destination directory exists
+          mkdir -p src-tauri/gen/android/app/build/outputs/apk/universal/release
           
           $BUILD_TOOLS_PATH/apksigner sign \
             --ks release.keystore \
             --ks-key-alias "$ANDROID_KEY_ALIAS" \
             --ks-pass pass:"$ANDROID_KEY_PASSWORD" \
-            --out src-tauri/gen/android/app/build/outputs/apk/universal/release/app-release-signed.apk \
+            --out src-tauri/gen/android/app/build/outputs/apk/universal/release/kusirik-${{ github.ref_name }}.apk \
             "$UNSIGNED_APK"
             
           # Immediate cleanup configuration
           rm -f release.keystore
 
       - name: Upload Android APK to Release
-        run: gh release upload ${{ github.ref_name }} src-tauri/gen/android/app/build/outputs/apk/universal/release/app-release-signed.apk --clobber
+        run: gh release upload ${{ github.ref_name }} src-tauri/gen/android/app/build/outputs/apk/universal/release/kusirik-${{ github.ref_name }}.apk --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
