@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Create Release
-        run: gh release create ${{ github.ref_name }} --generate-notes
+        run: gh release view ${{ github.ref_name }} >/dev/null 2>&1 || gh release create ${{ github.ref_name }} --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -56,7 +56,7 @@ jobs:
         run: npm run tauri:build
 
       - name: Upload Windows Asset to Release
-        run: gh release upload ${{ github.ref_name }} src-tauri/target/release/bundle/msi/*.msi
+        run: gh release upload ${{ github.ref_name }} src-tauri/target/release/bundle/msi/*.msi --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -120,6 +120,6 @@ jobs:
           rm -f release.keystore
 
       - name: Upload Android APK to Release
-        run: gh release upload ${{ github.ref_name }} src-tauri/gen/android/app/build/outputs/apk/universal/release/app-release-signed.apk
+        run: gh release upload ${{ github.ref_name }} src-tauri/gen/android/app/build/outputs/apk/universal/release/app-release-signed.apk --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
