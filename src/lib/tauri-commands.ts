@@ -99,8 +99,17 @@ export const resolveStreamUrl = (url: string) =>
 export const launchAndroidIntent = (url: string) =>
   invoke<void>('launch_android_intent', { url })
 
-export const copyToSystemClipboard = (text: string) =>
-  invoke<void>('copy_to_clipboard', { text })
+export const copyToSystemClipboard = async (text: string) => {
+  if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    try {
+      await navigator.clipboard.writeText(text)
+      return
+    } catch (e) {
+      console.warn('navigator.clipboard.writeText failed, falling back to Rust command:', e)
+    }
+  }
+  return invoke<void>('copy_to_clipboard', { text })
+}
 
 // ─── Search ──────────────────────────────────────────────────────────────────
 
