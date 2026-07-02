@@ -25,17 +25,19 @@ if (typeof window !== 'undefined') {
  */
 export function useEpg(
   channelId: MaybeRefOrGetter<string | null>,
-  hoursBack = 1,
-  hoursForward = 24,
+  hoursBack: MaybeRefOrGetter<number> = 1,
+  hoursForward: MaybeRefOrGetter<number> = 24,
 ) {
   return useQuery({
-    queryKey: ['epg', channelId],
+    queryKey: ['epg', channelId, hoursBack, hoursForward],
     queryFn: () => {
       const id = toValue(channelId)
       if (!id) return []
       const nowMs = Date.now()
-      const from = new Date(nowMs - hoursBack * 3_600_000).toISOString()
-      const to   = new Date(nowMs + hoursForward * 3_600_000).toISOString()
+      const hb = toValue(hoursBack)
+      const hf = toValue(hoursForward)
+      const from = new Date(nowMs - hb * 3_600_000).toISOString()
+      const to   = new Date(nowMs + hf * 3_600_000).toISOString()
       return getEpgForChannel(PROFILE_ID, id, from, to)
     },
     enabled: () => !!toValue(channelId),
