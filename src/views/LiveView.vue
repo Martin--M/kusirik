@@ -11,9 +11,11 @@ import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
 import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useToastStore } from '@/stores/toast.store'
-import { buildLiveUrl } from '@/lib/url-builder'
+import { buildLiveUrl, buildCatchupUrl } from '@/lib/url-builder'
 import IconLive from '@/components/icons/IconLive.vue'
 import IconCheck from '@/components/icons/IconCheck.vue'
+import IconPlay from '@/components/icons/IconPlay.vue'
+import IconCopy from '@/components/icons/IconCopy.vue'
 
 const selectedCategoryId = ref<string>('all')
 const selectedStream = ref<LiveStream | null>(null)
@@ -90,7 +92,7 @@ const filteredStreams = computed(() => {
   })
 })
 
-const { playLive } = usePlayer()
+const { playLive, playCatchup } = usePlayer()
 
 function selectChannel(stream: LiveStream) {
   selectedStream.value = stream
@@ -143,7 +145,15 @@ async function copyUrl(stream: LiveStream) {
 import { useEpg } from '@/composables/useEpg'
 
 const selectedEpgChannelId = computed(() => selectedStream.value?.epg_channel_id || null)
-const { data: epgData, isLoading: isLoadingEpg } = useEpg(selectedEpgChannelId)
+
+const hoursBack = computed(() => {
+  if (selectedStream.value && selectedStream.value.tv_archive === 1) {
+    return (selectedStream.value.tv_archive_duration || 1) * 24
+  }
+  return 1
+})
+
+const { data: epgData, isLoading: isLoadingEpg } = useEpg(selectedEpgChannelId, hoursBack)
 
 const now = ref(new Date())
 // Update "now" timer to refresh progress bar
@@ -165,6 +175,86 @@ const currentProgram = computed(() => {
     return start <= now.value && stop >= now.value
   }) || null
 })
+
+const pastPrograms = computed(() => {
+  if (!epgData.value || !selectedStream.value || selectedStream.value.tv_archive !== 1) return []
+  const durationMs = (selectedStream.value.tv_archive_duration || 0) * 24 * 3_600_000
+  const cutoffTime = new Date(now.value.getTime() - durationMs)
+  
+  const finished = epgData.value.filter((entry) => {
+    const start = new Date(entry.start)
+    const stop = new Date(entry.stop)
+    return stop < now.value && start >= cutoffTime
+  })
+  
+  return [...finished].sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime())
+})
+
+function formatUtcForCatchup(dateStr: string): string {
+  try {
+    const date = new Date(dateStr)
+    const y = date.getUTCFullYear()
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+    const d = String(date.getUTCDate()).padStart(2, '0')
+    const h = String(date.getUTCHours()).padStart(2, '0')
+    const min = String(date.getUTCMinutes()).padStart(2, '0')
+    return `${y}-${m}-${d}:${h}-${min}`
+  } catch (e) {
+    return ''
+  }
+}
+
+function getDurationMinutes(startStr: string, stopStr: string): number {
+  try {
+    const start = new Date(startStr).getTime()
+    const stop = new Date(stopStr).getTime()
+    return Math.round((stop - start) / 60000)
+  } catch (e) {
+    return 0
+  }
+}
+
+async function handlePlayCatchup(item: any) {
+  if (!selectedStream.value) return
+  const startDateTime = formatUtcForCatchup(item.start)
+  const duration = getDurationMinutes(item.start, item.stop)
+  await playCatchup(selectedStream.value.stream_id, startDateTime, duration)
+}
+
+async function copyCatchupUrl(item: any) {
+  try {
+    const profile = profileStore.profile
+    if (!profile || !selectedStream.value) {
+      toastStore.showToast('No active profile loaded.', 'error')
+      return
+    }
+
+    const password = await getSetting('password')
+    if (!password) {
+      toastStore.showToast('Could not retrieve credentials.', 'error')
+      return
+    }
+
+    const startDateTime = formatUtcForCatchup(item.start)
+    const duration = getDurationMinutes(item.start, item.stop)
+    const url = buildCatchupUrl(
+      {
+        serverUrl: profile.server_url,
+        username: profile.username,
+        password,
+      },
+      selectedStream.value.stream_id,
+      startDateTime,
+      duration
+    )
+
+    await copyToSystemClipboard(url)
+    toastStore.showToast('Catch-up stream URL copied to clipboard!', 'success')
+  } catch (e) {
+    console.error(e)
+    toastStore.showToast('Failed to copy catch-up URL.', 'error')
+  }
+}
 
 const currentProgramProgress = computed(() => {
   if (!currentProgram.value) return 0
@@ -285,11 +375,32 @@ function formatEpgTime(dateStr: string): string {
           <span>Loading guide info...</span>
         </div>
 
-        <div v-else-if="!currentProgram && upcomingPrograms.length === 0" class="epg-no-data">
+        <div v-else-if="!currentProgram && upcomingPrograms.length === 0 && pastPrograms.length === 0" class="epg-no-data">
           <p>No guide details available for this channel.</p>
         </div>
 
         <div v-else>
+          <!-- Past Schedule (Catch-up) -->
+          <div v-if="selectedStream?.tv_archive === 1 && pastPrograms.length > 0" class="epg-past-section">
+            <h5 class="epg-past-header">Past schedule</h5>
+            <div class="epg-past-list">
+              <div v-for="item in pastPrograms" :key="item.id || item.start" class="epg-past-item">
+                <div class="epg-past-info">
+                  <span class="epg-past-time">{{ formatEpgTime(item.start) }} - {{ formatEpgTime(item.stop) }}</span>
+                  <span class="epg-past-title" :title="item.title || undefined">{{ item.title }}</span>
+                </div>
+                <div class="epg-past-actions">
+                  <button class="action-btn" @click.stop="handlePlayCatchup(item)" title="Play Catch-up">
+                    <IconPlay class="action-icon" />
+                  </button>
+                  <button class="action-btn" @click.stop="copyCatchupUrl(item)" title="Copy URL">
+                    <IconCopy class="action-icon" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Now Playing Program Card -->
           <div v-if="currentProgram" class="epg-placeholder-card active">
             <div class="epg-time">
@@ -665,5 +776,99 @@ function formatEpgTime(dateStr: string): string {
   0% { opacity: 0.4; }
   50% { opacity: 0.8; }
   100% { opacity: 0.4; }
+}
+
+/* Past Schedule Catch-up Styles */
+.epg-past-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-2);
+}
+
+.epg-past-header {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  margin-bottom: var(--spacing-1);
+}
+
+.epg-past-list {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--spacing-1-5);
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: var(--spacing-1);
+}
+
+.epg-past-item {
+  background: rgba(15, 23, 42, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-2) var(--spacing-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  font-size: 0.8rem;
+}
+
+.epg-past-item:hover {
+  background: rgba(15, 23, 42, 0.25);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.epg-past-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.epg-past-time {
+  font-weight: 700;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.epg-past-title {
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.epg-past-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-shrink: 0;
+}
+
+.action-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast) ease, background-color var(--transition-fast) ease;
+}
+
+.action-btn:hover {
+  color: var(--color-text);
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.action-icon {
+  width: 14px;
+  height: 14px;
 }
 </style>
