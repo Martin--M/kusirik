@@ -12,6 +12,7 @@ import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useToastStore } from '@/stores/toast.store'
 import { buildLiveUrl, buildCatchupUrl } from '@/lib/url-builder'
+import { useI18n } from '@/composables/useI18n'
 import IconLive from '@/components/icons/IconLive.vue'
 import IconCheck from '@/components/icons/IconCheck.vue'
 import IconPlay from '@/components/icons/IconPlay.vue'
@@ -28,14 +29,15 @@ const isMobileDetailOpen = ref(false)
 const profileStore = useProfileStore()
 const settingsStore = useSettingsStore()
 const toastStore = useToastStore()
+const { t } = useI18n()
 
 const { data: categoriesData, isLoading: isLoadingCategories } = useLiveCategories()
 
 // Computed categories list including "All" and "Uncategorized"
 const categories = computed<LiveCategory[]>(() => {
   const list: LiveCategory[] = [
-    { profile_id: 1, category_id: 'all', category_name: 'All Channels' },
-    { profile_id: 1, category_id: '0', category_name: 'Uncategorized' }
+    { profile_id: 1, category_id: 'all', category_name: t('media.allChannels') },
+    { profile_id: 1, category_id: '0', category_name: t('media.uncategorized') }
   ]
   if (categoriesData.value) {
     const providerCats = categoriesData.value.filter(
@@ -45,6 +47,7 @@ const categories = computed<LiveCategory[]>(() => {
   }
   return list
 })
+
 
 // Feed reactive categoryId to the streams query
 const streamsQueryId = computed(() => {
@@ -112,13 +115,13 @@ async function copyUrl(stream: LiveStream) {
   try {
     const profile = profileStore.profile
     if (!profile) {
-      toastStore.showToast('No active profile loaded.', 'error')
+      toastStore.showToast(t('settings.profile.disconnectFailed', { error: 'No profile' }), 'error')
       return
     }
 
     const password = await getSetting('password')
     if (!password) {
-      toastStore.showToast('Could not retrieve credentials.', 'error')
+      toastStore.showToast(t('setup.saveFailed', { error: 'Credentials' }), 'error')
       return
     }
 
@@ -134,10 +137,10 @@ async function copyUrl(stream: LiveStream) {
     )
 
     await copyToSystemClipboard(url)
-    toastStore.showToast('URL copied to clipboard!', 'success')
+    toastStore.showToast(t('media.urlCopied'), 'success')
   } catch (e) {
     console.error(e)
-    toastStore.showToast('Failed to copy URL.', 'error')
+    toastStore.showToast(t('media.copyFailed'), 'error')
   }
 }
 
@@ -225,13 +228,13 @@ async function copyCatchupUrl(item: any) {
   try {
     const profile = profileStore.profile
     if (!profile || !selectedStream.value) {
-      toastStore.showToast('No active profile loaded.', 'error')
+      toastStore.showToast(t('settings.profile.disconnectFailed', { error: 'No profile' }), 'error')
       return
     }
 
     const password = await getSetting('password')
     if (!password) {
-      toastStore.showToast('Could not retrieve credentials.', 'error')
+      toastStore.showToast(t('setup.saveFailed', { error: 'Credentials' }), 'error')
       return
     }
 
@@ -249,10 +252,10 @@ async function copyCatchupUrl(item: any) {
     )
 
     await copyToSystemClipboard(url)
-    toastStore.showToast('Catch-up stream URL copied to clipboard!', 'success')
+    toastStore.showToast(t('media.urlCopied'), 'success')
   } catch (e) {
     console.error(e)
-    toastStore.showToast('Failed to copy catch-up URL.', 'error')
+    toastStore.showToast(t('media.copyFailed'), 'error')
   }
 }
 
@@ -313,14 +316,14 @@ function formatEpgTime(dateStr: string): string {
         <FilterHeader
           v-model:search-query="searchQuery"
           v-model:sort-order="sortOrder"
-          search-placeholder="Search by name or channel ID..."
+          :search-placeholder="$t('media.searchChannels')"
         >
           <label class="custom-checkbox">
             <input type="checkbox" v-model="showCatchupOnly" class="checkbox-input" />
             <span class="checkbox-box">
               <IconCheck class="checkbox-check" />
             </span>
-            <span class="checkbox-label">Catch-up Only</span>
+            <span class="checkbox-label">{{ $t('media.catchupOnly') }}</span>
           </label>
         </FilterHeader>
       </div>
@@ -350,21 +353,21 @@ function formatEpgTime(dateStr: string): string {
     <StreamDetailPanel
       :stream="selectedStream"
       :is-mobile-open="isMobileDetailOpen"
-      play-button-text="Play Channel"
-      copy-button-text="Copy Stream URL"
+      :play-button-text="$t('media.play')"
+      :copy-button-text="$t('media.copyUrl')"
       @close="closeDetails"
       @play="handlePlay(selectedStream!)"
       @copy="copyUrl(selectedStream!)"
     >
       <template #header-meta>
         <span v-if="selectedStream?.tv_archive === 1" class="archive-text">
-          ⏱ {{ selectedStream.tv_archive_duration }} Days Catch-up available
+          ⏱ {{ $t('media.catchupDays', { days: selectedStream.tv_archive_duration }) }}
         </span>
       </template>
 
       <template #header-meta-mobile>
         <span v-if="selectedStream?.tv_archive === 1" class="archive-text">
-          ⏱ {{ selectedStream.tv_archive_duration }} Days Catch-up
+          ⏱ {{ $t('media.catchupDays', { days: selectedStream.tv_archive_duration }) }}
         </span>
       </template>
 
@@ -372,17 +375,17 @@ function formatEpgTime(dateStr: string): string {
       <div class="epg-box">
         <div v-if="isLoadingEpg" class="epg-loading">
           <span class="spinner small"></span>
-          <span>Loading guide info...</span>
+          <span>{{ $t('settings.stats.loading') }}</span>
         </div>
 
         <div v-else-if="!currentProgram && upcomingPrograms.length === 0 && pastPrograms.length === 0" class="epg-no-data">
-          <p>No guide details available for this channel.</p>
+          <p>{{ $t('media.noEpg') }}</p>
         </div>
 
         <div v-else>
           <!-- Past Schedule (Catch-up) -->
           <div v-if="selectedStream?.tv_archive === 1 && pastPrograms.length > 0" class="epg-past-section">
-            <h5 class="epg-past-header">Past schedule</h5>
+            <h5 class="epg-past-header">{{ $t('media.pastSchedule') }}</h5>
             <div class="epg-past-list">
               <div v-for="item in pastPrograms" :key="item.id || item.start" class="epg-past-item">
                 <div class="epg-past-info">
@@ -390,10 +393,10 @@ function formatEpgTime(dateStr: string): string {
                   <span class="epg-past-title" :title="item.title || undefined">{{ item.title }}</span>
                 </div>
                 <div class="epg-past-actions">
-                  <button class="action-btn" @click.stop="handlePlayCatchup(item)" title="Play Catch-up">
+                  <button class="action-btn" @click.stop="handlePlayCatchup(item)" :title="$t('media.playCatchup')">
                     <IconPlay class="action-icon" />
                   </button>
-                  <button class="action-btn" @click.stop="copyCatchupUrl(item)" title="Copy URL">
+                  <button class="action-btn" @click.stop="copyCatchupUrl(item)" :title="$t('media.copyUrl')">
                     <IconCopy class="action-icon" />
                   </button>
                 </div>
@@ -404,7 +407,7 @@ function formatEpgTime(dateStr: string): string {
           <!-- Now Playing Program Card -->
           <div v-if="currentProgram" class="epg-placeholder-card active">
             <div class="epg-time">
-              Now Playing ({{ formatEpgTime(currentProgram.start) }} - {{ formatEpgTime(currentProgram.stop) }})
+              {{ $t('media.nowPlaying') }} ({{ formatEpgTime(currentProgram.start) }} - {{ formatEpgTime(currentProgram.stop) }})
             </div>
             <div class="epg-title">{{ currentProgram.title }}</div>
             <div v-if="currentProgram.description" class="epg-desc">
@@ -417,7 +420,7 @@ function formatEpgTime(dateStr: string): string {
 
           <!-- Upcoming Programs List (Scrollable) -->
           <div v-if="upcomingPrograms.length > 0" class="epg-upcoming-section">
-            <h5 class="epg-upcoming-header">Upcoming Schedule</h5>
+            <h5 class="epg-upcoming-header">{{ $t('media.upcomingSchedule') }}</h5>
             <div class="epg-upcoming-list">
               <div v-for="item in upcomingPrograms" :key="item.id || item.start" class="epg-upcoming-item">
                 <div class="epg-upcoming-time">
@@ -436,7 +439,7 @@ function formatEpgTime(dateStr: string): string {
           <div class="tv-art">
             <IconLive />
           </div>
-          <p>Select a channel to view EPG details and start playback.</p>
+          <p>{{ $t('media.selectToView') }}</p>
         </div>
       </template>
     </StreamDetailPanel>

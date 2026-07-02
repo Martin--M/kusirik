@@ -9,6 +9,7 @@ import StreamDetailPanel from '@/components/ui/StreamDetailPanel.vue'
 import type { VodStream, VodCategory } from '@/types/vod'
 import { useProfileStore } from '@/stores/profile.store'
 import { useToastStore } from '@/stores/toast.store'
+import { useI18n } from '@/composables/useI18n'
 import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
 import { buildMovieUrl } from '@/lib/url-builder'
 import IconStar from '@/components/icons/IconStar.vue'
@@ -23,11 +24,13 @@ const isGridView = ref(true)
 
 const isMobileDetailOpen = ref(false)
 
-const sortLabels = {
-  name: 'Alphabetical',
-  rating: 'Rating',
-  added: 'Date Added'
-}
+const { t } = useI18n()
+
+const sortLabels = computed(() => ({
+  name: t('sortField.name'),
+  rating: t('sortField.rating'),
+  added: t('sortField.added')
+}))
 
 const profileStore = useProfileStore()
 const toastStore = useToastStore()
@@ -37,8 +40,8 @@ const { data: categoriesData, isLoading: isLoadingCategories } = useVodCategorie
 // Computed categories list including "All" and "Uncategorized"
 const categories = computed<VodCategory[]>(() => {
   const list: VodCategory[] = [
-    { profile_id: 1, category_id: 'all', category_name: 'All Movies' },
-    { profile_id: 1, category_id: '0', category_name: 'Uncategorized' }
+    { profile_id: 1, category_id: 'all', category_name: t('media.allMovies') },
+    { profile_id: 1, category_id: '0', category_name: t('media.uncategorized') }
   ]
   if (categoriesData.value) {
     const providerCats = categoriesData.value.filter(
@@ -48,6 +51,7 @@ const categories = computed<VodCategory[]>(() => {
   }
   return list
 })
+
 
 // Feed reactive categoryId to the streams query
 const streamsQueryId = computed(() => {
@@ -121,13 +125,13 @@ async function copyUrl(movie: VodStream) {
   try {
     const profile = profileStore.profile
     if (!profile) {
-      toastStore.showToast('No active profile loaded.', 'error')
+      toastStore.showToast(t('settings.profile.disconnectFailed', { error: 'No profile' }), 'error')
       return
     }
 
     const password = await getSetting('password')
     if (!password) {
-      toastStore.showToast('Could not retrieve credentials.', 'error')
+      toastStore.showToast(t('setup.saveFailed', { error: 'Credentials' }), 'error')
       return
     }
 
@@ -143,10 +147,10 @@ async function copyUrl(movie: VodStream) {
     )
 
     await copyToSystemClipboard(url)
-    toastStore.showToast('Movie stream URL copied to clipboard!', 'success')
+    toastStore.showToast(t('media.urlCopied'), 'success')
   } catch (e) {
     console.error(e)
-    toastStore.showToast('Failed to copy stream URL.', 'error')
+    toastStore.showToast(t('media.copyFailed'), 'error')
   }
 }
 </script>
@@ -182,7 +186,7 @@ async function copyUrl(movie: VodStream) {
           v-model:is-grid-view="isGridView"
           :sort-labels="sortLabels"
           show-layout-toggle
-          search-placeholder="Search movies by name..."
+          :search-placeholder="$t('media.searchMovies')"
         />
       </div>
 
@@ -209,8 +213,8 @@ async function copyUrl(movie: VodStream) {
     <StreamDetailPanel
       :stream="selectedStream"
       :is-mobile-open="isMobileDetailOpen"
-      play-button-text="Play Movie"
-      copy-button-text="Copy Stream URL"
+      :play-button-text="$t('media.play')"
+      :copy-button-text="$t('media.copyUrl')"
       @close="closeDetails"
       @play="handlePlay(selectedStream!)"
       @copy="copyUrl(selectedStream!)"
@@ -231,36 +235,36 @@ async function copyUrl(movie: VodStream) {
         </div>
         <div v-else-if="movieInfo" class="metadata-content">
           <div class="meta-row" v-if="movieInfo.info?.releasedate">
-            <span class="meta-label">Released:</span>
+            <span class="meta-label">{{ $t('media.releaseDate') }}:</span>
             <span class="meta-value">{{ movieInfo.info.releasedate }}</span>
           </div>
           <div class="meta-row" v-if="movieInfo.info?.duration || movieInfo.info?.episode_run_time">
-            <span class="meta-label">Duration:</span>
+            <span class="meta-label">{{ $t('media.duration') }}:</span>
             <span class="meta-value">
               {{ movieInfo.info.duration || `${movieInfo.info.episode_run_time} mins` }}
             </span>
           </div>
           <div class="meta-row" v-if="movieInfo.info?.genre">
-            <span class="meta-label">Genre:</span>
+            <span class="meta-label">{{ $t('media.genre') }}:</span>
             <span class="meta-value">{{ movieInfo.info.genre }}</span>
           </div>
           <div class="meta-row" v-if="movieInfo.info?.director">
-            <span class="meta-label">Director:</span>
+            <span class="meta-label">{{ $t('media.director') }}:</span>
             <span class="meta-value">{{ movieInfo.info.director }}</span>
           </div>
           <div class="meta-row" v-if="movieInfo.info?.cast || movieInfo.info?.actors">
-            <span class="meta-label">Cast:</span>
+            <span class="meta-label">{{ $t('media.cast') }}:</span>
             <span class="meta-value text-clamp" :title="movieInfo.info.cast || movieInfo.info.actors">
               {{ movieInfo.info.cast || movieInfo.info.actors }}
             </span>
           </div>
           <div class="meta-plot" v-if="movieInfo.info?.plot || movieInfo.info?.description">
-            <h4 class="section-subtitle">Synopsis</h4>
+            <h4 class="section-subtitle">{{ $t('media.plot') }}</h4>
             <p class="plot-text">{{ movieInfo.info.plot || movieInfo.info.description }}</p>
           </div>
         </div>
         <div v-else class="metadata-empty">
-          <p>No additional details loaded for this movie.</p>
+          <p>{{ $t('media.empty') }}</p>
         </div>
       </div>
 
@@ -269,7 +273,7 @@ async function copyUrl(movie: VodStream) {
           <div class="tv-art">
             <IconTVGrid />
           </div>
-          <p>Select a movie to load descriptions and start playback.</p>
+          <p>{{ $t('media.selectToView') }}</p>
         </div>
       </template>
     </StreamDetailPanel>

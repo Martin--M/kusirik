@@ -2,22 +2,24 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSyncStore } from '@/stores/sync.store'
+import { useI18n } from '@/composables/useI18n'
 
 const route = useRoute()
 const syncStore = useSyncStore()
+const { t } = useI18n()
 
 const title = computed(() => {
   switch (route.name) {
     case 'live':
-      return 'Live TV'
+      return t('sidebar.live')
     case 'movies':
-      return 'Movies'
+      return t('sidebar.movies')
     case 'series':
-      return 'TV Series'
+      return t('sidebar.series')
     case 'settings':
-      return 'Settings'
+      return t('sidebar.settings')
     case 'search':
-      return 'Search'
+      return t('sidebar.search')
     default:
       return 'Kusirik'
   }
@@ -30,10 +32,12 @@ const isAnySyncing = computed(() => {
 const currentSyncStatus = computed(() => {
   const active = Object.values(syncStore.statuses).find((s) => s.is_syncing)
   if (!active) return ''
-  const label = active.data_type.replace('_', ' ')
-  return `Syncing ${label}...`
+  const typeKey = `settings.stats.types.${active.data_type}`
+  const name = t(typeKey)
+  return t('setup.syncScreen.syncing') + ` (${name})...`
 })
 </script>
+
 
 <template>
   <header class="app-top-bar">

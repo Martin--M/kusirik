@@ -7,6 +7,7 @@ import { useVodInfo } from '@/composables/useVodStreams'
 import { useSeriesInfo } from '@/composables/useSeries'
 import { useToastStore } from '@/stores/toast.store'
 import { useProfileStore } from '@/stores/profile.store'
+import { useI18n } from '@/composables/useI18n'
 import { getSetting } from '@/lib/tauri-commands'
 
 import ChannelRow from '@/components/live/ChannelRow.vue'
@@ -26,9 +27,11 @@ const route = useRoute()
 const toastStore = useToastStore()
 const profileStore = useProfileStore()
 const { playLive, playMovie, playEpisode } = usePlayer()
+const { t } = useI18n()
 
 const queryText = computed(() => (route.query.q as string) || '')
 const { data, isLoading } = useGlobalSearch(queryText)
+
 
 // Detail panel selection states
 const selectedLive = ref<LiveStream | null>(null)
@@ -100,13 +103,13 @@ async function copyUrl(stream: any, type: 'live' | 'movie') {
   try {
     const profile = profileStore.profile
     if (!profile) {
-      toastStore.showToast('No active profile loaded.', 'error')
+      toastStore.showToast(t('settings.profile.disconnectFailed', { error: 'No profile' }), 'error')
       return
     }
 
     const password = await getSetting('password')
     if (!password) {
-      toastStore.showToast('Could not retrieve credentials.', 'error')
+      toastStore.showToast(t('setup.saveFailed', { error: 'Credentials' }), 'error')
       return
     }
 
@@ -129,9 +132,9 @@ async function copyUrl(stream: any, type: 'live' | 'movie') {
     }
 
     await copyToSystemClipboard(url)
-    toastStore.showToast('Stream URL copied to clipboard!', 'success')
+    toastStore.showToast(t('media.urlCopied'), 'success')
   } catch (e: any) {
-    toastStore.showToast(e?.message || e || 'Failed to copy URL.', 'error')
+    toastStore.showToast(t('media.copyFailed'), 'error')
   }
 }
 
@@ -158,38 +161,38 @@ function selectSeries(series: Series) {
   <div class="search-view-container">
     <div class="search-content">
       <header class="view-header">
-        <h1 class="view-title">Search Results</h1>
+        <h1 class="view-title">{{ $t('search.title') }}</h1>
         <p v-if="queryText" class="search-meta">
-          Showing results for <span class="query-highlight">"{{ queryText }}"</span>
+          {{ $t('search.showingResults', { query: queryText }) }}
         </p>
       </header>
 
       <!-- Empty / Idle State -->
       <div v-if="!queryText || queryText.length < 2" class="search-empty-state">
         <IconSearch class="empty-icon" />
-        <h3>Type at least 2 characters to search...</h3>
-        <p>You can search for live channels, VOD movies, and TV series simultaneously.</p>
+        <h3>{{ $t('search.placeholderSearch') }}</h3>
+        <p>{{ $t('search.descSearch') }}</p>
       </div>
 
       <!-- Loading State -->
       <div v-else-if="isLoading" class="search-loading-state">
         <span class="spinner"></span>
-        <p>Searching lists...</p>
+        <p>{{ $t('search.searching') }}</p>
       </div>
 
       <!-- No Results State -->
       <div v-else-if="data && !data.live.length && !data.vod.length && !data.series.length" class="search-empty-state">
         <IconSearch class="empty-icon" />
-        <h3>No results found for "{{ queryText }}"</h3>
-        <p>Try searching with different keywords.</p>
+        <h3>{{ $t('search.noResults', { query: queryText }) }}</h3>
+        <p>{{ $t('search.tryDifferent') }}</p>
       </div>
 
       <!-- Results List -->
       <div v-else class="results-layout">
         <!-- Live TV Section -->
         <section v-if="data?.live.length" class="results-section" :class="{ collapsed: !isLiveExpanded }">
-          <button class="section-toggle-btn" @click="isLiveExpanded = !isLiveExpanded" :title="isLiveExpanded ? 'Collapse' : 'Expand'">
-            <h2 class="section-title">Live Channels ({{ data.live.length }})</h2>
+          <button class="section-toggle-btn" @click="isLiveExpanded = !isLiveExpanded" :title="isLiveExpanded ? $t('sidebar.collapse') : $t('sidebar.expand')">
+            <h2 class="section-title">{{ $t('search.liveResults', { count: data.live.length }) }}</h2>
             <IconChevron class="chevron-icon" :direction="isLiveExpanded ? 'down' : 'right'" />
           </button>
           <div v-show="isLiveExpanded" class="live-list">
@@ -207,8 +210,8 @@ function selectSeries(series: Series) {
 
         <!-- Movies Section -->
         <section v-if="data?.vod.length" class="results-section" :class="{ collapsed: !isMoviesExpanded }">
-          <button class="section-toggle-btn" @click="isMoviesExpanded = !isMoviesExpanded" :title="isMoviesExpanded ? 'Collapse' : 'Expand'">
-            <h2 class="section-title">VOD Movies ({{ data.vod.length }})</h2>
+          <button class="section-toggle-btn" @click="isMoviesExpanded = !isMoviesExpanded" :title="isMoviesExpanded ? $t('sidebar.collapse') : $t('sidebar.expand')">
+            <h2 class="section-title">{{ $t('search.movieResults', { count: data.vod.length }) }}</h2>
             <IconChevron class="chevron-icon" :direction="isMoviesExpanded ? 'down' : 'right'" />
           </button>
           <div v-show="isMoviesExpanded" class="media-grid">
@@ -225,8 +228,8 @@ function selectSeries(series: Series) {
 
         <!-- TV Series Section -->
         <section v-if="data?.series.length" class="results-section" :class="{ collapsed: !isSeriesExpanded }">
-          <button class="section-toggle-btn" @click="isSeriesExpanded = !isSeriesExpanded" :title="isSeriesExpanded ? 'Collapse' : 'Expand'">
-            <h2 class="section-title">TV Series ({{ data.series.length }})</h2>
+          <button class="section-toggle-btn" @click="isSeriesExpanded = !isSeriesExpanded" :title="isSeriesExpanded ? $t('sidebar.collapse') : $t('sidebar.expand')">
+            <h2 class="section-title">{{ $t('search.seriesResults', { count: data.series.length }) }}</h2>
             <IconChevron class="chevron-icon" :direction="isSeriesExpanded ? 'down' : 'right'" />
           </button>
           <div v-show="isSeriesExpanded" class="media-grid">
@@ -248,14 +251,14 @@ function selectSeries(series: Series) {
       v-if="selectedLive"
       :stream="selectedLive"
       :is-mobile-open="isMobileDetailOpen"
-      play-button-text="Play Live Channel"
-      copy-button-text="Copy Channel Stream URL"
+      :play-button-text="$t('media.play')"
+      :copy-button-text="$t('media.copyUrl')"
       @close="closeDetails"
       @play="handlePlayLive(selectedLive)"
       @copy="copyUrl(selectedLive, 'live')"
     >
       <div class="live-info-box">
-        <p>Click Play to stream this channel live in your configured media player.</p>
+        <p>{{ $t('search.clickToPlay') }}</p>
       </div>
       <template #no-selection>
         <div></div>
@@ -267,8 +270,8 @@ function selectSeries(series: Series) {
       v-if="selectedMovie"
       :stream="selectedMovie"
       :is-mobile-open="isMobileDetailOpen"
-      play-button-text="Play Movie"
-      copy-button-text="Copy Movie Stream URL"
+      :play-button-text="$t('media.play')"
+      :copy-button-text="$t('media.copyUrl')"
       @close="closeDetails"
       @play="handlePlayMovie(selectedMovie)"
       @copy="copyUrl(selectedMovie, 'movie')"
@@ -281,34 +284,34 @@ function selectSeries(series: Series) {
         </div>
         <div v-else-if="movieInfo" class="metadata-content">
           <div class="meta-row" v-if="movieInfo.info?.releasedate">
-            <span class="meta-label">Released:</span>
+            <span class="meta-label">{{ $t('media.releaseDate') }}:</span>
             <span class="meta-value">{{ movieInfo.info.releasedate }}</span>
           </div>
           <div class="meta-row" v-if="movieInfo.info?.duration">
-            <span class="meta-label">Duration:</span>
+            <span class="meta-label">{{ $t('media.duration') }}:</span>
             <span class="meta-value">{{ movieInfo.info.duration }}</span>
           </div>
           <div class="meta-row" v-if="movieInfo.info?.genre">
-            <span class="meta-label">Genre:</span>
+            <span class="meta-label">{{ $t('media.genre') }}:</span>
             <span class="meta-value">{{ movieInfo.info.genre }}</span>
           </div>
           <div class="meta-row" v-if="movieInfo.info?.director">
-            <span class="meta-label">Director:</span>
+            <span class="meta-label">{{ $t('media.director') }}:</span>
             <span class="meta-value">{{ movieInfo.info.director }}</span>
           </div>
           <div class="meta-row" v-if="movieInfo.info?.cast || movieInfo.info?.actors">
-            <span class="meta-label">Cast:</span>
+            <span class="meta-label">{{ $t('media.cast') }}:</span>
             <span class="meta-value text-clamp" :title="movieInfo.info.cast || movieInfo.info.actors">
               {{ movieInfo.info.cast || movieInfo.info.actors }}
             </span>
           </div>
           <div class="meta-plot" v-if="movieInfo.info?.plot || movieInfo.info?.description">
-            <h4 class="section-subtitle">Synopsis</h4>
+            <h4 class="section-subtitle">{{ $t('media.plot') }}</h4>
             <p class="plot-text">{{ movieInfo.info.plot || movieInfo.info.description }}</p>
           </div>
         </div>
         <div v-else class="metadata-empty">
-          <p>No additional details loaded for this movie.</p>
+          <p>{{ $t('media.empty') }}</p>
         </div>
       </div>
       <template #no-selection>
@@ -332,26 +335,26 @@ function selectSeries(series: Series) {
         </div>
         <div v-else-if="seriesDetails" class="metadata-content">
           <div class="meta-row" v-if="selectedSeries?.genre || seriesDetails.info?.genre">
-            <span class="meta-label">Genre:</span>
+            <span class="meta-label">{{ $t('media.genre') }}:</span>
             <span class="meta-value">{{ selectedSeries?.genre || seriesDetails.info?.genre }}</span>
           </div>
           <div class="meta-row" v-if="selectedSeries?.director || seriesDetails.info?.director">
-            <span class="meta-label">Director:</span>
+            <span class="meta-label">{{ $t('media.director') }}:</span>
             <span class="meta-value">{{ selectedSeries?.director || seriesDetails.info?.director }}</span>
           </div>
           <div class="meta-row" v-if="selectedSeries?.cast_ || seriesDetails.info?.cast || seriesDetails.info?.actors">
-            <span class="meta-label">Cast:</span>
+            <span class="meta-label">{{ $t('media.cast') }}:</span>
             <span class="meta-value text-clamp" :title="selectedSeries?.cast_ || seriesDetails.info?.cast || seriesDetails.info?.actors">
               {{ selectedSeries?.cast_ || seriesDetails.info?.cast || seriesDetails.info?.actors }}
             </span>
           </div>
           <div class="meta-plot" v-if="selectedSeries?.plot || seriesDetails.info?.plot || seriesDetails.info?.description">
-            <h4 class="section-subtitle">Synopsis</h4>
+            <h4 class="section-subtitle">{{ $t('media.plot') }}</h4>
             <p class="plot-text">{{ selectedSeries?.plot || seriesDetails.info?.plot || seriesDetails.info?.description }}</p>
           </div>
 
           <div class="seasons-accordion" v-if="seriesDetails.episodes && Object.keys(seriesDetails.episodes).length > 0">
-            <h4 class="section-subtitle accordion-heading">Seasons & Episodes</h4>
+            <h4 class="section-subtitle accordion-heading">{{ $t('media.seasons') }} & {{ $t('media.episodes') }}</h4>
             
             <div
               v-for="(episodesList, seasonKey) in seriesDetails.episodes"
@@ -360,8 +363,8 @@ function selectSeries(series: Series) {
               :class="{ expanded: expandedSeason === seasonKey }"
             >
               <button class="season-header" @click="toggleSeason(seasonKey)">
-                <span class="season-title">Season {{ seasonKey }}</span>
-                <span class="episode-count">{{ episodesList.length }} Episodes</span>
+                <span class="season-title">{{ $t('media.season', { num: seasonKey }) }}</span>
+                <span class="episode-count">{{ episodesList.length }} {{ $t('media.episodes').toLowerCase() }}</span>
                 <IconChevron class="chevron-icon" />
               </button>
 
@@ -374,14 +377,14 @@ function selectSeries(series: Series) {
                   <div class="episode-main">
                     <span class="episode-num">Ep {{ episode.episode_num }}</span>
                     <span class="episode-title" :title="episode.title || ''">
-                      {{ episode.title || `Episode ${episode.episode_num}` }}
+                      {{ episode.title || $t('media.episode', { num: episode.episode_num }) }}
                     </span>
                   </div>
                   <div class="episode-info" v-if="episode.info?.plot">
                     <p class="episode-plot">{{ episode.info.plot }}</p>
                   </div>
                   <div class="episode-actions">
-                    <button class="action-btn play-btn" @click="handlePlayEpisode(episode)" title="Play Episode">
+                    <button class="action-btn play-btn" @click="handlePlayEpisode(episode)" :title="$t('media.play')">
                       <IconPlay class="action-icon" />
                     </button>
                   </div>
@@ -391,7 +394,7 @@ function selectSeries(series: Series) {
           </div>
         </div>
         <div v-else class="metadata-empty">
-          <p>No additional details loaded for this series.</p>
+          <p>{{ $t('media.empty') }}</p>
         </div>
       </div>
       <template #no-selection>

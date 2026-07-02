@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from '@/composables/useI18n'
 import IconLive from '../icons/IconLive.vue'
 import IconMovies from '../icons/IconMovies.vue'
 import IconSeries from '../icons/IconSeries.vue'
@@ -8,13 +9,14 @@ import IconSettings from '../icons/IconSettings.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
-const navItems = [
-  { name: 'live', label: 'Live TV', icon: IconLive },
-  { name: 'movies', label: 'Movies', icon: IconMovies },
-  { name: 'series', label: 'Series', icon: IconSeries },
-  { name: 'settings', label: 'Settings', icon: IconSettings }
-]
+const navItems = computed(() => [
+  { name: 'live', label: t('sidebar.live'), icon: IconLive },
+  { name: 'movies', label: t('sidebar.movies'), icon: IconMovies },
+  { name: 'series', label: t('sidebar.series'), icon: IconSeries },
+  { name: 'settings', label: t('sidebar.settings'), icon: IconSettings }
+])
 
 const activeRouteName = computed(() => route.name)
 
@@ -22,6 +24,7 @@ function navigate(name: string) {
   router.push({ name })
 }
 </script>
+
 
 <template>
   <nav class="app-bottom-nav">

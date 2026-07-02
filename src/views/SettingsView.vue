@@ -5,6 +5,7 @@ import { useProfileStore, PROFILE_ID } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useSyncStore } from '@/stores/sync.store'
 import { useToastStore } from '@/stores/toast.store'
+import { useI18n } from '@/composables/useI18n'
 import { 
   deleteProfile, 
   getSyncStatus, 
@@ -33,6 +34,7 @@ const profileStore = useProfileStore()
 const settingsStore = useSettingsStore()
 const syncStore = useSyncStore()
 const toastStore = useToastStore()
+const { t, formatTime } = useI18n()
 
 const liveCatCount = ref<number | null>(null)
 const vodCatCount = ref<number | null>(null)
@@ -41,17 +43,18 @@ const seriesCatCount = ref<number | null>(null)
 const isAndroid = ref(false)
 const dataTypes: DataType[] = ['live_streams', 'vod_streams', 'series', 'epg']
 
-const formatOptions = {
-  "": "Default (Auto-detect)",
-  "ts": "MPEG-TS (.ts)",
-  "m3u8": "HLS (.m3u8)"
-}
+const formatOptions = computed(() => ({
+  "": t('settings.preferences.formatOptions.auto'),
+  "ts": t('settings.preferences.formatOptions.ts'),
+  "m3u8": t('settings.preferences.formatOptions.m3u8')
+}))
 
 const selectedFormat = computed({
   get: () => settingsStore.liveFormatOverride || "",
   set: (val) => {
     settingsStore.setLiveFormatOverride(val === "" ? null : val)
-    toastStore.showToast(`Format override updated to: ${val || 'Default'}`, 'success')
+    const activeLabel = val ? (val === "ts" ? "MPEG-TS" : "HLS") : t('settings.preferences.formatOptions.auto')
+    toastStore.showToast(t('settings.preferences.toastFormat', { format: activeLabel }), 'success')
   }
 })
 
@@ -72,9 +75,9 @@ async function savePlayerWindows() {
   if (val !== settingsStore.playerWindows) {
     try {
       await settingsStore.setPlayerWindows(val)
-      toastStore.showToast('Windows player path saved', 'success')
+      toastStore.showToast(t('settings.player.vlcSaved'), 'success')
     } catch (e) {
-      toastStore.showToast('Failed to save Windows player path', 'error')
+      toastStore.showToast(t('settings.player.vlcFailed'), 'error')
     }
   }
 }
@@ -84,9 +87,9 @@ async function savePlayerAndroid() {
   if (val !== settingsStore.playerAndroid) {
     try {
       await settingsStore.setPlayerAndroid(val)
-      toastStore.showToast('Android package ID saved', 'success')
+      toastStore.showToast(t('settings.player.androidSaved'), 'success')
     } catch (e) {
-      toastStore.showToast('Failed to save Android package ID', 'error')
+      toastStore.showToast(t('settings.player.androidFailed'), 'error')
     }
   }
 }
@@ -98,62 +101,36 @@ const isGlobalSyncing = computed(() => {
 async function handleSyncAll() {
   if (isGlobalSyncing.value) return
   
-  const confirmed = confirm(
-    'Are you sure you want to synchronize the database? This will update category listings and streams cache from your provider. This process runs in the background.'
-  )
+  const confirmed = confirm(t('settings.sync.confirm'))
   if (!confirmed) return
 
-  toastStore.showToast('Starting database synchronization...', 'success')
+  toastStore.showToast(t('settings.sync.starting'), 'success')
   try {
     await triggerSync('live_streams')
   } catch (err) {
-    toastStore.showToast(`Sync failed: ${err}`, 'error')
+    toastStore.showToast(t('settings.sync.failed', { error: String(err) }), 'error')
   }
 }
 
 async function handleDisconnect() {
-  const confirmed = confirm(
-    'Are you sure you want to disconnect? This will remove your configuration profile and clear all cached media streams from the local database.'
-  )
+  const confirmed = confirm(t('settings.profile.disconnectConfirm'))
   if (!confirmed) return
 
   try {
-    toastStore.showToast('Disconnecting profile...', 'success')
+    toastStore.showToast(t('settings.profile.disconnecting'), 'success')
     await deleteProfile(PROFILE_ID)
     profileStore.clearProfile()
     syncStore.reset()
-    toastStore.showToast('Profile disconnected successfully', 'success')
+    toastStore.showToast(t('settings.profile.disconnectSuccess'), 'success')
     router.push('/setup')
   } catch (err) {
-    toastStore.showToast(`Failed to disconnect profile: ${err}`, 'error')
-  }
-}
-
-function formatTime(isoString: string | null): string {
-  if (!isoString) return 'Never'
-  try {
-    const date = new Date(isoString)
-    const y = date.getFullYear()
-    const m = String(date.getMonth() + 1).padStart(2, '0')
-    const d = String(date.getDate()).padStart(2, '0')
-    const hr = String(date.getHours()).padStart(2, '0')
-    const min = String(date.getMinutes()).padStart(2, '0')
-    return `${y}-${m}-${d} ${hr}:${min}`
-  } catch (e) {
-    return isoString
+    toastStore.showToast(t('settings.profile.disconnectFailed', { error: String(err) }), 'error')
   }
 }
 
 function getTypeName(type: DataType): string {
-  switch (type) {
-    case 'live_streams': return 'Live TV Channels'
-    case 'vod_streams': return 'VOD Movies'
-    case 'series': return 'TV Series'
-    case 'epg': return 'EPG Guide Data'
-  }
+  return t(`settings.stats.types.${type}`)
 }
-
-// getTypeIcon removed in favor of inline SVGs
 
 async function loadCounts() {
   try {
@@ -193,6 +170,7 @@ onMounted(async () => {
 })
 </script>
 
+
 <template>
   <div class="settings-view-container">
     <div class="settings-grid">
@@ -200,21 +178,21 @@ onMounted(async () => {
       <div class="settings-card profile-card">
         <div class="card-header">
           <IconProfile class="card-icon" />
-          <h3>Connection Profile</h3>
+          <h3>{{ $t('settings.profile.title') }}</h3>
         </div>
         <div class="card-content">
           <div class="info-group">
-            <label>Server URL</label>
+            <label>{{ $t('settings.profile.serverUrl') }}</label>
             <div class="info-value">{{ profileStore.profile?.server_url || 'N/A' }}</div>
           </div>
           <div class="info-group">
-            <label>Username</label>
+            <label>{{ $t('settings.profile.username') }}</label>
             <div class="info-value">{{ profileStore.profile?.username || 'N/A' }}</div>
           </div>
           <div class="card-actions">
             <button class="btn btn-danger" @click="handleDisconnect">
               <IconLogOut class="btn-icon" />
-              Disconnect Profile
+              {{ $t('settings.profile.disconnect') }}
             </button>
           </div>
         </div>
@@ -224,47 +202,47 @@ onMounted(async () => {
       <div class="settings-card stats-card">
         <div class="card-header">
           <IconStats class="card-icon" />
-          <h3>Database Statistics</h3>
+          <h3>{{ $t('settings.stats.title') }}</h3>
         </div>
         <div class="card-content">
           <div class="stats-list">
             <div class="stats-row">
               <div class="stats-row-header">
                 <IconLive class="stats-svg" />
-                <span class="stats-title">Live Channels</span>
+                <span class="stats-title">{{ $t('settings.stats.live') }}</span>
               </div>
               <div class="stats-row-values">
-                <span class="stats-badge">{{ liveCatCount !== null ? liveCatCount : '...' }} categories</span>
-                <span class="stats-badge primary">{{ syncStore.statuses.live_streams?.item_count ?? 0 }} channels</span>
+                <span class="stats-badge">{{ liveCatCount !== null ? $t('settings.stats.categories', { count: liveCatCount }) : $t('settings.stats.loading') }}</span>
+                <span class="stats-badge primary">{{ $t('settings.stats.channels', { count: syncStore.statuses.live_streams?.item_count ?? 0 }) }}</span>
               </div>
             </div>
             <div class="stats-row">
               <div class="stats-row-header">
                 <IconMovies class="stats-svg" />
-                <span class="stats-title">VOD Movies</span>
+                <span class="stats-title">{{ $t('settings.stats.movies') }}</span>
               </div>
               <div class="stats-row-values">
-                <span class="stats-badge">{{ vodCatCount !== null ? vodCatCount : '...' }} categories</span>
-                <span class="stats-badge primary">{{ syncStore.statuses.vod_streams?.item_count ?? 0 }} movies</span>
+                <span class="stats-badge">{{ vodCatCount !== null ? $t('settings.stats.categories', { count: vodCatCount }) : $t('settings.stats.loading') }}</span>
+                <span class="stats-badge primary">{{ $t('settings.stats.moviesCount', { count: syncStore.statuses.vod_streams?.item_count ?? 0 }) }}</span>
               </div>
             </div>
             <div class="stats-row">
               <div class="stats-row-header">
                 <IconSeries class="stats-svg" />
-                <span class="stats-title">TV Series</span>
+                <span class="stats-title">{{ $t('settings.stats.series') }}</span>
               </div>
               <div class="stats-row-values">
-                <span class="stats-badge">{{ seriesCatCount !== null ? seriesCatCount : '...' }} categories</span>
-                <span class="stats-badge primary">{{ syncStore.statuses.series?.item_count ?? 0 }} series</span>
+                <span class="stats-badge">{{ seriesCatCount !== null ? $t('settings.stats.categories', { count: seriesCatCount }) : $t('settings.stats.loading') }}</span>
+                <span class="stats-badge primary">{{ $t('settings.stats.seriesCount', { count: syncStore.statuses.series?.item_count ?? 0 }) }}</span>
               </div>
             </div>
             <div class="stats-row">
               <div class="stats-row-header">
                 <IconCalendar class="stats-svg" />
-                <span class="stats-title">EPG Guide Data</span>
+                <span class="stats-title">{{ $t('settings.stats.epg') }}</span>
               </div>
               <div class="stats-row-values">
-                <span class="stats-badge primary">{{ syncStore.statuses.epg?.item_count ?? 0 }} entries</span>
+                <span class="stats-badge primary">{{ $t('settings.stats.entries', { count: syncStore.statuses.epg?.item_count ?? 0 }) }}</span>
               </div>
             </div>
           </div>
@@ -275,11 +253,11 @@ onMounted(async () => {
       <div class="settings-card preferences-card">
         <div class="card-header">
           <IconSettings class="card-icon" />
-          <h3>Preferences</h3>
+          <h3>{{ $t('settings.preferences.title') }}</h3>
         </div>
         <div class="card-content">
           <div class="form-group">
-            <label>Visual Theme</label>
+            <label>{{ $t('settings.preferences.theme') }}</label>
             <div class="theme-toggle-group">
               <button 
                 class="theme-btn" 
@@ -287,7 +265,7 @@ onMounted(async () => {
                 @click="settingsStore.setTheme('dark')"
               >
                 <IconMoon />
-                Dark
+                {{ $t('settings.preferences.dark') }}
               </button>
               <button 
                 class="theme-btn" 
@@ -295,20 +273,40 @@ onMounted(async () => {
                 @click="settingsStore.setTheme('light')"
               >
                 <IconSun />
-                Light
+                {{ $t('settings.preferences.light') }}
               </button>
             </div>
           </div>
 
           <div class="form-group">
-            <label>Live Stream Format Override</label>
+            <label>{{ $t('settings.preferences.language') }}</label>
+            <div class="theme-toggle-group">
+              <button 
+                class="theme-btn" 
+                :class="{ active: settingsStore.language === 'en' }"
+                @click="settingsStore.setLanguage('en')"
+              >
+                English
+              </button>
+              <button 
+                class="theme-btn" 
+                :class="{ active: settingsStore.language === 'fr' }"
+                @click="settingsStore.setLanguage('fr')"
+              >
+                Français
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>{{ $t('settings.preferences.formatOverride') }}</label>
             <CustomSelect
               v-model="selectedFormat"
               :options="formatOptions"
               ariaLabel="Select live stream format override"
             />
             <span class="subtext">
-              Overrides the auto-selected container format for Live TV channels if supported by the provider.
+              {{ $t('settings.preferences.formatSubtext') }}
             </span>
           </div>
         </div>
@@ -318,11 +316,11 @@ onMounted(async () => {
       <div class="settings-card player-card">
         <div class="card-header">
           <IconPlay class="card-icon" />
-          <h3>Media Player Configuration</h3>
+          <h3>{{ $t('settings.player.title') }}</h3>
         </div>
         <div class="card-content">
           <div v-if="!isAndroid" class="form-group">
-            <label for="player-win-path">VLC Executable Path (Windows)</label>
+            <label for="player-win-path">{{ $t('settings.player.vlcPath') }}</label>
             <input
               id="player-win-path"
               type="text"
@@ -333,12 +331,12 @@ onMounted(async () => {
               class="text-input"
             />
             <span class="subtext">
-              Desktop player binary location. Leaving empty will fall back to default system protocol handlers.
+              {{ $t('settings.player.vlcSubtext') }}
             </span>
           </div>
 
           <div v-else class="form-group">
-            <label for="player-android-pkg">External Player Package (Android)</label>
+            <label for="player-android-pkg">{{ $t('settings.player.androidPkg') }}</label>
             <input
               id="player-android-pkg"
               type="text"
@@ -349,7 +347,7 @@ onMounted(async () => {
               class="text-input"
             />
             <span class="subtext">
-              Target Android package name for opening streams (e.g. <code>org.videolan.vlc</code> or <code>com.mxtech.videoplayer.ad</code>). Leave blank to show standard Android chooser.
+              {{ $t('settings.player.androidSubtext') }}
             </span>
           </div>
         </div>
@@ -359,16 +357,16 @@ onMounted(async () => {
       <div class="settings-card sync-card">
         <div class="card-header">
           <IconSync class="card-icon" />
-          <h3>Database Synchronization</h3>
+          <h3>{{ $t('settings.sync.title') }}</h3>
         </div>
         <div class="card-content">
           <div class="table-container">
             <table class="sync-table">
               <thead>
                 <tr>
-                  <th>Category</th>
-                  <th>Last Synced</th>
-                  <th>Status</th>
+                  <th>{{ $t('settings.sync.table.category') }}</th>
+                  <th>{{ $t('settings.sync.table.lastSynced') }}</th>
+                  <th>{{ $t('settings.sync.table.status') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -386,16 +384,16 @@ onMounted(async () => {
                   <td class="type-status">
                     <span v-if="syncStore.statuses[type]?.is_syncing" class="status-indicator syncing">
                       <span class="spinner mini"></span>
-                      Syncing...
+                      {{ $t('settings.sync.table.syncing') }}
                     </span>
                     <span v-else-if="syncStore.statuses[type]?.last_error" class="status-indicator error" :title="syncStore.statuses[type]?.last_error!">
-                      ⚠️ Error
+                      ⚠️ {{ $t('settings.sync.table.error') }}
                     </span>
                     <span v-else-if="syncStore.statuses[type]?.fetched_at" class="status-indicator success">
-                      ✓ Ready
+                      ✓ {{ $t('settings.sync.table.ready') }}
                     </span>
                     <span v-else class="status-indicator pending">
-                      • Pending
+                      • {{ $t('settings.sync.table.pending') }}
                     </span>
                   </td>
                 </tr>
@@ -410,7 +408,7 @@ onMounted(async () => {
               @click="handleSyncAll"
             >
               <span v-if="isGlobalSyncing" class="spinner button-spinner"></span>
-              {{ isGlobalSyncing ? 'Synchronizing Cache...' : 'Sync Database Now' }}
+              {{ isGlobalSyncing ? $t('settings.sync.starting') : $t('settings.sync.refresh') }}
             </button>
           </div>
         </div>

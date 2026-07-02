@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { testConnection, saveProfile, triggerSync, getSyncStatus, getSetting } from '@/lib/tauri-commands'
 import { useProfileStore } from '@/stores/profile.store'
 import { useSyncStore } from '@/stores/sync.store'
+import { useI18n } from '@/composables/useI18n'
 import type { DataType } from '@/types/sync'
 import IconEye from '../components/icons/IconEye.vue'
 import IconEyeOff from '../components/icons/IconEyeOff.vue'
@@ -12,6 +13,7 @@ import IconLogo from '../components/icons/IconLogo.vue'
 const router = useRouter()
 const profileStore = useProfileStore()
 const syncStore = useSyncStore()
+const { t } = useI18n()
 
 const serverUrl = ref('')
 const username = ref('')
@@ -65,7 +67,7 @@ watch(
 
 async function handleTest() {
   if (!serverUrl.value || !username.value || !password.value) {
-    testError.value = 'Please fill in all fields'
+    testError.value = t('setup.validation')
     return
   }
 
@@ -173,13 +175,13 @@ onMounted(async () => {
       <div class="header">
         <IconLogo class="setup-logo-svg" />
         <h1 class="glow-title">kusirik</h1>
-        <p class="subtitle">Kusirik - IPTV Engine</p>
+        <p class="subtitle">{{ $t('setup.subtitle') }}</p>
       </div>
 
       <!-- Main setup form -->
       <form v-if="!isSyncing" @submit.prevent="handleSave" class="setup-form">
         <div class="form-group">
-          <label for="server-url">Server URL</label>
+          <label for="server-url">{{ $t('setup.serverUrl') }}</label>
           <input
             id="server-url"
             v-model="serverUrl"
@@ -191,7 +193,7 @@ onMounted(async () => {
         </div>
 
         <div class="form-group">
-          <label for="username">Username</label>
+          <label for="username">{{ $t('setup.username') }}</label>
           <input
             id="username"
             v-model="username"
@@ -203,7 +205,7 @@ onMounted(async () => {
         </div>
 
         <div class="form-group">
-          <label for="password">Password</label>
+          <label for="password">{{ $t('setup.password') }}</label>
           <div class="password-wrapper">
             <input
               id="password"
@@ -218,7 +220,7 @@ onMounted(async () => {
               class="toggle-password"
               @click="showPassword = !showPassword"
               tabindex="-1"
-              :title="showPassword ? 'Hide Password' : 'Show Password'"
+              :title="showPassword ? $t('setup.hidePassword') : $t('setup.showPassword')"
             >
               <IconEye v-if="showPassword" class="eye-icon" />
               <IconEyeOff v-else class="eye-icon" />
@@ -228,13 +230,13 @@ onMounted(async () => {
 
         <!-- Connection Test Messages -->
         <div v-if="testError" class="alert error">
-          <span>⚠️ Connection failed: {{ testError }}</span>
+          <span>{{ $t('setup.testFailed', { error: testError }) }}</span>
         </div>
         <div v-if="testSuccess" class="alert success">
-          <span>✅ Connection successful! Server is ready.</span>
+          <span>{{ $t('setup.testSuccess') }}</span>
         </div>
         <div v-if="saveError" class="alert error">
-          <span>⚠️ Failed to save: {{ saveError }}</span>
+          <span>{{ $t('setup.saveFailed', { error: saveError }) }}</span>
         </div>
 
         <!-- Actions -->
@@ -246,7 +248,7 @@ onMounted(async () => {
             :disabled="isTesting || isSaving || !serverUrl || !username || !password"
           >
             <span v-if="isTesting" class="spinner"></span>
-            {{ isTesting ? 'Testing...' : 'Test Connection' }}
+            {{ isTesting ? $t('setup.testing') : $t('setup.testConnection') }}
           </button>
 
           <button
@@ -255,15 +257,15 @@ onMounted(async () => {
             :disabled="isTesting || isSaving || !testSuccess"
           >
             <span v-if="isSaving" class="spinner"></span>
-            {{ isSaving ? 'Saving...' : 'Save & Sync' }}
+            {{ isSaving ? $t('setup.saving') : $t('setup.saveAndSync') }}
           </button>
         </div>
       </form>
 
       <!-- Sequential Syncing Progress Screen -->
       <div v-else class="sync-screen">
-        <h2 class="sync-title">Initializing Cache</h2>
-        <p class="sync-desc">Please wait while we sync categories and listings sequentially.</p>
+        <h2 class="sync-title">{{ $t('setup.syncScreen.title') }}</h2>
+        <p class="sync-desc">{{ $t('setup.syncScreen.desc') }}</p>
 
         <div class="sync-steps">
           <div class="sync-step" :class="{ active: liveStatus.is_syncing, done: liveStatus.fetched_at }">
@@ -273,10 +275,10 @@ onMounted(async () => {
               <span v-else>•</span>
             </div>
             <div class="step-details">
-              <h3>Live Channels</h3>
-              <span v-if="liveStatus.is_syncing" class="status-badge">{{ liveStatus.status || 'syncing' }}</span>
-              <span v-else-if="liveStatus.fetched_at" class="status-badge success">{{ liveStatus.item_count }} items synced</span>
-              <span v-else class="status-badge pending">Pending</span>
+              <h3>{{ $t('setup.syncScreen.live') }}</h3>
+              <span v-if="liveStatus.is_syncing" class="status-badge">{{ liveStatus.status || $t('setup.syncScreen.syncing') }}</span>
+              <span v-else-if="liveStatus.fetched_at" class="status-badge success">{{ $t('setup.syncScreen.syncedCount', { count: liveStatus.item_count }) }}</span>
+              <span v-else class="status-badge pending">{{ $t('setup.syncScreen.pending') }}</span>
             </div>
           </div>
 
@@ -287,10 +289,10 @@ onMounted(async () => {
               <span v-else>•</span>
             </div>
             <div class="step-details">
-              <h3>VOD Movies</h3>
-              <span v-if="vodStatus.is_syncing" class="status-badge">{{ vodStatus.status || 'syncing' }}</span>
-              <span v-else-if="vodStatus.fetched_at" class="status-badge success">{{ vodStatus.item_count }} items synced</span>
-              <span v-else class="status-badge pending">Pending</span>
+              <h3>{{ $t('setup.syncScreen.vod') }}</h3>
+              <span v-if="vodStatus.is_syncing" class="status-badge">{{ vodStatus.status || $t('setup.syncScreen.syncing') }}</span>
+              <span v-else-if="vodStatus.fetched_at" class="status-badge success">{{ $t('setup.syncScreen.syncedCount', { count: vodStatus.item_count }) }}</span>
+              <span v-else class="status-badge pending">{{ $t('setup.syncScreen.pending') }}</span>
             </div>
           </div>
 
@@ -301,17 +303,17 @@ onMounted(async () => {
               <span v-else>•</span>
             </div>
             <div class="step-details">
-              <h3>TV Series</h3>
-              <span v-if="seriesStatus.is_syncing" class="status-badge">{{ seriesStatus.status || 'syncing' }}</span>
-              <span v-else-if="seriesStatus.fetched_at" class="status-badge success">{{ seriesStatus.item_count }} items synced</span>
-              <span v-else class="status-badge pending">Pending</span>
+              <h3>{{ $t('setup.syncScreen.series') }}</h3>
+              <span v-if="seriesStatus.is_syncing" class="status-badge">{{ seriesStatus.status || $t('setup.syncScreen.syncing') }}</span>
+              <span v-else-if="seriesStatus.fetched_at" class="status-badge success">{{ $t('setup.syncScreen.syncedCount', { count: seriesStatus.item_count }) }}</span>
+              <span v-else class="status-badge pending">{{ $t('setup.syncScreen.pending') }}</span>
             </div>
           </div>
         </div>
 
         <div v-if="syncError" class="alert error sync-err-alert">
-          <span>⚠️ Sync failed: {{ syncError }}</span>
-          <button @click="isSyncing = false" class="btn btn-secondary btn-retry">Back to settings</button>
+          <span>{{ $t('setup.syncScreen.failed', { error: syncError }) }}</span>
+          <button @click="isSyncing = false" class="btn btn-secondary btn-retry">{{ $t('setup.syncScreen.back') }}</button>
         </div>
       </div>
     </div>

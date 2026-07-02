@@ -61,28 +61,28 @@ const progress = computed(() => {
 
     <div class="info-cell">
       <div class="name-container">
-        <span class="channel-name">{{ stream.name || 'Unnamed Channel' }}</span>
-        <span v-if="stream.tv_archive === 1" class="archive-badge" title="Archive / Catch-up Available">
+        <span class="channel-name">{{ stream.name || $t('media.empty') }}</span>
+        <span v-if="stream.tv_archive === 1" class="archive-badge" :title="$t('media.catchup')">
           <IconClock class="badge-icon" />
-          <span>Catch-up</span>
+          <span>{{ $t('media.catchup') }}</span>
         </span>
       </div>
 
       <!-- Now-playing strip -->
       <template v-if="nowPlaying">
         <div class="epg-now">
-          <span class="epg-title">{{ nowPlaying.title ?? 'Unknown programme' }}</span>
+          <span class="epg-title">{{ nowPlaying.title ?? $t('media.unknownProgram') }}</span>
         </div>
         <div class="epg-bar-track">
           <div class="epg-bar-fill" :style="{ width: progress + '%' }" />
         </div>
       </template>
-      <div v-else-if="!stream.epg_channel_id" class="epg-placeholder">No EPG ID</div>
-      <div v-else class="epg-placeholder">No EPG data</div>
+      <div v-else-if="!stream.epg_channel_id" class="epg-placeholder">{{ $t('media.noEpgId') }}</div>
+      <div v-else class="epg-placeholder">{{ $t('media.noEpgDataShort') }}</div>
     </div>
 
     <div class="action-cell">
-      <button class="play-btn" @click.stop="$emit('play', stream)" title="Play Channel">
+      <button class="play-btn" @click.stop="$emit('play', stream)" :title="$t('media.play')">
         <IconPlay class="play-icon" />
       </button>
     </div>

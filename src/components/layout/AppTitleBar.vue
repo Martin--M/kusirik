@@ -92,13 +92,13 @@ function handleDblClick(e: MouseEvent) {
 
     <!-- Right Section: Window Controls -->
     <div class="window-controls">
-      <button class="control-btn minimize-btn" @click="minimize" title="Minimize">
+      <button class="control-btn minimize-btn" @click="minimize" :title="$t('titlebar.minimize')">
         <svg viewBox="0 0 10 1" class="control-icon-svg">
           <line x1="0" y1="0.5" x2="10" y2="0.5" stroke="currentColor" stroke-width="1" />
         </svg>
       </button>
 
-      <button class="control-btn maximize-btn" @click="toggleMaximize" :title="isMaximized ? 'Restore' : 'Maximize'">
+      <button class="control-btn maximize-btn" @click="toggleMaximize" :title="isMaximized ? $t('titlebar.restore') : $t('titlebar.maximize')">
         <!-- Maximize square icon -->
         <svg v-if="!isMaximized" viewBox="0 0 10 10" class="control-icon-svg">
           <rect x="1" y="1" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1" />
@@ -110,7 +110,7 @@ function handleDblClick(e: MouseEvent) {
         </svg>
       </button>
 
-      <button class="control-btn close-btn" @click="closeApp" title="Close">
+      <button class="control-btn close-btn" @click="closeApp" :title="$t('titlebar.close')">
         <IconClose class="close-icon" />
       </button>
     </div>

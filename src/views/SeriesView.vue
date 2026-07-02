@@ -9,6 +9,7 @@ import StreamDetailPanel from '@/components/ui/StreamDetailPanel.vue'
 import type { Series, SeriesCategory } from '@/types/series'
 import { useProfileStore } from '@/stores/profile.store'
 import { useToastStore } from '@/stores/toast.store'
+import { useI18n } from '@/composables/useI18n'
 import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
 import { buildEpisodeUrl } from '@/lib/url-builder'
 import IconStar from '@/components/icons/IconStar.vue'
@@ -27,10 +28,12 @@ const isGridView = ref(true)
 const isMobileDetailOpen = ref(false)
 const expandedSeason = ref<string | number | null>(null)
 
-const sortLabels = {
-  name: 'Alphabetical',
-  rating: 'Rating'
-}
+const { t } = useI18n()
+
+const sortLabels = computed(() => ({
+  name: t('sortField.name'),
+  rating: t('sortField.rating')
+}))
 
 const profileStore = useProfileStore()
 const toastStore = useToastStore()
@@ -40,8 +43,8 @@ const { data: categoriesData, isLoading: isLoadingCategories } = useSeriesCatego
 // Computed categories list including "All" and "Uncategorized"
 const categories = computed<SeriesCategory[]>(() => {
   const list: SeriesCategory[] = [
-    { profile_id: 1, category_id: 'all', category_name: 'All TV Series' },
-    { profile_id: 1, category_id: '0', category_name: 'Uncategorized' }
+    { profile_id: 1, category_id: 'all', category_name: t('media.allSeries') },
+    { profile_id: 1, category_id: '0', category_name: t('media.uncategorized') }
   ]
   if (categoriesData.value) {
     const providerCats = categoriesData.value.filter(
@@ -51,6 +54,7 @@ const categories = computed<SeriesCategory[]>(() => {
   }
   return list
 })
+
 
 // Feed reactive categoryId to the series query
 const seriesQueryId = computed(() => {
@@ -153,13 +157,13 @@ async function copyEpisodeUrl(episode: any) {
   try {
     const profile = profileStore.profile
     if (!profile) {
-      toastStore.showToast('No active profile loaded.', 'error')
+      toastStore.showToast(t('settings.profile.disconnectFailed', { error: 'No profile' }), 'error')
       return
     }
 
     const password = await getSetting('password')
     if (!password) {
-      toastStore.showToast('Could not retrieve credentials.', 'error')
+      toastStore.showToast(t('setup.saveFailed', { error: 'Credentials' }), 'error')
       return
     }
 
@@ -177,10 +181,10 @@ async function copyEpisodeUrl(episode: any) {
     )
 
     await copyToSystemClipboard(url)
-    toastStore.showToast('Episode stream URL copied to clipboard!', 'success')
+    toastStore.showToast(t('media.urlCopied'), 'success')
   } catch (e) {
     console.error(e)
-    toastStore.showToast('Failed to copy stream URL.', 'error')
+    toastStore.showToast(t('media.copyFailed'), 'error')
   }
 }
 </script>
@@ -216,7 +220,7 @@ async function copyEpisodeUrl(episode: any) {
           v-model:is-grid-view="isGridView"
           :sort-labels="sortLabels"
           show-layout-toggle
-          search-placeholder="Search series by name..."
+          :search-placeholder="$t('media.searchSeries')"
         />
       </div>
 
@@ -264,27 +268,27 @@ async function copyEpisodeUrl(episode: any) {
         <div v-else-if="seriesDetails" class="metadata-content">
           <!-- Quick Info Cards -->
           <div class="meta-row" v-if="selectedSeries?.genre || seriesDetails.info?.genre">
-            <span class="meta-label">Genre:</span>
+            <span class="meta-label">{{ $t('media.genre') }}:</span>
             <span class="meta-value">{{ selectedSeries?.genre || seriesDetails.info?.genre }}</span>
           </div>
           <div class="meta-row" v-if="selectedSeries?.director || seriesDetails.info?.director">
-            <span class="meta-label">Director:</span>
+            <span class="meta-label">{{ $t('media.director') }}:</span>
             <span class="meta-value">{{ selectedSeries?.director || seriesDetails.info?.director }}</span>
           </div>
           <div class="meta-row" v-if="selectedSeries?.cast_ || seriesDetails.info?.cast || seriesDetails.info?.actors">
-            <span class="meta-label">Cast:</span>
+            <span class="meta-label">{{ $t('media.cast') }}:</span>
             <span class="meta-value text-clamp" :title="selectedSeries?.cast_ || seriesDetails.info?.cast || seriesDetails.info?.actors">
               {{ selectedSeries?.cast_ || seriesDetails.info?.cast || seriesDetails.info?.actors }}
             </span>
           </div>
           <div class="meta-plot" v-if="selectedSeries?.plot || seriesDetails.info?.plot || seriesDetails.info?.description">
-            <h4 class="section-subtitle">Synopsis</h4>
+            <h4 class="section-subtitle">{{ $t('media.plot') }}</h4>
             <p class="plot-text">{{ selectedSeries?.plot || seriesDetails.info?.plot || seriesDetails.info?.description }}</p>
           </div>
 
           <!-- Seasons Accordion Tree -->
           <div class="seasons-accordion" v-if="seriesDetails.episodes && Object.keys(seriesDetails.episodes).length > 0">
-            <h4 class="section-subtitle accordion-heading">Seasons & Episodes</h4>
+            <h4 class="section-subtitle accordion-heading">{{ $t('media.seasons') }} & {{ $t('media.episodes') }}</h4>
             
             <div
               v-for="(episodesList, seasonKey) in seriesDetails.episodes"
@@ -294,8 +298,8 @@ async function copyEpisodeUrl(episode: any) {
             >
               <!-- Season Header Trigger -->
               <button class="season-header" @click="toggleSeason(seasonKey)">
-                <span class="season-title">Season {{ seasonKey }}</span>
-                <span class="episode-count">{{ episodesList.length }} Episodes</span>
+                <span class="season-title">{{ $t('media.season', { num: seasonKey }) }}</span>
+                <span class="episode-count">{{ episodesList.length }} {{ $t('media.episodes').toLowerCase() }}</span>
                 <IconChevron class="chevron-icon" />
               </button>
 
@@ -309,7 +313,7 @@ async function copyEpisodeUrl(episode: any) {
                   <div class="episode-main">
                     <span class="episode-num">Ep {{ episode.episode_num }}</span>
                     <span class="episode-title" :title="episode.title || ''">
-                      {{ episode.title || `Episode ${episode.episode_num}` }}
+                      {{ episode.title || $t('media.episode', { num: episode.episode_num }) }}
                     </span>
                   </div>
                   <div class="episode-info" v-if="episode.info?.plot">
@@ -318,9 +322,9 @@ async function copyEpisodeUrl(episode: any) {
                   <div class="episode-actions">
                     <button class="action-btn play-btn" @click="handlePlayEpisode(episode)">
                       <IconPlay class="action-icon" />
-                      <span>Play</span>
+                      <span>{{ $t('media.play') }}</span>
                     </button>
-                    <button class="action-btn copy-btn" @click="copyEpisodeUrl(episode)" title="Copy URL">
+                    <button class="action-btn copy-btn" @click="copyEpisodeUrl(episode)" :title="$t('media.copyUrl')">
                       <IconCopy class="action-icon" />
                     </button>
                   </div>
@@ -329,11 +333,11 @@ async function copyEpisodeUrl(episode: any) {
             </div>
           </div>
           <div v-else class="no-episodes-msg">
-            <p>No episodes listings available for this series.</p>
+            <p>{{ $t('media.empty') }}</p>
           </div>
         </div>
         <div v-else class="metadata-empty">
-          <p>No details found for this series.</p>
+          <p>{{ $t('media.empty') }}</p>
         </div>
       </div>
 
@@ -342,7 +346,7 @@ async function copyEpisodeUrl(episode: any) {
           <div class="tv-art">
             <IconTVPlus />
           </div>
-          <p>Select a TV series to load seasons, episodes, and descriptions.</p>
+          <p>{{ $t('media.selectToView') }}</p>
         </div>
       </template>
     </StreamDetailPanel>

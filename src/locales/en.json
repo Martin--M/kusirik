@@ -1,0 +1,185 @@
+{
+  "sidebar": {
+    "live": "Live TV",
+    "movies": "Movies",
+    "series": "TV Series",
+    "settings": "Settings",
+    "search": "Search",
+    "expand": "Expand Sidebar",
+    "collapse": "Collapse Sidebar",
+    "placeholder": "Search..."
+  },
+  "setup": {
+    "title": "Kusirik - IPTV Engine",
+    "subtitle": "Kusirik - IPTV Engine",
+    "serverUrl": "Server URL",
+    "username": "Username",
+    "password": "Password",
+    "showPassword": "Show Password",
+    "hidePassword": "Hide Password",
+    "testConnection": "Test Connection",
+    "testing": "Testing...",
+    "saveAndSync": "Save & Sync",
+    "saving": "Saving...",
+    "validation": "Please fill in all fields",
+    "testSuccess": "Connection successful! Server is ready.",
+    "testFailed": "Connection failed: {error}",
+    "saveFailed": "Failed to save: {error}",
+    "syncScreen": {
+      "title": "Initializing Cache",
+      "desc": "Please wait while we sync categories and listings sequentially.",
+      "live": "Live Channels",
+      "vod": "VOD Movies",
+      "series": "TV Series",
+      "epg": "EPG Guide Data",
+      "syncedCount": "{count} items synced",
+      "pending": "Pending",
+      "syncing": "syncing",
+      "failed": "Sync failed: {error}",
+      "back": "Back to settings"
+    }
+  },
+  "settings": {
+    "profile": {
+      "title": "Connection Profile",
+      "serverUrl": "Server URL",
+      "username": "Username",
+      "disconnect": "Disconnect Profile",
+      "disconnectConfirm": "Are you sure you want to disconnect? This will remove your configuration profile and clear all cached media streams from the local database.",
+      "disconnecting": "Disconnecting profile...",
+      "disconnectSuccess": "Profile disconnected successfully",
+      "disconnectFailed": "Failed to disconnect profile: {error}"
+    },
+    "stats": {
+      "title": "Database Statistics",
+      "live": "Live Channels",
+      "movies": "VOD Movies",
+      "series": "TV Series",
+      "epg": "EPG Guide Data",
+      "categories": "{count} categories",
+      "channels": "{count} channels",
+      "moviesCount": "{count} movies",
+      "seriesCount": "{count} series",
+      "entries": "{count} entries",
+      "loading": "...",
+      "never": "Never",
+      "types": {
+        "live_streams": "Live TV Channels",
+        "vod_streams": "VOD Movies",
+        "series": "TV Series",
+        "epg": "EPG Guide Data"
+      }
+    },
+    "preferences": {
+      "title": "Preferences",
+      "theme": "Visual Theme",
+      "dark": "Dark",
+      "light": "Light",
+      "language": "Language",
+      "formatOverride": "Live Stream Format Override",
+      "formatOptions": {
+        "auto": "Default (Auto-detect)",
+        "ts": "MPEG-TS (.ts)",
+        "m3u8": "HLS (.m3u8)"
+      },
+      "formatSubtext": "Overrides the auto-selected container format for Live TV channels if supported by the provider.",
+      "toastFormat": "Format override updated to: {format}",
+      "toastLanguage": "Language updated to: {lang}"
+    },
+    "player": {
+      "title": "Media Player Configuration",
+      "vlcPath": "VLC Executable Path (Windows)",
+      "vlcSubtext": "Desktop player binary location. Leaving empty will fall back to default system protocol handlers.",
+      "vlcSaved": "Windows player path saved",
+      "vlcFailed": "Failed to save Windows player path",
+      "androidPkg": "External Player Package (Android)",
+      "androidSubtext": "Android player package name. Leaving empty will present the default system app selector.",
+      "androidSaved": "Android package ID saved",
+      "androidFailed": "Failed to save Android package ID"
+    },
+    "sync": {
+      "title": "Database Synchronization",
+      "refresh": "Refresh Cache",
+      "syncAll": "Synchronize Database",
+      "confirm": "Are you sure you want to synchronize the database? This will update category listings and streams cache from your provider. This process runs in the background.",
+      "starting": "Starting database synchronization...",
+      "failed": "Sync failed: {error}",
+      "table": {
+        "category": "Category",
+        "lastSynced": "Last Synced",
+        "status": "Status",
+        "syncing": "Syncing...",
+        "error": "Error",
+        "ready": "Ready",
+        "pending": "Pending"
+      }
+    }
+  },
+  "media": {
+    "allChannels": "All Channels",
+    "uncategorized": "Uncategorized",
+    "allMovies": "All Movies",
+    "allSeries": "All Series",
+    "searchChannels": "Search channels...",
+    "searchMovies": "Search movies...",
+    "searchSeries": "Search series...",
+    "catchupOnly": "Catch-up only",
+    "sort": "Sort",
+    "sortAsc": "A-Z",
+    "sortDesc": "Z-A",
+    "empty": "No items found",
+    "selectToView": "Select an item to view details",
+    "play": "Play",
+    "playCatchup": "Play Catch-up",
+    "copyUrl": "Copy stream URL",
+    "urlCopied": "Stream URL copied to clipboard!",
+    "copyFailed": "Failed to copy stream URL",
+    "close": "Close",
+    "director": "Director",
+    "genre": "Genre",
+    "releaseDate": "Release Date",
+    "plot": "Plot",
+    "duration": "Duration",
+    "cast": "Cast",
+    "seasons": "Seasons",
+    "episodes": "Episodes",
+    "season": "Season {num}",
+    "episode": "Episode {num}",
+    "rating": "Rating",
+    "minutes": "{num} min",
+    "catchup": "Catch-up",
+    "catchupDays": "{days} Days Catch-up",
+    "noEpg": "No EPG data available for this channel.",
+    "noEpgId": "No EPG ID",
+    "noEpgDataShort": "No EPG data",
+    "unknownProgram": "Unknown programme",
+    "upcomingSchedule": "Upcoming Schedule",
+    "pastSchedule": "Past Schedule",
+    "nowPlaying": "Now Playing"
+  },
+  "titlebar": {
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "close": "Close"
+  },
+  "sortField": {
+    "name": "Alphabetical",
+    "rating": "Rating",
+    "added": "Date Added"
+  },
+  "search": {
+    "title": "Search Results",
+    "showingResults": "Showing results for \"{query}\"",
+    "placeholderSearch": "Type at least 2 characters to search...",
+    "descSearch": "You can search for live channels, VOD movies, and TV series simultaneously.",
+    "searching": "Searching lists...",
+    "noResults": "No results found for \"{query}\"",
+    "tryDifferent": "Try searching with different keywords.",
+    "liveResults": "Live Channels ({count})",
+    "movieResults": "VOD Movies ({count})",
+    "seriesResults": "TV Series ({count})",
+    "clickToPlay": "Click Play to stream this channel live in your configured media player."
+  }
+}
+

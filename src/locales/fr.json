@@ -1,0 +1,185 @@
+{
+  "sidebar": {
+    "live": "TV en direct",
+    "movies": "Films",
+    "series": "Séries TV",
+    "settings": "Paramètres",
+    "search": "Recherche",
+    "expand": "Développer le menu",
+    "collapse": "Réduire le menu",
+    "placeholder": "Rechercher..."
+  },
+  "setup": {
+    "title": "Kusirik - IPTV Engine",
+    "subtitle": "Kusirik - IPTV Engine",
+    "serverUrl": "URL du serveur",
+    "username": "Nom d'utilisateur",
+    "password": "Mot de passe",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
+    "testConnection": "Tester la connexion",
+    "testing": "Connexion en cours...",
+    "saveAndSync": "Enregistrer & Synchroniser",
+    "saving": "Enregistrement...",
+    "validation": "Veuillez remplir tous les champs",
+    "testSuccess": "Connexion réussie ! Le serveur est prêt.",
+    "testFailed": "Échec de la connexion : {error}",
+    "saveFailed": "Échec de l'enregistrement : {error}",
+    "syncScreen": {
+      "title": "Initialisation du cache",
+      "desc": "Veuillez patienter pendant la synchronisation séquentielle des catégories et des flux.",
+      "live": "Chaînes en direct",
+      "vod": "Films (VOD)",
+      "series": "Séries TV",
+      "epg": "Données du guide EPG",
+      "syncedCount": "{count} éléments synchronisés",
+      "pending": "En attente",
+      "syncing": "synchronisation",
+      "failed": "Échec de la synchronisation : {error}",
+      "back": "Retour aux paramètres"
+    }
+  },
+  "settings": {
+    "profile": {
+      "title": "Profil de connexion",
+      "serverUrl": "URL du serveur",
+      "username": "Nom d'utilisateur",
+      "disconnect": "Déconnecter le profil",
+      "disconnectConfirm": "Êtes-vous sûr de vouloir vous déconnecter ? Cela supprimera votre profil de configuration et videra tous les flux mis en cache dans la base de données locale.",
+      "disconnecting": "Déconnexion du profil...",
+      "disconnectSuccess": "Profil déconnecté avec succès",
+      "disconnectFailed": "Échec de la déconnexion du profil : {error}"
+    },
+    "stats": {
+      "title": "Statistiques de la base de données",
+      "live": "Chaînes en direct",
+      "movies": "Films (VOD)",
+      "series": "Séries TV",
+      "epg": "Données du guide EPG",
+      "categories": "{count} catégories",
+      "channels": "{count} chaînes",
+      "moviesCount": "{count} films",
+      "seriesCount": "{count} séries",
+      "entries": "{count} entrées",
+      "loading": "...",
+      "never": "Jamais",
+      "types": {
+        "live_streams": "Chaînes de TV en direct",
+        "vod_streams": "Films (VOD)",
+        "series": "Séries TV",
+        "epg": "Données du guide EPG"
+      }
+    },
+    "preferences": {
+      "title": "Préférences",
+      "theme": "Thème visuel",
+      "dark": "Sombre",
+      "light": "Clair",
+      "language": "Langue",
+      "formatOverride": "Forcer le format du flux en direct",
+      "formatOptions": {
+        "auto": "Par défaut (Auto-détection)",
+        "ts": "MPEG-TS (.ts)",
+        "m3u8": "HLS (.m3u8)"
+      },
+      "formatSubtext": "Force le format de conteneur sélectionné pour les chaînes de TV en direct si supporté par le fournisseur.",
+      "toastFormat": "Format forcé mis à jour : {format}",
+      "toastLanguage": "Langue mise à jour : {lang}"
+    },
+    "player": {
+      "title": "Configuration du lecteur multimédia",
+      "vlcPath": "Chemin vers l'exécutable VLC (Windows)",
+      "vlcSubtext": "Emplacement du binaire du lecteur de bureau. Laisser vide utilisera les gestionnaires de protocole système par défaut.",
+      "vlcSaved": "Chemin du lecteur Windows enregistré",
+      "vlcFailed": "Échec de l'enregistrement du chemin du lecteur Windows",
+      "androidPkg": "Package du lecteur externe (Android)",
+      "androidSubtext": "Nom de package du lecteur Android. Laisser vide affichera le sélecteur d'application système par défaut.",
+      "androidSaved": "ID de package Android enregistré",
+      "androidFailed": "Échec de l'enregistrement de l'ID de package Android"
+    },
+    "sync": {
+      "title": "Synchronisation de la base de données",
+      "refresh": "Actualiser le cache",
+      "syncAll": "Synchroniser la base de données",
+      "confirm": "Êtes-vous sûr de vouloir synchroniser la base de données ? Cela mettra à jour les catégories et le cache des flux depuis votre fournisseur. Ce processus s'exécute en arrière-plan.",
+      "starting": "Démarrage de la synchronisation...",
+      "failed": "Échec de la synchronisation : {error}",
+      "table": {
+        "category": "Catégorie",
+        "lastSynced": "Dernière synchro",
+        "status": "Statut",
+        "syncing": "Synchronisation...",
+        "error": "Erreur",
+        "ready": "Prêt",
+        "pending": "En attente"
+      }
+    }
+  },
+  "media": {
+    "allChannels": "Toutes les chaînes",
+    "uncategorized": "Sans catégorie",
+    "allMovies": "Tous les films",
+    "allSeries": "Toutes les séries",
+    "searchChannels": "Rechercher des chaînes...",
+    "searchMovies": "Rechercher des films...",
+    "searchSeries": "Rechercher des séries...",
+    "catchupOnly": "Rattrapage uniquement",
+    "sort": "Trier",
+    "sortAsc": "A-Z",
+    "sortDesc": "Z-A",
+    "empty": "Aucun élément trouvé",
+    "selectToView": "Sélectionnez un élément pour voir les détails",
+    "play": "Jouer",
+    "playCatchup": "Visionner le rattrapage",
+    "copyUrl": "Copier l'URL du flux",
+    "urlCopied": "URL du flux copiée dans le presse-papiers !",
+    "copyFailed": "Échec de la copie de l'URL du flux",
+    "close": "Fermer",
+    "director": "Réalisateur",
+    "genre": "Genre",
+    "releaseDate": "Date de sortie",
+    "plot": "Synopsis",
+    "duration": "Durée",
+    "cast": "Distribution",
+    "seasons": "Saisons",
+    "episodes": "Épisodes",
+    "season": "Saison {num}",
+    "episode": "Épisode {num}",
+    "rating": "Évaluation",
+    "minutes": "{num} min",
+    "catchup": "Rattrapage",
+    "catchupDays": "{days} jours de rattrapage",
+    "noEpg": "Aucune donnée EPG disponible pour cette chaîne.",
+    "noEpgId": "Pas d'identifiant EPG",
+    "noEpgDataShort": "Aucun guide",
+    "unknownProgram": "Émission inconnue",
+    "upcomingSchedule": "Programmes à venir",
+    "pastSchedule": "Rattrapage disponible",
+    "nowPlaying": "En cours"
+  },
+  "titlebar": {
+    "minimize": "Réduire",
+    "maximize": "Agrandir",
+    "restore": "Restaurer",
+    "close": "Fermer"
+  },
+  "sortField": {
+    "name": "Nom (A-Z)",
+    "rating": "Évaluation",
+    "added": "Date d'ajout"
+  },
+  "search": {
+    "title": "Résultats de recherche",
+    "showingResults": "Résultats pour \"{query}\"",
+    "placeholderSearch": "Saisissez au moins 2 caractères pour lancer la recherche...",
+    "descSearch": "Vous pouvez rechercher des chaînes en direct, des films et des séries TV simultanément.",
+    "searching": "Recherche en cours...",
+    "noResults": "Aucun résultat trouvé pour \"{query}\"",
+    "tryDifferent": "Essayez avec d'autres mots-clés.",
+    "liveResults": "Chaînes en direct ({count})",
+    "movieResults": "Films ({count})",
+    "seriesResults": "Séries TV ({count})",
+    "clickToPlay": "Cliquez sur Jouer pour visionner cette chaîne dans le lecteur multimédia configuré."
+  }
+}
+

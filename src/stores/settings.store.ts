@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { StreamFormat } from '@/lib/url-builder'
 import { pickLiveFormat } from '@/lib/url-builder'
 import { getSetting, setSetting } from '@/lib/tauri-commands'
+import { useI18n } from '@/composables/useI18n'
 
 export type Theme = 'dark' | 'light'
 
@@ -13,6 +14,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const allowedFormats = ref<StreamFormat[]>(['ts'])
   const liveFormatOverride = ref<StreamFormat | null>(null)
   const sidebarCollapsed = ref(false)
+  const language = ref<string>('en')
 
   const liveFormat = computed(() =>
     pickLiveFormat(allowedFormats.value, liveFormatOverride.value)
@@ -25,18 +27,25 @@ export const useSettingsStore = defineStore('settings', () => {
       sidebarCollapsed.value = storedSidebar === 'true'
     }
     try {
-      const [themeVal, playerWin, playerAnd, fmtsJson, overrideVal] = await Promise.all([
+      const [themeVal, playerWin, playerAnd, fmtsJson, overrideVal, langVal] = await Promise.all([
         getSetting('theme'),
         getSetting('player_windows'),
         getSetting('player_android'),
         getSetting('allowed_formats'),
         getSetting('live_format_override'),
+        getSetting('language'),
       ])
       if (themeVal) theme.value = themeVal as Theme
       if (playerWin) playerWindows.value = playerWin
       if (playerAnd) playerAndroid.value = playerAnd
       if (fmtsJson) allowedFormats.value = JSON.parse(fmtsJson) as StreamFormat[]
       if (overrideVal) liveFormatOverride.value = overrideVal
+      
+      // Load language preference, fallback to system locale detection
+      const activeLang = langVal || (navigator.language.startsWith('fr') ? 'fr' : 'en')
+      language.value = activeLang
+      const { setLocale } = useI18n()
+      setLocale(activeLang)
     } catch (e) {
       console.warn('Failed to load settings from Tauri backend (ignoring in browser dev mode):', e)
     }
@@ -68,6 +77,13 @@ export const useSettingsStore = defineStore('settings', () => {
     await setSetting('allowed_formats', JSON.stringify(fmts))
   }
 
+  async function setLanguage(lang: string) {
+    language.value = lang
+    await setSetting('language', lang)
+    const { setLocale } = useI18n()
+    setLocale(lang)
+  }
+
   function applyTheme() {
     document.documentElement.setAttribute('data-theme', theme.value)
   }
@@ -85,13 +101,16 @@ export const useSettingsStore = defineStore('settings', () => {
     liveFormatOverride,
     liveFormat,
     sidebarCollapsed,
+    language,
     load,
     setTheme,
     setPlayerWindows,
     setPlayerAndroid,
     setAllowedFormats,
     setLiveFormatOverride,
+    setLanguage,
     applyTheme,
     toggleSidebar,
   }
 })
+
