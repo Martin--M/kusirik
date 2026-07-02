@@ -1,6 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { launchPlayer, resolveStreamUrl, launchAndroidIntent } from '@/lib/tauri-commands'
-import { buildLiveUrl, buildMovieUrl, buildEpisodeUrl } from '@/lib/url-builder'
+import { buildLiveUrl, buildMovieUrl, buildEpisodeUrl, buildCatchupUrl } from '@/lib/url-builder'
 import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useToastStore } from '@/stores/toast.store'
@@ -74,5 +74,20 @@ export function usePlayer() {
     await startPlayback(url)
   }
 
-  return { canPlay, playLive, playMovie, playEpisode }
+  async function playCatchup(streamId: MaybeRefOrGetter<number>, startDateTime: string, durationMinutes: number) {
+    if (!profileStore.profile) return
+    const url = buildCatchupUrl(
+      {
+        serverUrl: profileStore.profile.server_url,
+        username: profileStore.profile.username,
+        password: '***',
+      },
+      toValue(streamId),
+      startDateTime,
+      durationMinutes
+    )
+    await startPlayback(url)
+  }
+
+  return { canPlay, playLive, playMovie, playEpisode, playCatchup }
 }
