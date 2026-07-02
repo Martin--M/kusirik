@@ -176,25 +176,12 @@ const currentProgramProgress = computed(() => {
   return Math.max(0, Math.min(100, progress))
 })
 
-const nextProgram = computed(() => {
-  if (!epgData.value) return null
-  const futurePrograms = epgData.value.filter((entry) => {
-    const start = new Date(entry.start)
-    return start > now.value
-  })
-  return futurePrograms[0] || null
-})
-
 const upcomingPrograms = computed(() => {
   if (!epgData.value) return []
-  const futurePrograms = epgData.value.filter((entry) => {
+  return epgData.value.filter((entry) => {
     const start = new Date(entry.start)
     return start > now.value
   })
-  if (futurePrograms.length > 1) {
-    return futurePrograms.slice(1)
-  }
-  return []
 })
 
 function formatEpgTime(dateStr: string): string {
@@ -293,14 +280,12 @@ function formatEpgTime(dateStr: string): string {
 
       <!-- Program guide elements inside detail layout -->
       <div class="epg-box">
-        <h4 class="section-subtitle">Program Guide</h4>
-
         <div v-if="isLoadingEpg" class="epg-loading">
           <span class="spinner small"></span>
           <span>Loading guide info...</span>
         </div>
 
-        <div v-else-if="!currentProgram && !nextProgram" class="epg-no-data">
+        <div v-else-if="!currentProgram && upcomingPrograms.length === 0" class="epg-no-data">
           <p>No guide details available for this channel.</p>
         </div>
 
@@ -316,17 +301,6 @@ function formatEpgTime(dateStr: string): string {
             </div>
             <div class="progress-bar-placeholder" :title="`${Math.round(currentProgramProgress)}% elapsed`">
               <div class="progress-bar-fill" :style="{ width: `${currentProgramProgress}%` }"></div>
-            </div>
-          </div>
-
-          <!-- Next Program Card -->
-          <div v-if="nextProgram" class="epg-placeholder-card upcoming">
-            <div class="epg-time">
-              Next Program ({{ formatEpgTime(nextProgram.start) }} - {{ formatEpgTime(nextProgram.stop) }})
-            </div>
-            <div class="epg-title">{{ nextProgram.title }}</div>
-            <div v-if="nextProgram.description" class="epg-desc">
-              {{ nextProgram.description }}
             </div>
           </div>
 
