@@ -20,7 +20,7 @@ import type { Profile, SaveProfilePayload } from '@/types/profile'
 import type { LiveCategory, LiveStream } from '@/types/stream'
 import type { VodCategory, VodStream } from '@/types/vod'
 import type { SeriesCategory, Series } from '@/types/series'
-import type { EpgEntry } from '@/types/epg'
+import type { EpgEntry, GuideChannel } from '@/types/epg'
 import type { SyncStatus, DataType } from '@/types/sync'
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
@@ -79,6 +79,9 @@ export const getSeriesInfo = (profileId: number, seriesId: number) =>
 
 export const getEpgForChannel = (profileId: number, channelId: string, from: string, to: string) =>
   invoke<EpgEntry[]>('get_epg_for_channel', { profileId, channelId, from, to })
+
+export const getEpgGuide = (profileId: number, from: string, to: string) =>
+  invoke<GuideChannel[]>('get_epg_guide', { profileId, from, to })
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 

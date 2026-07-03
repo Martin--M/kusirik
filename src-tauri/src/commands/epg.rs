@@ -146,3 +146,99 @@ pub async fn get_epg_for_channel(
 
     Ok(re_queried)
 }
+
+#[derive(serde::Serialize)]
+pub struct GuideChannel {
+    pub stream_id: i64,
+    pub name: Option<String>,
+    pub stream_icon: Option<String>,
+    pub epg_channel_id: Option<String>,
+    pub tv_archive: i64,
+    pub tv_archive_duration: i64,
+    pub epg_entries: Vec<crate::db::epg::EpgEntry>,
+}
+
+#[tauri::command]
+pub async fn get_epg_guide(
+    state: State<'_, DbConn>,
+    profile_id: i64,
+    from: String,
+    to: String,
+) -> Result<Vec<GuideChannel>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+
+    // 1. Fetch EPG entries in the timeframe
+    let mut epg_stmt = conn.prepare_cached(
+        "SELECT profile_id, channel_id, start, stop, title, description 
+         FROM epg_entries 
+         WHERE profile_id = ?1 AND start < ?2 AND stop > ?3
+         ORDER BY start ASC"
+    ).map_err(|e| e.to_string())?;
+
+    let epg_rows = epg_stmt.query_map(rusqlite::params![profile_id, &to, &from], |row| {
+        Ok(EpgEntry {
+            profile_id: row.get(0)?,
+            channel_id: row.get(1)?,
+            start: row.get(2)?,
+            stop: row.get(3)?,
+            title: row.get(4)?,
+            description: row.get(5)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut entries_by_channel: HashMap<String, Vec<EpgEntry>> = HashMap::new();
+    for row in epg_rows {
+        let entry = row.map_err(|e| e.to_string())?;
+        entries_by_channel.entry(entry.channel_id.clone()).or_default().push(entry);
+    }
+
+    // 2. Fetch channels that have active EPG listings in the timeline window
+    let mut channel_stmt = conn.prepare_cached(
+        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration
+         FROM live_streams
+         WHERE profile_id = ?1 
+           AND epg_channel_id IS NOT NULL 
+           AND epg_channel_id != ''
+           AND EXISTS (
+               SELECT 1 FROM epg_entries ee 
+               WHERE ee.profile_id = live_streams.profile_id 
+                 AND ee.channel_id = live_streams.epg_channel_id 
+                 AND ee.start < ?2 
+                 AND ee.stop > ?3
+           )
+         ORDER BY name ASC"
+    ).map_err(|e| e.to_string())?;
+
+    let channel_rows = channel_stmt.query_map(rusqlite::params![profile_id, &to, &from], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, Option<String>>(1)?,
+            row.get::<_, Option<String>>(2)?,
+            row.get::<_, Option<String>>(3)?,
+            row.get::<_, i64>(5)?,
+            row.get::<_, i64>(6)?,
+        ))
+    }).map_err(|e| e.to_string())?;
+
+    let mut channels = Vec::new();
+    for row in channel_rows {
+        let (stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration) = row.map_err(|e| e.to_string())?;
+        let epg_entries = if let Some(ref ch_id) = epg_channel_id {
+            entries_by_channel.remove(ch_id).unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+
+        channels.push(GuideChannel {
+            stream_id,
+            name,
+            stream_icon,
+            epg_channel_id,
+            tv_archive,
+            tv_archive_duration,
+            epg_entries,
+        });
+    }
+
+    Ok(channels)
+}

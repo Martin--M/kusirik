@@ -88,6 +88,7 @@ pub fn run() {
             commands::series::get_series,
             commands::series::get_series_info,
             commands::epg::get_epg_for_channel,
+            commands::epg::get_epg_guide,
             commands::settings::get_setting,
             commands::settings::set_setting,
             commands::player::launch_player,

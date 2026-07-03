@@ -7,3 +7,13 @@ export interface EpgEntry {
   title: string | null
   description: string | null
 }
+
+export interface GuideChannel {
+  stream_id: number
+  name: string | null
+  stream_icon: string | null
+  epg_channel_id: string | null
+  tv_archive: number
+  tv_archive_duration: number
+  epg_entries: EpgEntry[]
+}
