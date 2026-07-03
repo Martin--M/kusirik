@@ -92,6 +92,7 @@ pub fn run() {
             commands::settings::set_setting,
             commands::player::launch_player,
             commands::player::resolve_stream_url,
+            commands::player::validate_stream_url,
             commands::player::launch_android_intent,
             commands::player::copy_to_clipboard,
             commands::image::get_image_data,

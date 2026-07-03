@@ -166,3 +166,42 @@ pub fn launch_android_intent(
         Err("launch_android_intent is only supported on Android.".to_string())
     }
 }
+
+#[tauri::command]
+pub async fn validate_stream_url(state: State<'_, DbConn>, url: String) -> Result<bool, String> {
+    let password = {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        crate::db::settings::get(&conn, "password")
+            .map_err(|e| e.to_string())?
+            .unwrap_or_default()
+    };
+    let final_url = url.replace("***", &password);
+
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(6))
+        .timeout(std::time::Duration::from_secs(10))
+        .danger_accept_invalid_certs(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let response = client.get(&final_url)
+        .header("User-Agent", "VLC/3.0.23 LibVLC/3.0.23")
+        .send()
+        .await;
+
+    match response {
+        Ok(res) => {
+            let status = res.status();
+            tracing::info!("Pre-check for stream URL: status {}", status);
+            if status.is_success() || status.is_redirection() {
+                Ok(true)
+            } else {
+                Err(format!("Precheck failed with HTTP status: {}", status))
+            }
+        }
+        Err(err) => {
+            tracing::warn!("Pre-check for stream URL failed: {}", err);
+            Err(err.to_string())
+        }
+    }
+}
