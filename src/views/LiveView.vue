@@ -12,6 +12,12 @@ import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useToastStore } from '@/stores/toast.store'
 import { buildLiveUrl, buildCatchupUrl } from '@/lib/url-builder'
+import {
+  formatUtcForCatchup,
+  getDurationMinutes,
+  isCurrentProgram as checkCurrentProgram,
+  isPastProgram as checkPastProgram
+} from '@/lib/date-utils'
 import { useI18n } from '@/composables/useI18n'
 import IconLive from '@/components/icons/IconLive.vue'
 import IconCheck from '@/components/icons/IconCheck.vue'
@@ -170,13 +176,12 @@ onUnmounted(() => {
   clearInterval(timer)
 })
 
+const isPastProgram = (stopStr: string) => checkPastProgram(stopStr, now.value)
+const isCurrentProgram = (startStr: string, stopStr: string) => checkCurrentProgram(startStr, stopStr, now.value)
+
 const currentProgram = computed(() => {
   if (!epgData.value) return null
-  return epgData.value.find((entry) => {
-    const start = new Date(entry.start)
-    const stop = new Date(entry.stop)
-    return start <= now.value && stop >= now.value
-  }) || null
+  return epgData.value.find((entry) => isCurrentProgram(entry.start, entry.stop)) || null
 })
 
 const pastPrograms = computed(() => {
@@ -186,47 +191,11 @@ const pastPrograms = computed(() => {
   
   const finished = epgData.value.filter((entry) => {
     const start = new Date(entry.start)
-    const stop = new Date(entry.stop)
-    return stop < now.value && start >= cutoffTime
+    return isPastProgram(entry.stop) && start >= cutoffTime
   })
   
   return [...finished].sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime())
 })
-
-function formatUtcForCatchup(dateStr: string, tzOffset?: string | null): string {
-  try {
-    let date = new Date(dateStr)
-    if (tzOffset) {
-      const sign = tzOffset.startsWith('-') ? -1 : 1
-      const cleaned = tzOffset.replace(/[+-]/g, '')
-      const parts = cleaned.split(':')
-      if (parts.length === 2) {
-        const hours = parseInt(parts[0], 10)
-        const minutes = parseInt(parts[1], 10)
-        const totalOffsetMinutes = sign * (hours * 60 + minutes)
-        date = new Date(date.getTime() + totalOffsetMinutes * 60 * 1000)
-      }
-    }
-    const y = date.getUTCFullYear()
-    const m = String(date.getUTCMonth() + 1).padStart(2, '0')
-    const d = String(date.getUTCDate()).padStart(2, '0')
-    const h = String(date.getUTCHours()).padStart(2, '0')
-    const min = String(date.getUTCMinutes()).padStart(2, '0')
-    return `${y}-${m}-${d}:${h}-${min}`
-  } catch (e) {
-    return ''
-  }
-}
-
-function getDurationMinutes(startStr: string, stopStr: string): number {
-  try {
-    const start = new Date(startStr).getTime()
-    const stop = new Date(stopStr).getTime()
-    return Math.round((stop - start) / 60000)
-  } catch (e) {
-    return 0
-  }
-}
 
 const isCatchupValid = ref(false)
 let lastCheckStreamId: number | null = null
