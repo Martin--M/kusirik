@@ -99,6 +99,9 @@ export const resolveStreamUrl = (url: string) =>
 export const launchAndroidIntent = (url: string) =>
   invoke<void>('launch_android_intent', { url })
 
+export const validateStreamUrl = (url: string) =>
+  invoke<boolean>('validate_stream_url', { url })
+
 export const copyToSystemClipboard = async (text: string) => {
   if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
     try {

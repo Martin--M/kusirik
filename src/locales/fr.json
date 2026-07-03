@@ -155,7 +155,8 @@
     "unknownProgram": "Émission inconnue",
     "upcomingSchedule": "Programmes à venir",
     "pastSchedule": "Rattrapage disponible",
-    "nowPlaying": "En cours"
+    "nowPlaying": "En cours",
+    "catchupUnreachable": "Le serveur de rattrapage est inaccessible."
   },
   "titlebar": {
     "minimize": "Réduire",

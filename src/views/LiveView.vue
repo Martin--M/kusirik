@@ -217,6 +217,68 @@ function getDurationMinutes(startStr: string, stopStr: string): number {
   }
 }
 
+const isCatchupValid = ref(false)
+let lastCheckStreamId: number | null = null
+
+watch(selectedStream, () => {
+  isCatchupValid.value = false
+  lastCheckStreamId = null
+})
+
+watch(pastPrograms, async (newPastPrograms) => {
+  if (!newPastPrograms || newPastPrograms.length === 0 || !selectedStream.value) {
+    isCatchupValid.value = false
+    return
+  }
+
+  // Prevent redundant checks if we already successfully validated this channel
+  if (isCatchupValid.value && lastCheckStreamId === selectedStream.value.stream_id) {
+    return
+  }
+
+  const streamId = selectedStream.value.stream_id
+  lastCheckStreamId = streamId
+  isCatchupValid.value = false
+
+  try {
+    const profile = profileStore.profile
+    if (!profile) return
+
+    const password = await getSetting('password')
+    if (!password) return
+
+    // Precheck using a real, already-aired program from EPG (guaranteed valid time window)
+    const targetProgram = newPastPrograms[0]
+    const startDateTime = formatUtcForCatchup(targetProgram.start)
+    const duration = getDurationMinutes(targetProgram.start, targetProgram.stop)
+
+    const url = buildCatchupUrl(
+      {
+        serverUrl: profile.server_url,
+        username: profile.username,
+        password: '***',
+      },
+      streamId,
+      startDateTime,
+      duration
+    )
+
+    const { validateStreamUrl } = await import('@/lib/tauri-commands')
+    const valid = await validateStreamUrl(url)
+
+    if (lastCheckStreamId === streamId) {
+      isCatchupValid.value = valid
+    }
+  } catch (err: any) {
+    console.error('Catchup pre-check error:', err)
+    if (lastCheckStreamId === streamId) {
+      isCatchupValid.value = false
+      const errorMsg = typeof err === 'string' ? err : (err?.message || JSON.stringify(err))
+      toastStore.showToast(`${t('media.catchupUnreachable')} (${errorMsg})`, 'error')
+    }
+  }
+}, { immediate: true })
+
 async function handlePlayCatchup(item: any) {
   if (!selectedStream.value) return
   const startDateTime = formatUtcForCatchup(item.start)
@@ -393,7 +455,7 @@ function formatEpgTime(dateStr: string): string {
                   <span class="epg-past-title" :title="item.title || undefined">{{ item.title }}</span>
                 </div>
                 <div class="epg-past-actions">
-                  <button class="action-btn play-btn" @click.stop="handlePlayCatchup(item)" :title="$t('media.playCatchup')">
+                  <button class="action-btn play-btn" :disabled="!isCatchupValid" @click.stop="handlePlayCatchup(item)" :title="$t('media.playCatchup')">
                     <IconPlay class="action-icon" />
                   </button>
                   <button class="action-btn" @click.stop="copyCatchupUrl(item)" :title="$t('media.copyUrl')">
@@ -868,6 +930,12 @@ function formatEpgTime(dateStr: string): string {
 .action-btn:hover {
   color: var(--color-text);
   background-color: rgba(255, 255, 255, 0.06);
+}
+
+.action-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .action-btn.play-btn {

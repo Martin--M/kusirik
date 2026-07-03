@@ -155,7 +155,8 @@
     "unknownProgram": "Unknown programme",
     "upcomingSchedule": "Upcoming Schedule",
     "pastSchedule": "Past Schedule",
-    "nowPlaying": "Now Playing"
+    "nowPlaying": "Now Playing",
+    "catchupUnreachable": "Catch-up server is unreachable."
   },
   "titlebar": {
     "minimize": "Minimize",
