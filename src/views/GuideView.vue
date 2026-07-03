@@ -173,6 +173,19 @@ const cleanChannels = computed(() => {
   }))
 })
 
+const searchQuery = ref('')
+const filteredChannels = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+  if (!query) return cleanChannels.value
+  return cleanChannels.value.filter(channel => {
+    const channelMatch = (channel.name || '').toLowerCase().includes(query)
+    const programMatch = channel.epg_entries.some(entry =>
+      (entry.title || '').toLowerCase().includes(query)
+    )
+    return channelMatch || programMatch
+  })
+})
+
 // Calculate list of 30-minute interval columns
 const timeSlots = computed(() => {
   const slots = []
@@ -221,7 +234,7 @@ function scrollToNow() {
 
 const rowVirtualizer = useVirtualizer(
   computed(() => ({
-    count: cleanChannels.value?.length || 0,
+    count: filteredChannels.value?.length || 0,
     getScrollElement: () => scrollContainer.value,
     estimateSize: () => 72,
     overscan: 10,
@@ -436,6 +449,14 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
         <h2 class="page-title">{{ $t('sidebar.guide') }}</h2>
         <span class="guide-sub">{{ $t('media.nowPlaying') }}</span>
       </div>
+      <div class="header-search-box">
+        <input
+          type="text"
+          v-model="searchQuery"
+          :placeholder="$t('sidebar.placeholder')"
+          class="guide-search-input"
+        />
+      </div>
     </header>
 
     <!-- Loading Screen -->
@@ -500,32 +521,32 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
               <div class="channel-cell-sticky">
                 <div class="channel-logo">
                   <CachedImage
-                    :src="cleanChannels[virtualRow.index].stream_icon"
-                    :alt="cleanChannels[virtualRow.index].name || ''"
-                    :fallback-text="cleanChannels[virtualRow.index].name || ''"
+                    :src="filteredChannels[virtualRow.index].stream_icon"
+                    :alt="filteredChannels[virtualRow.index].name || ''"
+                    :fallback-text="filteredChannels[virtualRow.index].name || ''"
                   />
                 </div>
-                <span class="channel-name" :title="cleanChannels[virtualRow.index].name || ''">
-                  {{ cleanChannels[virtualRow.index].name }}
+                <span class="channel-name" :title="filteredChannels[virtualRow.index].name || ''">
+                  {{ filteredChannels[virtualRow.index].name }}
                 </span>
               </div>
 
               <!-- Right timeline schedule content row -->
               <div class="grid-schedule-row">
                 <div
-                  v-for="entry in cleanChannels[virtualRow.index].epg_entries"
+                  v-for="entry in filteredChannels[virtualRow.index].epg_entries"
                   :key="entry.start"
                   class="program-block"
                   :class="{
                     'past-prog': isPastProgram(entry.stop),
                     'current-prog': isCurrentProgram(entry.start, entry.stop),
-                    'active': selectedProgram?.start === entry.start && selectedChannel?.stream_id === cleanChannels[virtualRow.index].stream_id
+                    'active': selectedProgram?.start === entry.start && selectedChannel?.stream_id === filteredChannels[virtualRow.index].stream_id
                   }"
                   :style="{
                     left: `${getPositionLeft(entry.start)}px`,
                     width: `${getPositionWidth(entry.start, entry.stop)}px`
                   }"
-                  @click="selectProgram(cleanChannels[virtualRow.index], entry)"
+                  @click="selectProgram(filteredChannels[virtualRow.index], entry)"
                 >
                   <div class="program-block-inner">
                     <div class="program-title-line">
@@ -614,6 +635,23 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
   border-bottom: 1px solid var(--color-border);
   background-color: var(--color-surface);
   flex-shrink: 0;
+}
+
+.guide-search-input {
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: var(--spacing-2) var(--spacing-4);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  width: 280px;
+  outline: none;
+  transition: all var(--transition-fast) ease;
+}
+
+.guide-search-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .page-title {
