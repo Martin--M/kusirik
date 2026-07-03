@@ -9,6 +9,7 @@ import { useI18n } from '@/composables/useI18n'
 import { useToastStore } from '@/stores/toast.store'
 import CachedImage from '@/components/ui/CachedImage.vue'
 import StreamDetailPanel from '@/components/ui/StreamDetailPanel.vue'
+import IconCheck from '@/components/icons/IconCheck.vue'
 import { buildLiveUrl, buildCatchupUrl } from '@/lib/url-builder'
 import { useProfileStore } from '@/stores/profile.store'
 import type { EpgEntry } from '@/types/epg'
@@ -18,14 +19,36 @@ const toastStore = useToastStore()
 const profileStore = useProfileStore()
 const { playLive, playCatchup } = usePlayer()
 
-// Setup time window: past 2 hours to future 18 hours (20h block total)
+// Setup time window parameters
 const pxPerMinute = 4
-const timeWindowHoursBefore = 2
-const timeWindowHoursAfter = 18
 
 const now = ref(new Date())
-const startTime = ref(new Date(now.value.getTime() - timeWindowHoursBefore * 3600 * 1000))
-const endTime = ref(new Date(now.value.getTime() + timeWindowHoursAfter * 3600 * 1000))
+const baseTime = ref(new Date())
+
+const showCatchupOnly = ref(false)
+
+const queryStartTime = computed(() => new Date(baseTime.value.getTime() - 24 * 3600 * 1000))
+const queryEndTime = computed(() => new Date(baseTime.value.getTime() + 20 * 3600 * 1000))
+
+const startTime = computed(() => {
+  if (showCatchupOnly.value) {
+    return new Date(baseTime.value.getTime() - 24 * 3600 * 1000)
+  } else {
+    return new Date(baseTime.value.getTime() - 2 * 3600 * 1000)
+  }
+})
+
+const endTime = computed(() => {
+  if (showCatchupOnly.value) {
+    return new Date(baseTime.value.getTime() + 1 * 3600 * 1000)
+  } else {
+    return new Date(baseTime.value.getTime() + 18 * 3600 * 1000)
+  }
+})
+
+const totalTimelineMinutes = computed(() => {
+  return (endTime.value.getTime() - startTime.value.getTime()) / 60000
+})
 
 const lastEpgFetchedAt = ref<string | null>(null)
 
@@ -53,9 +76,7 @@ onMounted(async () => {
       if (epgStatus && epgStatus.fetched_at !== lastEpgFetchedAt.value) {
         lastEpgFetchedAt.value = epgStatus.fetched_at
         // Re-center window and re-query
-        const currentNow = new Date()
-        startTime.value = new Date(currentNow.getTime() - timeWindowHoursBefore * 3600 * 1000)
-        endTime.value = new Date(currentNow.getTime() + timeWindowHoursAfter * 3600 * 1000)
+        baseTime.value = new Date()
       }
     } catch (err) {
       console.error('Failed to check sync status in timer', err)
@@ -75,10 +96,10 @@ onUnmounted(() => {
 
 // Query EPG Guide data via tauri command
 const { data: channels, isLoading, error } = useQuery({
-  queryKey: ['epg_guide', startTime, endTime],
+  queryKey: ['epg_guide', queryStartTime, queryEndTime],
   queryFn: async () => {
-    const fromStr = startTime.value.toISOString()
-    const toStr = endTime.value.toISOString()
+    const fromStr = queryStartTime.value.toISOString()
+    const toStr = queryEndTime.value.toISOString()
     return await getEpgGuide(PROFILE_ID, fromStr, toStr)
   },
   refetchInterval: 300000 // 5 minutes refresh
@@ -175,9 +196,32 @@ const cleanChannels = computed(() => {
 
 const searchQuery = ref('')
 const filteredChannels = computed(() => {
+  let list = cleanChannels.value
+  
+  if (showCatchupOnly.value) {
+    list = list.filter(channel => channel.tv_archive === 1)
+  }
+
+  // Filter EPG entries to only include those overlapping the current render window
+  const startMs = startTime.value.getTime()
+  const endMs = endTime.value.getTime()
+
+  list = list.map(channel => {
+    const visibleEntries = channel.epg_entries.filter(entry => {
+      const entryStart = new Date(entry.start).getTime()
+      const entryStop = new Date(entry.stop).getTime()
+      return entryStart < endMs && entryStop > startMs
+    })
+    return {
+      ...channel,
+      epg_entries: visibleEntries
+    }
+  })
+
   const query = searchQuery.value.trim().toLowerCase()
-  if (!query) return cleanChannels.value
-  return cleanChannels.value.filter(channel => {
+  if (!query) return list
+
+  return list.filter(channel => {
     const channelMatch = (channel.name || '').toLowerCase().includes(query)
     const programMatch = channel.epg_entries.some(entry =>
       (entry.title || '').toLowerCase().includes(query)
@@ -449,7 +493,14 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
         <h2 class="page-title">{{ $t('sidebar.guide') }}</h2>
         <span class="guide-sub">{{ $t('media.nowPlaying') }}</span>
       </div>
-      <div class="header-search-box">
+      <div class="header-right-actions">
+        <label class="custom-checkbox">
+          <input type="checkbox" v-model="showCatchupOnly" class="checkbox-input" />
+          <span class="checkbox-box">
+            <IconCheck class="checkbox-check" />
+          </span>
+          <span class="checkbox-label">{{ $t('media.catchupOnly') }}</span>
+        </label>
         <input
           type="text"
           v-model="searchQuery"
@@ -478,7 +529,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
     <div v-else class="guide-main-workspace">
       <!-- Scrollable EPG Timeline Grid -->
       <div class="guide-scroll-container" ref="scrollContainer">
-        <div class="guide-grid-wrapper" :style="{ width: `${(timeWindowHoursBefore + timeWindowHoursAfter) * 60 * pxPerMinute + 200}px`, height: `${rowVirtualizer.getTotalSize() + 48}px` }">
+        <div class="guide-grid-wrapper" :style="{ width: `${totalTimelineMinutes * pxPerMinute + 200}px`, height: `${rowVirtualizer.getTotalSize() + 48}px` }">
           
           <!-- Sticky Headers Row -->
           <div class="guide-sticky-header">
@@ -635,6 +686,12 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
   border-bottom: 1px solid var(--color-border);
   background-color: var(--color-surface);
   flex-shrink: 0;
+}
+
+.header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-6);
 }
 
 .guide-search-input {
@@ -976,5 +1033,79 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
 .notice-icon {
   width: 16px;
   height: 16px;
+}
+
+/* Custom Checkbox Filter */
+.custom-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast) ease;
+  margin-right: var(--spacing-2);
+}
+
+.custom-checkbox:hover {
+  color: var(--color-text);
+}
+
+.checkbox-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.checkbox-box {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background-color: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast) ease;
+}
+
+[data-theme='light'] .checkbox-box {
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.custom-checkbox:hover .checkbox-box {
+  border-color: var(--color-primary);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='light'] .custom-checkbox:hover .checkbox-box {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.checkbox-input:checked + .checkbox-box {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.checkbox-check {
+  width: 12px;
+  height: 12px;
+  color: #ffffff;
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  opacity: 0;
+  transition: stroke-dashoffset 0.15s ease-in-out, opacity 0.15s ease-in-out;
+}
+
+.checkbox-input:checked + .checkbox-box .checkbox-check {
+  stroke-dashoffset: 0;
+  opacity: 1;
+}
+
+.checkbox-label {
+  white-space: nowrap;
 }
 </style>
