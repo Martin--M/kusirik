@@ -367,15 +367,26 @@ function handlePlay() {
   if (isCurrentProgram(selectedProgram.value.start, selectedProgram.value.stop)) {
     playLive(selectedChannel.value.stream_id)
   } else if (isPastProgram(selectedProgram.value.stop) && selectedChannel.value.tv_archive === 1) {
-    const startDateTime = formatUtcForCatchup(selectedProgram.value.start)
+    const startDateTime = formatUtcForCatchup(selectedProgram.value.start, selectedProgram.value.tz_offset)
     const duration = getDurationMinutes(selectedProgram.value.start, selectedProgram.value.stop)
     playCatchup(selectedChannel.value.stream_id, startDateTime, duration)
   }
 }
 
-function formatUtcForCatchup(dateStr: string): string {
+function formatUtcForCatchup(dateStr: string, tzOffset?: string | null): string {
   try {
-    const date = new Date(dateStr)
+    let date = new Date(dateStr)
+    if (tzOffset) {
+      const sign = tzOffset.startsWith('-') ? -1 : 1
+      const cleaned = tzOffset.replace(/[+-]/g, '')
+      const parts = cleaned.split(':')
+      if (parts.length === 2) {
+        const hours = parseInt(parts[0], 10)
+        const minutes = parseInt(parts[1], 10)
+        const totalOffsetMinutes = sign * (hours * 60 + minutes)
+        date = new Date(date.getTime() + totalOffsetMinutes * 60 * 1000)
+      }
+    }
     const y = date.getUTCFullYear()
     const m = String(date.getUTCMonth() + 1).padStart(2, '0')
     const d = String(date.getUTCDate()).padStart(2, '0')
@@ -413,7 +424,7 @@ async function copyUrl() {
         password,
       }, selectedChannel.value.stream_id, 'ts')
     } else if (isPastProgram(selectedProgram.value.stop) && selectedChannel.value.tv_archive === 1) {
-      const startDateTime = formatUtcForCatchup(selectedProgram.value.start)
+      const startDateTime = formatUtcForCatchup(selectedProgram.value.start, selectedProgram.value.tz_offset)
       const duration = getDurationMinutes(selectedProgram.value.start, selectedProgram.value.stop)
       url = buildCatchupUrl({
         serverUrl: profile.server_url,
@@ -454,7 +465,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
     const password = await getSetting('password')
     if (!password) return
 
-    const startDateTime = formatUtcForCatchup(newProgram.start)
+    const startDateTime = formatUtcForCatchup(newProgram.start, newProgram.tz_offset)
     const duration = getDurationMinutes(newProgram.start, newProgram.stop)
 
     const url = buildCatchupUrl(

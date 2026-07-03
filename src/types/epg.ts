@@ -6,6 +6,7 @@ export interface EpgEntry {
   stop: string  // UTC ISO 8601
   title: string | null
   description: string | null
+  tz_offset?: string | null
 }
 
 export interface GuideChannel {

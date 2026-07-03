@@ -193,9 +193,20 @@ const pastPrograms = computed(() => {
   return [...finished].sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime())
 })
 
-function formatUtcForCatchup(dateStr: string): string {
+function formatUtcForCatchup(dateStr: string, tzOffset?: string | null): string {
   try {
-    const date = new Date(dateStr)
+    let date = new Date(dateStr)
+    if (tzOffset) {
+      const sign = tzOffset.startsWith('-') ? -1 : 1
+      const cleaned = tzOffset.replace(/[+-]/g, '')
+      const parts = cleaned.split(':')
+      if (parts.length === 2) {
+        const hours = parseInt(parts[0], 10)
+        const minutes = parseInt(parts[1], 10)
+        const totalOffsetMinutes = sign * (hours * 60 + minutes)
+        date = new Date(date.getTime() + totalOffsetMinutes * 60 * 1000)
+      }
+    }
     const y = date.getUTCFullYear()
     const m = String(date.getUTCMonth() + 1).padStart(2, '0')
     const d = String(date.getUTCDate()).padStart(2, '0')
@@ -249,7 +260,7 @@ watch(pastPrograms, async (newPastPrograms) => {
 
     // Precheck using a real, already-aired program from EPG (guaranteed valid time window)
     const targetProgram = newPastPrograms[0]
-    const startDateTime = formatUtcForCatchup(targetProgram.start)
+    const startDateTime = formatUtcForCatchup(targetProgram.start, targetProgram.tz_offset)
     const duration = getDurationMinutes(targetProgram.start, targetProgram.stop)
 
     const url = buildCatchupUrl(
@@ -281,7 +292,7 @@ watch(pastPrograms, async (newPastPrograms) => {
 
 async function handlePlayCatchup(item: any) {
   if (!selectedStream.value) return
-  const startDateTime = formatUtcForCatchup(item.start)
+  const startDateTime = formatUtcForCatchup(item.start, item.tz_offset)
   const duration = getDurationMinutes(item.start, item.stop)
   await playCatchup(selectedStream.value.stream_id, startDateTime, duration)
 }
@@ -300,7 +311,7 @@ async function copyCatchupUrl(item: any) {
       return
     }
 
-    const startDateTime = formatUtcForCatchup(item.start)
+    const startDateTime = formatUtcForCatchup(item.start, item.tz_offset)
     const duration = getDurationMinutes(item.start, item.stop)
     const url = buildCatchupUrl(
       {
