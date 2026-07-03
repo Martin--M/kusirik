@@ -4,7 +4,7 @@ import CachedImage from './CachedImage.vue'
 import IconPlay from '../icons/IconPlay.vue'
 import IconCopy from '../icons/IconCopy.vue'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     stream: {
       stream_id: number
@@ -17,10 +17,12 @@ withDefaults(
     copyButtonText?: string
     showActions?: boolean
     squareImage?: boolean
+    defaultWidth?: number
   }>(),
   {
     showActions: true,
-    squareImage: false
+    squareImage: false,
+    defaultWidth: 320
   }
 )
 
@@ -30,7 +32,7 @@ const emit = defineEmits<{
   (e: 'copy'): void
 }>()
 
-const sidebarWidth = ref(320)
+const sidebarWidth = ref(props.defaultWidth)
 const isResizing = ref(false)
 
 function startResize(e: MouseEvent) {
