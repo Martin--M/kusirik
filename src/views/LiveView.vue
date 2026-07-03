@@ -415,6 +415,7 @@ function formatEpgTime(dateStr: string): string {
     <StreamDetailPanel
       :stream="selectedStream"
       :is-mobile-open="isMobileDetailOpen"
+      square-image
       :play-button-text="$t('media.play')"
       :copy-button-text="$t('media.copyUrl')"
       @close="closeDetails"

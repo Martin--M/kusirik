@@ -16,9 +16,11 @@ withDefaults(
     playButtonText?: string
     copyButtonText?: string
     showActions?: boolean
+    squareImage?: boolean
   }>(),
   {
-    showActions: true
+    showActions: true,
+    squareImage: false
   }
 )
 
@@ -68,7 +70,7 @@ function startResize(e: MouseEvent) {
           <button class="close-details-btn" @click="emit('close')" title="Close Details">×</button>
           
           <div class="details-header">
-            <div class="details-poster">
+            <div class="details-poster" :class="{ 'aspect-square': squareImage }">
               <CachedImage
                 :src="stream.stream_icon"
                 :alt="stream.name || 'Stream Image'"
@@ -114,7 +116,7 @@ function startResize(e: MouseEvent) {
         <button class="close-sheet" @click="emit('close')">×</button>
         
         <div class="details-header mobile">
-          <div class="details-poster mobile">
+          <div class="details-poster mobile" :class="{ 'aspect-square': squareImage }">
             <CachedImage
               :src="stream.stream_icon"
               :alt="stream.name || 'Stream Image'"
@@ -229,6 +231,10 @@ function startResize(e: MouseEvent) {
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-lg), 0 0 35px rgba(96, 165, 250, 0.15);
+}
+
+.details-poster.aspect-square {
+  aspect-ratio: 1/1;
 }
 
 .stream-name-title {
