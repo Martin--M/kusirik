@@ -10,6 +10,7 @@ pub struct EpgEntry {
     pub stop: String,  // UTC ISO 8601
     pub title: Option<String>,
     pub description: Option<String>,
+    pub tz_offset: Option<String>,
 }
 
 /// Bulk insert EPG entries using INSERT OR REPLACE to handle daily re-syncs
@@ -22,8 +23,8 @@ pub fn bulk_insert(conn: &mut Connection, entries: &[EpgEntry]) -> Result<()> {
     let tx = conn.transaction()?;
     {
         let mut stmt = tx.prepare_cached(
-            "INSERT OR REPLACE INTO epg_entries (profile_id, channel_id, start, stop, title, description)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
+            "INSERT OR REPLACE INTO epg_entries (profile_id, channel_id, start, stop, title, description, tz_offset)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
         )?;
 
         for entry in entries {
@@ -34,6 +35,7 @@ pub fn bulk_insert(conn: &mut Connection, entries: &[EpgEntry]) -> Result<()> {
                 entry.stop,
                 entry.title,
                 entry.description,
+                entry.tz_offset.as_deref().unwrap_or("+00:00"),
             ])?;
         }
     }
@@ -52,7 +54,7 @@ pub fn query_for_channel(
     to: &str,
 ) -> Result<Vec<EpgEntry>> {
     let mut stmt = conn.prepare_cached(
-        "SELECT profile_id, channel_id, start, stop, title, description 
+        "SELECT profile_id, channel_id, start, stop, title, description, tz_offset 
          FROM epg_entries 
          WHERE profile_id = ?1 AND channel_id = ?2 AND start < ?3 AND stop > ?4
          ORDER BY start ASC"
@@ -66,6 +68,7 @@ pub fn query_for_channel(
             stop: row.get(3)?,
             title: row.get(4)?,
             description: row.get(5)?,
+            tz_offset: row.get(6)?,
         })
     })?;
 

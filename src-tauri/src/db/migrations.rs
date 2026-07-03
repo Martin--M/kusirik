@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 
 /// Current schema version. Bump this when adding a new migration.
-const CURRENT_VERSION: u32 = 2;
+const CURRENT_VERSION: u32 = 3;
 
 pub fn run(conn: &Connection) -> Result<()> {
     let current_version: u32 = conn
@@ -31,11 +31,30 @@ pub fn run(conn: &Connection) -> Result<()> {
         migration_v2(conn).context("Migration v2 failed")?;
     }
 
+    if current_version < 3 {
+        migration_v3(conn).context("Migration v3 failed")?;
+    }
+
     // Update schema version
     conn.execute_batch(&format!("PRAGMA user_version = {CURRENT_VERSION}"))
         .context("Failed to update user_version")?;
 
     tracing::info!("Migrations complete (schema v{CURRENT_VERSION})");
+    Ok(())
+}
+
+fn migration_v3(conn: &Connection) -> Result<()> {
+    tracing::info!("Applying migration v3 — epg_entries tz_offset column");
+    let has_column: bool = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('epg_entries') WHERE name = 'tz_offset'",
+        [],
+        |row| row.get::<_, i64>(0).map(|c| c > 0)
+    )?;
+    if !has_column {
+        conn.execute_batch(
+            "ALTER TABLE epg_entries ADD COLUMN tz_offset TEXT DEFAULT '+00:00';"
+        ).context("Failed to add tz_offset column to epg_entries")?;
+    }
     Ok(())
 }
 
@@ -210,6 +229,7 @@ CREATE TABLE IF NOT EXISTS epg_entries (
   stop        TEXT    NOT NULL,
   title       TEXT,
   description TEXT,
+  tz_offset   TEXT DEFAULT '+00:00',
   UNIQUE (profile_id, channel_id, start)
   -- prevents duplicate rows on daily re-sync; pairs with INSERT OR REPLACE
 );
