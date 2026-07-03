@@ -393,7 +393,7 @@ function formatEpgTime(dateStr: string): string {
                   <span class="epg-past-title" :title="item.title || undefined">{{ item.title }}</span>
                 </div>
                 <div class="epg-past-actions">
-                  <button class="action-btn" @click.stop="handlePlayCatchup(item)" :title="$t('media.playCatchup')">
+                  <button class="action-btn play-btn" @click.stop="handlePlayCatchup(item)" :title="$t('media.playCatchup')">
                     <IconPlay class="action-icon" />
                   </button>
                   <button class="action-btn" @click.stop="copyCatchupUrl(item)" :title="$t('media.copyUrl')">
@@ -868,6 +868,15 @@ function formatEpgTime(dateStr: string): string {
 .action-btn:hover {
   color: var(--color-text);
   background-color: rgba(255, 255, 255, 0.06);
+}
+
+.action-btn.play-btn {
+  color: var(--color-primary);
+}
+
+.action-btn.play-btn:hover {
+  color: var(--color-primary-hover);
+  background-color: rgba(59, 130, 246, 0.15);
 }
 
 .action-icon {
