@@ -12,8 +12,8 @@
     "windows": [
       {
         "title": "Kusirik - IPTV Engine",
-        "width": 1280,
-        "height": 800,
+        "width": 1920,
+        "height": 1080,
         "minWidth": 800,
         "minHeight": 600,
         "center": true,
