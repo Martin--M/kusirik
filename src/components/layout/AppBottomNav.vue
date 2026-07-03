@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
 import IconLive from '../icons/IconLive.vue'
+import IconCalendar from '../icons/IconCalendar.vue'
 import IconMovies from '../icons/IconMovies.vue'
 import IconSeries from '../icons/IconSeries.vue'
 import IconSettings from '../icons/IconSettings.vue'
@@ -13,6 +14,7 @@ const { t } = useI18n()
 
 const navItems = computed(() => [
   { name: 'live', label: t('sidebar.live'), icon: IconLive },
+  { name: 'guide', label: t('sidebar.guide'), icon: IconCalendar },
   { name: 'movies', label: t('sidebar.movies'), icon: IconMovies },
   { name: 'series', label: t('sidebar.series'), icon: IconSeries },
   { name: 'settings', label: t('sidebar.settings'), icon: IconSettings }

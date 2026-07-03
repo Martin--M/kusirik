@@ -1,6 +1,7 @@
 {
   "sidebar": {
     "live": "TV en direct",
+    "guide": "Grille EPG",
     "movies": "Films",
     "series": "Séries TV",
     "settings": "Paramètres",
@@ -156,7 +157,8 @@
     "upcomingSchedule": "Programmes à venir",
     "pastSchedule": "Rattrapage disponible",
     "nowPlaying": "En cours",
-    "catchupUnreachable": "Le serveur de rattrapage est inaccessible."
+    "catchupUnreachable": "Le serveur de rattrapage est inaccessible.",
+    "guideNoData": "Aucune chaîne EPG trouvée pour cette période."
   },
   "titlebar": {
     "minimize": "Réduire",

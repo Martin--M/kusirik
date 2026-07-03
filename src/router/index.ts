@@ -23,6 +23,12 @@ const router = createRouter({
       meta: { requiresProfile: true },
     },
     {
+      path: '/guide',
+      name: 'guide',
+      component: () => import('@/views/GuideView.vue'),
+      meta: { requiresProfile: true },
+    },
+    {
       path: '/movies',
       name: 'movies',
       component: () => import('@/views/MoviesView.vue'),

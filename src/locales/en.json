@@ -1,6 +1,7 @@
 {
   "sidebar": {
     "live": "Live TV",
+    "guide": "TV Guide",
     "movies": "Movies",
     "series": "TV Series",
     "settings": "Settings",
@@ -156,7 +157,8 @@
     "upcomingSchedule": "Upcoming Schedule",
     "pastSchedule": "Past Schedule",
     "nowPlaying": "Now Playing",
-    "catchupUnreachable": "Catch-up server is unreachable."
+    "catchupUnreachable": "Catch-up server is unreachable.",
+    "guideNoData": "No EPG channels found in this range."
   },
   "titlebar": {
     "minimize": "Minimize",
