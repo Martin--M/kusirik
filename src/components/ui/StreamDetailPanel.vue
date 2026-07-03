@@ -18,11 +18,13 @@ const props = withDefaults(
     showActions?: boolean
     squareImage?: boolean
     defaultWidth?: number
+    playDisabled?: boolean
   }>(),
   {
     showActions: true,
     squareImage: false,
-    defaultWidth: 320
+    defaultWidth: 320,
+    playDisabled: false
   }
 )
 
@@ -90,7 +92,7 @@ function startResize(e: MouseEvent) {
           </div>
 
           <div v-if="showActions" class="action-buttons">
-            <button class="btn btn-primary" @click="emit('play')">
+            <button class="btn btn-primary" :disabled="playDisabled" @click="emit('play')">
               <slot name="play-icon">
                 <IconPlay class="btn-icon" />
               </slot>
@@ -138,7 +140,7 @@ function startResize(e: MouseEvent) {
         </div>
 
         <div v-if="showActions" class="action-buttons mobile">
-          <button class="btn btn-primary" @click="emit('play')">
+          <button class="btn btn-primary" :disabled="playDisabled" @click="emit('play')">
             {{ playButtonText || 'Play' }}
           </button>
           <button class="btn btn-secondary" @click="emit('copy')">
