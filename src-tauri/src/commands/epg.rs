@@ -87,6 +87,7 @@ pub async fn get_epg_for_channel(
     for item in listings {
         let mut start_iso = None;
         let mut stop_iso = None;
+        let mut tz_offset = None;
 
         if let Some(ref start_ts) = item.start_timestamp {
             if let Ok(ts) = start_ts.parse::<i64>() {
@@ -100,6 +101,21 @@ pub async fn get_epg_for_channel(
                 if let Some(dt) = DateTime::from_timestamp(ts, 0) {
                     stop_iso = Some(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true));
                 }
+            }
+        }
+
+        // Infer timezone offset by comparing start_timestamp with start local date string
+        if let (Some(ref start_ts), Some(ref start_local_str)) = (&item.start_timestamp, &item.start) {
+            if let (Ok(ts), Ok(naive_local)) = (
+                start_ts.parse::<i64>(),
+                chrono::NaiveDateTime::parse_from_str(start_local_str.trim(), "%Y-%m-%d %H:%M:%S")
+            ) {
+                let local_ts = naive_local.and_utc().timestamp();
+                let diff_secs = ts - local_ts;
+                let hours = diff_secs / 3600;
+                let minutes = (diff_secs % 3600).abs() / 60;
+                let sign = if diff_secs >= 0 { "+" } else { "-" };
+                tz_offset = Some(format!("{}{:02}:{:02}", sign, hours.abs(), minutes));
             }
         }
 
@@ -122,6 +138,7 @@ pub async fn get_epg_for_channel(
             stop,
             title: title_clean,
             description: desc_clean,
+            tz_offset,
         });
     }
 
@@ -169,7 +186,7 @@ pub async fn get_epg_guide(
 
     // 1. Fetch EPG entries in the timeframe
     let mut epg_stmt = conn.prepare_cached(
-        "SELECT profile_id, channel_id, start, stop, title, description 
+        "SELECT profile_id, channel_id, start, stop, title, description, tz_offset 
          FROM epg_entries 
          WHERE profile_id = ?1 AND start < ?2 AND stop > ?3
          ORDER BY start ASC"
@@ -183,6 +200,7 @@ pub async fn get_epg_guide(
             stop: row.get(3)?,
             title: row.get(4)?,
             description: row.get(5)?,
+            tz_offset: row.get(6)?,
         })
     }).map_err(|e| e.to_string())?;
 

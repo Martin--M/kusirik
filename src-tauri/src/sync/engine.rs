@@ -411,8 +411,13 @@ async fn sync_epg_internal(app: AppHandle, client: &XtreamClient) -> Result<usiz
                             }
                         }
 
-                        let start_normalized = parse_xmltv_date_to_utc(&start).unwrap_or(start);
-                        let stop_normalized = parse_xmltv_date_to_utc(&stop).unwrap_or(stop);
+                        let (start_normalized, tz_offset) = match parse_xmltv_date_to_utc_and_offset(&start) {
+                            Some((utc, off)) => (utc, Some(off)),
+                            None => (start, None),
+                        };
+                        let stop_normalized = parse_xmltv_date_to_utc_and_offset(&stop)
+                            .map(|(utc, _)| utc)
+                            .unwrap_or(stop);
 
                         current_entry = Some(crate::db::epg::EpgEntry {
                             profile_id: 1,
@@ -421,6 +426,7 @@ async fn sync_epg_internal(app: AppHandle, client: &XtreamClient) -> Result<usiz
                             stop: stop_normalized,
                             title: None,
                             description: None,
+                            tz_offset,
                         });
                     }
                     b"title" if current_entry.is_some() => {
@@ -497,17 +503,30 @@ async fn sync_epg_internal(app: AppHandle, client: &XtreamClient) -> Result<usiz
     Ok(count)
 }
 
-fn parse_xmltv_date_to_utc(s: &str) -> Option<String> {
+fn parse_xmltv_date_to_utc_and_offset(s: &str) -> Option<(String, String)> {
     let s = s.trim();
     if let Ok(dt) = DateTime::parse_from_str(s, "%Y%m%d%H%M%S %z") {
-        return Some(dt.with_timezone(&Utc).to_rfc3339_opts(chrono::SecondsFormat::Secs, true));
+        let utc = dt.with_timezone(&Utc).to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+        let secs = dt.offset().local_minus_utc();
+        let hours = secs / 3600;
+        let minutes = (secs % 3600).abs() / 60;
+        let sign = if secs >= 0 { "+" } else { "-" };
+        let offset = format!("{}{:02}:{:02}", sign, hours.abs(), minutes);
+        return Some((utc, offset));
     }
     if let Ok(dt) = DateTime::parse_from_str(s, "%Y%m%d%H%M%S%z") {
-        return Some(dt.with_timezone(&Utc).to_rfc3339_opts(chrono::SecondsFormat::Secs, true));
+        let utc = dt.with_timezone(&Utc).to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+        let secs = dt.offset().local_minus_utc();
+        let hours = secs / 3600;
+        let minutes = (secs % 3600).abs() / 60;
+        let sign = if secs >= 0 { "+" } else { "-" };
+        let offset = format!("{}{:02}:{:02}", sign, hours.abs(), minutes);
+        return Some((utc, offset));
     }
     if let Ok(naive) = NaiveDateTime::parse_from_str(s, "%Y%m%d%H%M%S") {
         let dt = DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc);
-        return Some(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true));
+        let utc = dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+        return Some((utc, "+00:00".to_string()));
     }
     None
 }
