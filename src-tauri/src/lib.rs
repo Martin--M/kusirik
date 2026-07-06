@@ -98,6 +98,8 @@ pub fn run() {
             commands::player::copy_to_clipboard,
             commands::image::get_image_data,
             commands::search::search_all_media,
+            commands::favorites::toggle_favorite,
+            commands::favorites::get_favorites,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

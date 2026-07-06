@@ -17,6 +17,8 @@ pub struct LiveStreamApi {
     pub tv_archive_duration: Option<i32>,
     #[serde(default, deserialize_with = "deserialize_option_string")]
     pub added: Option<String>,
+    #[serde(default)]
+    pub is_favorite: Option<i32>,
 }
 
 pub async fn fetch_categories(client: &XtreamClient) -> Result<Vec<CategoryApi>> {

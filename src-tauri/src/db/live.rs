@@ -63,7 +63,7 @@ pub fn query_streams(
     let streams = match category_id {
         None | Some("all") => {
             let mut stmt = conn.prepare(
-                "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added
+                "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite
                  FROM live_streams
                  WHERE profile_id = ?1
                  ORDER BY name ASC
@@ -79,6 +79,7 @@ pub fn query_streams(
                     tv_archive: row.get(5)?,
                     tv_archive_duration: row.get(6)?,
                     added: row.get(7)?,
+                    is_favorite: row.get(8)?,
                 })
             })?;
             let mut res = Vec::new();
@@ -89,7 +90,7 @@ pub fn query_streams(
         }
         Some("0") | Some("") | Some("uncategorized") => {
             let mut stmt = conn.prepare(
-                "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added
+                "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite
                  FROM live_streams
                  WHERE profile_id = ?1 AND (category_id = '0' OR category_id = '' OR category_id IS NULL)
                  ORDER BY name ASC
@@ -105,6 +106,7 @@ pub fn query_streams(
                     tv_archive: row.get(5)?,
                     tv_archive_duration: row.get(6)?,
                     added: row.get(7)?,
+                    is_favorite: row.get(8)?,
                 })
             })?;
             let mut res = Vec::new();
@@ -115,7 +117,7 @@ pub fn query_streams(
         }
         Some(cat) => {
             let mut stmt = conn.prepare(
-                "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added
+                "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite
                  FROM live_streams
                  WHERE profile_id = ?1 AND category_id = ?2
                  ORDER BY name ASC
@@ -131,6 +133,7 @@ pub fn query_streams(
                     tv_archive: row.get(5)?,
                     tv_archive_duration: row.get(6)?,
                     added: row.get(7)?,
+                    is_favorite: row.get(8)?,
                 })
             })?;
             let mut res = Vec::new();
@@ -150,7 +153,7 @@ pub fn search_streams(
     limit: u32,
 ) -> Result<Vec<LiveStreamApi>> {
     let mut stmt = conn.prepare_cached(
-        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added
+        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite
          FROM live_streams
          WHERE profile_id = ?1 AND name LIKE ?2
          ORDER BY name ASC
@@ -166,6 +169,7 @@ pub fn search_streams(
             tv_archive: row.get(5)?,
             tv_archive_duration: row.get(6)?,
             added: row.get(7)?,
+            is_favorite: row.get(8)?,
         })
     })?;
     let mut res = Vec::new();

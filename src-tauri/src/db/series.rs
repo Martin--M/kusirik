@@ -93,7 +93,7 @@ pub fn query_series(
     let list = match category_id {
         None | Some("all") => {
             let mut stmt = conn.prepare(
-                "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified
+                "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified, is_favorite
                  FROM series
                  WHERE profile_id = ?1
                  ORDER BY name ASC
@@ -112,6 +112,7 @@ pub fn query_series(
                     genre: row.get(8)?,
                     release_date: row.get(9)?,
                     last_modified: row.get(10)?,
+                    is_favorite: row.get(11)?,
                 })
             })?;
             let mut res = Vec::new();
@@ -122,7 +123,7 @@ pub fn query_series(
         }
         Some(cat_id) => {
             let mut stmt = conn.prepare(
-                "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified
+                "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified, is_favorite
                  FROM series
                  WHERE profile_id = ?1 AND category_id = ?2
                  ORDER BY name ASC
@@ -141,6 +142,7 @@ pub fn query_series(
                     genre: row.get(8)?,
                     release_date: row.get(9)?,
                     last_modified: row.get(10)?,
+                    is_favorite: row.get(11)?,
                 })
             })?;
             let mut res = Vec::new();
@@ -160,7 +162,7 @@ pub fn search_series(
     limit: u32,
 ) -> Result<Vec<SeriesApi>> {
     let mut stmt = conn.prepare_cached(
-        "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified
+        "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified, is_favorite
          FROM series
          WHERE profile_id = ?1 AND name LIKE ?2
          ORDER BY name ASC
@@ -179,6 +181,7 @@ pub fn search_series(
             genre: row.get(8)?,
             release_date: row.get(9)?,
             last_modified: row.get(10)?,
+            is_favorite: row.get(11)?,
         })
     })?;
     let mut res = Vec::new();

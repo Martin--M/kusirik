@@ -15,6 +15,8 @@ pub struct VodStreamApi {
     pub container_extension: Option<String>,
     #[serde(default, deserialize_with = "deserialize_option_string")]
     pub added: Option<String>,
+    #[serde(default)]
+    pub is_favorite: Option<i32>,
 }
 
 pub async fn fetch_categories(client: &XtreamClient) -> Result<Vec<CategoryApi>> {

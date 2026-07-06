@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 
 /// Current schema version. Bump this when adding a new migration.
-const CURRENT_VERSION: u32 = 3;
+const CURRENT_VERSION: u32 = 4;
 
 pub fn run(conn: &Connection) -> Result<()> {
     let current_version: u32 = conn
@@ -35,11 +35,54 @@ pub fn run(conn: &Connection) -> Result<()> {
         migration_v3(conn).context("Migration v3 failed")?;
     }
 
+    if current_version < 4 {
+        migration_v4(conn).context("Migration v4 failed")?;
+    }
+
     // Update schema version
     conn.execute_batch(&format!("PRAGMA user_version = {CURRENT_VERSION}"))
         .context("Failed to update user_version")?;
 
     tracing::info!("Migrations complete (schema v{CURRENT_VERSION})");
+    Ok(())
+}
+
+fn migration_v4(conn: &Connection) -> Result<()> {
+    tracing::info!("Applying migration v4 — is_favorite columns");
+    
+    let has_live_fav: bool = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('live_streams') WHERE name = 'is_favorite'",
+        [],
+        |row| row.get::<_, i64>(0).map(|c| c > 0)
+    )?;
+    if !has_live_fav {
+        conn.execute_batch(
+            "ALTER TABLE live_streams ADD COLUMN is_favorite INTEGER DEFAULT 0;"
+        ).context("Failed to add is_favorite column to live_streams")?;
+    }
+
+    let has_vod_fav: bool = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('vod_streams') WHERE name = 'is_favorite'",
+        [],
+        |row| row.get::<_, i64>(0).map(|c| c > 0)
+    )?;
+    if !has_vod_fav {
+        conn.execute_batch(
+            "ALTER TABLE vod_streams ADD COLUMN is_favorite INTEGER DEFAULT 0;"
+        ).context("Failed to add is_favorite column to vod_streams")?;
+    }
+
+    let has_series_fav: bool = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('series') WHERE name = 'is_favorite'",
+        [],
+        |row| row.get::<_, i64>(0).map(|c| c > 0)
+    )?;
+    if !has_series_fav {
+        conn.execute_batch(
+            "ALTER TABLE series ADD COLUMN is_favorite INTEGER DEFAULT 0;"
+        ).context("Failed to add is_favorite column to series")?;
+    }
+
     Ok(())
 }
 

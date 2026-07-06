@@ -26,6 +26,8 @@ pub struct SeriesApi {
     pub release_date: Option<String>,
     #[serde(default, deserialize_with = "deserialize_option_string")]
     pub last_modified: Option<String>,
+    #[serde(default)]
+    pub is_favorite: Option<i32>,
 }
 
 pub async fn fetch_categories(client: &XtreamClient) -> Result<Vec<SeriesCategoryApi>> {
