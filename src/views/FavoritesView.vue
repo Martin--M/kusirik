@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useFavorites, useToggleFavorite } from '@/composables/useFavorites'
 import { usePlayer } from '@/composables/usePlayer'
-import { useVodInfo } from '@/composables/useVodStreams'
-import { useSeriesInfo } from '@/composables/useSeries'
 import { useToastStore } from '@/stores/toast.store'
 import { useProfileStore } from '@/stores/profile.store'
 import { useI18n } from '@/composables/useI18n'
@@ -12,11 +10,9 @@ import { getSetting } from '@/lib/tauri-commands'
 import ChannelRow from '@/components/live/ChannelRow.vue'
 import MovieCard from '@/components/movies/MovieCard.vue'
 import SeriesCard from '@/components/series/SeriesCard.vue'
-import StreamDetailPanel from '@/components/ui/StreamDetailPanel.vue'
-
-import IconChevron from '@/components/icons/IconChevron.vue'
-import IconPlay from '@/components/icons/IconPlay.vue'
-import IconStar from '@/components/icons/IconStar.vue'
+import LiveDetailPanel from '@/components/live/LiveDetailPanel.vue'
+import MovieDetailPanel from '@/components/movies/MovieDetailPanel.vue'
+import SeriesDetailPanel from '@/components/series/SeriesDetailPanel.vue'
 
 import type { LiveStream } from '@/types/stream'
 import type { VodStream } from '@/types/vod'
@@ -24,7 +20,7 @@ import type { Series } from '@/types/series'
 
 const toastStore = useToastStore()
 const profileStore = useProfileStore()
-const { playLive, playMovie, playEpisode } = usePlayer()
+const { playLive, playMovie } = usePlayer()
 const { t } = useI18n()
 
 const { data: favorites, isLoading } = useFavorites()
@@ -41,9 +37,6 @@ const isLiveExpanded = ref(true)
 const isMoviesExpanded = ref(true)
 const isSeriesExpanded = ref(true)
 
-// Series accordion state
-const expandedSeason = ref<string | number | null>(null)
-
 // Watch favorites list changing to update selected states if they are unfavorited
 // Favorites auto-close watcher removed to keep panel open on unfavorite, allowing undo.
 
@@ -52,42 +45,14 @@ function closeDetails() {
   selectedMovie.value = null
   selectedSeries.value = null
   isMobileDetailOpen.value = false
-  expandedSeason.value = null
 }
 
-// Fetch detail metadata for active VOD / Series selections
-const selectedMovieId = computed(() => selectedMovie.value?.stream_id || 0)
-const { data: movieInfo, isLoading: isLoadingMovieInfo } = useVodInfo(selectedMovieId)
-
-const selectedSeriesId = computed(() => selectedSeries.value?.series_id || 0)
-const { data: seriesDetails, isLoading: isLoadingSeriesInfo } = useSeriesInfo(selectedSeriesId)
-
-// Map series structure for the shared StreamDetailPanel
-const mappedSelectedSeries = computed(() => {
-  if (!selectedSeries.value) return null
-  return {
-    stream_id: selectedSeries.value.series_id,
-    name: selectedSeries.value.name || '',
-    stream_icon: selectedSeries.value.cover || '',
-    rating: selectedSeries.value.rating || '',
-  }
-})
-
-// Play handles
 function handlePlayLive(stream: LiveStream) {
   playLive(stream.stream_id)
 }
 
 function handlePlayMovie(stream: VodStream) {
   playMovie(stream.stream_id, stream.container_extension || 'mp4')
-}
-
-function toggleSeason(seasonKey: string | number) {
-  expandedSeason.value = expandedSeason.value === seasonKey ? null : seasonKey
-}
-
-function handlePlayEpisode(episode: any) {
-  playEpisode(episode.id, episode.container_extension || 'mp4')
 }
 
 // Copy URLs fallback
@@ -322,206 +287,32 @@ function selectSeries(series: Series) {
     </div>
 
     <!-- Live Channel Details Panel -->
-    <StreamDetailPanel
-      v-if="selectedLive"
+    <LiveDetailPanel
       :stream="selectedLive"
       :is-mobile-open="isMobileDetailOpen"
-      :play-button-text="$t('media.play')"
-      :copy-button-text="$t('media.copyUrl')"
       @close="closeDetails"
-      @play="handlePlayLive(selectedLive)"
-      @copy="copyUrl(selectedLive, 'live')"
-    >
-      <template #header-meta>
-        <div class="live-header-meta-row">
-          <button class="btn-fav" :class="{ favorited: selectedLive?.is_favorite !== 0 }" @click="handleToggleLiveFavorite(selectedLive!)">
-            <IconStar class="fav-icon" />
-            <span>{{ selectedLive?.is_favorite !== 0 ? 'Favorited' : 'Favorite' }}</span>
-          </button>
-        </div>
-      </template>
-
-      <template #header-meta-mobile>
-        <div class="live-header-meta-row">
-          <button class="btn-fav" :class="{ favorited: selectedLive?.is_favorite !== 0 }" @click="handleToggleLiveFavorite(selectedLive!)">
-            <IconStar class="fav-icon" />
-            <span>{{ selectedLive?.is_favorite !== 0 ? 'Favorited' : 'Favorite' }}</span>
-          </button>
-        </div>
-      </template>
-      <div class="live-info-box">
-        <p>{{ $t('search.clickToPlay') }}</p>
-      </div>
-      <template #no-selection>
-        <div></div>
-      </template>
-    </StreamDetailPanel>
+      @play="handlePlayLive"
+      @copy="(stream) => copyUrl(stream, 'live')"
+      @toggle-favorite="handleToggleLiveFavorite"
+    />
 
     <!-- Movie Details Panel -->
-    <StreamDetailPanel
-      v-if="selectedMovie"
+    <MovieDetailPanel
       :stream="selectedMovie"
       :is-mobile-open="isMobileDetailOpen"
-      :play-button-text="$t('media.play')"
-      :copy-button-text="$t('media.copyUrl')"
       @close="closeDetails"
-      @play="handlePlayMovie(selectedMovie)"
-      @copy="copyUrl(selectedMovie, 'movie')"
-    >
-      <template #header-meta>
-        <div class="movie-header-meta-row">
-          <button class="btn-fav" :class="{ favorited: selectedMovie?.is_favorite !== 0 }" @click="handleToggleMovieFavorite(selectedMovie!)">
-            <IconStar class="fav-icon" />
-            <span>{{ selectedMovie?.is_favorite !== 0 ? 'Favorited' : 'Favorite' }}</span>
-          </button>
-        </div>
-      </template>
-
-      <template #header-meta-mobile>
-        <div class="movie-header-meta-row">
-          <button class="btn-fav" :class="{ favorited: selectedMovie?.is_favorite !== 0 }" @click="handleToggleMovieFavorite(selectedMovie!)">
-            <IconStar class="fav-icon" />
-            <span>{{ selectedMovie?.is_favorite !== 0 ? 'Favorited' : 'Favorite' }}</span>
-          </button>
-        </div>
-      </template>
-      <div class="movie-metadata-box">
-        <div v-if="isLoadingMovieInfo" class="metadata-loading">
-          <div class="skeleton-meta-line"></div>
-          <div class="skeleton-meta-line short"></div>
-          <div class="skeleton-meta-line"></div>
-        </div>
-        <div v-else-if="movieInfo" class="metadata-content">
-          <div class="meta-row" v-if="movieInfo.info?.releasedate">
-            <span class="meta-label">{{ $t('media.releaseDate') }}:</span>
-            <span class="meta-value">{{ movieInfo.info.releasedate }}</span>
-          </div>
-          <div class="meta-row" v-if="movieInfo.info?.duration">
-            <span class="meta-label">{{ $t('media.duration') }}:</span>
-            <span class="meta-value">{{ movieInfo.info.duration }}</span>
-          </div>
-          <div class="meta-row" v-if="movieInfo.info?.genre">
-            <span class="meta-label">{{ $t('media.genre') }}:</span>
-            <span class="meta-value">{{ movieInfo.info.genre }}</span>
-          </div>
-          <div class="meta-row" v-if="movieInfo.info?.director">
-            <span class="meta-label">{{ $t('media.director') }}:</span>
-            <span class="meta-value">{{ movieInfo.info.director }}</span>
-          </div>
-          <div class="meta-row" v-if="movieInfo.info?.cast || movieInfo.info?.actors">
-            <span class="meta-label">{{ $t('media.cast') }}:</span>
-            <span class="meta-value text-clamp" :title="movieInfo.info.cast || movieInfo.info.actors">
-              {{ movieInfo.info.cast || movieInfo.info.actors }}
-            </span>
-          </div>
-          <div class="meta-plot" v-if="movieInfo.info?.plot || movieInfo.info?.description">
-            <h4 class="section-subtitle">{{ $t('media.plot') }}</h4>
-            <p class="plot-text">{{ movieInfo.info.plot || movieInfo.info.description }}</p>
-          </div>
-        </div>
-        <div v-else class="metadata-empty">
-          <p>{{ $t('media.empty') }}</p>
-        </div>
-      </div>
-      <template #no-selection>
-        <div></div>
-      </template>
-    </StreamDetailPanel>
+      @play="handlePlayMovie"
+      @copy="(stream) => copyUrl(stream, 'movie')"
+      @toggle-favorite="handleToggleMovieFavorite"
+    />
 
     <!-- TV Series Details Panel -->
-    <StreamDetailPanel
-      v-if="selectedSeries"
-      :stream="mappedSelectedSeries"
+    <SeriesDetailPanel
+      :series="selectedSeries"
       :is-mobile-open="isMobileDetailOpen"
-      :show-actions="false"
       @close="closeDetails"
-    >
-      <template #header-meta>
-        <div class="series-header-meta-row">
-          <span v-if="selectedSeries?.rating && parseFloat(selectedSeries.rating) > 0" class="rating-text-chip">
-            <IconStar style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;" />
-            <span>{{ parseFloat(selectedSeries.rating).toFixed(1) }}</span>
-          </span>
-          <button class="btn-fav" :class="{ favorited: selectedSeries?.is_favorite !== 0 }" @click="handleToggleSeriesFavorite(selectedSeries!)">
-            <IconStar class="fav-icon" />
-            <span>{{ selectedSeries?.is_favorite !== 0 ? 'Favorited' : 'Favorite' }}</span>
-          </button>
-        </div>
-      </template>
-
-      <template #header-meta-mobile>
-        <div class="series-header-meta-row">
-          <span v-if="selectedSeries?.rating && parseFloat(selectedSeries.rating) > 0" class="rating-text-chip">
-            <IconStar style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;" />
-            <span>{{ parseFloat(selectedSeries.rating).toFixed(1) }}</span>
-          </span>
-          <button class="btn-fav" :class="{ favorited: selectedSeries?.is_favorite !== 0 }" @click="handleToggleSeriesFavorite(selectedSeries!)">
-            <IconStar class="fav-icon" />
-            <span>{{ selectedSeries?.is_favorite !== 0 ? 'Favorited' : 'Favorite' }}</span>
-          </button>
-        </div>
-      </template>
-      <div class="series-metadata-box">
-        <div v-if="isLoadingSeriesInfo" class="metadata-loading">
-          <div class="skeleton-meta-line"></div>
-          <div class="skeleton-meta-line short"></div>
-          <div class="skeleton-meta-line"></div>
-        </div>
-        <div v-else-if="seriesDetails" class="metadata-content">
-          <div class="meta-row" v-if="selectedSeries?.genre || seriesDetails.info?.genre">
-            <span class="meta-label">{{ $t('media.genre') }}:</span>
-            <span class="meta-value">{{ selectedSeries?.genre || seriesDetails.info?.genre }}</span>
-          </div>
-          <div class="meta-row" v-if="selectedSeries?.director || seriesDetails.info?.director">
-            <span class="meta-label">{{ $t('media.director') }}:</span>
-            <span class="meta-value">{{ selectedSeries?.director || seriesDetails.info?.director }}</span>
-          </div>
-          <div class="meta-row" v-if="selectedSeries?.cast_ || seriesDetails.info?.cast || seriesDetails.info?.actors">
-            <span class="meta-label">{{ $t('media.cast') }}:</span>
-            <span class="meta-value text-clamp" :title="selectedSeries?.cast_ || seriesDetails.info?.cast || seriesDetails.info?.actors">
-              {{ selectedSeries?.cast_ || seriesDetails.info?.cast || seriesDetails.info?.actors }}
-            </span>
-          </div>
-
-          <!-- Accordion Seasons & Episodes list -->
-          <div v-if="seriesDetails.seasons && Object.keys(seriesDetails.seasons).length" class="seasons-accordion">
-            <h4 class="accordion-heading">{{ $t('media.seasons') }}</h4>
-            <div
-              v-for="(episodes, seasonKey) in seriesDetails.episodes"
-              :key="seasonKey"
-              class="season-group"
-              :class="{ expanded: expandedSeason === seasonKey }"
-            >
-              <button class="season-header" @click="toggleSeason(seasonKey)">
-                <span class="season-title">{{ $t('media.season', { num: seasonKey }) }}</span>
-                <span class="episode-count">{{ $t('media.episodesCount', { count: episodes.length }) || `${episodes.length} ep` }}</span>
-                <IconChevron class="chevron-icon" :direction="expandedSeason === seasonKey ? 'down' : 'right'" />
-              </button>
-              <div v-show="expandedSeason === seasonKey" class="episodes-container">
-                <div v-for="episode in episodes" :key="episode.id" class="episode-row">
-                  <div class="episode-main">
-                    <span class="episode-num">{{ episode.episode_num }}</span>
-                    <span class="episode-title" :title="episode.title">{{ episode.title }}</span>
-                  </div>
-                  <button class="action-btn" @click="handlePlayEpisode(episode)" :title="$t('media.play')">
-                    <IconPlay class="action-icon" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div v-else class="no-episodes-msg">
-            <p>{{ $t('media.empty') }}</p>
-          </div>
-        </div>
-        <div v-else class="metadata-empty">
-          <p>{{ $t('media.empty') }}</p>
-        </div>
-      </div>
-      <template #no-selection>
-        <div></div>
-      </template>
-    </StreamDetailPanel>
+      @toggle-favorite="handleToggleSeriesFavorite"
+    />
   </div>
 </template>
 
@@ -710,6 +501,7 @@ function selectSeries(series: Series) {
 .text-clamp {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -870,64 +662,5 @@ function selectSeries(series: Series) {
 .action-icon {
   width: 14px;
   height: 14px;
-}
-
-.series-header-meta-row,
-.live-header-meta-row,
-.movie-header-meta-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  margin-top: var(--spacing-2);
-}
-.btn-fav {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-1);
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-border);
-  background-color: rgba(255, 255, 255, 0.03);
-  color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-fast) ease;
-}
-.btn-fav:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: var(--color-text);
-}
-.btn-fav.favorited {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-  background-color: rgba(59, 130, 246, 0.1);
-}
-[data-theme='dark'] .btn-fav.favorited {
-  background-color: rgba(96, 165, 250, 0.1);
-}
-.btn-fav.favorited:hover {
-  background-color: rgba(59, 130, 246, 0.2);
-}
-[data-theme='dark'] .btn-fav.favorited:hover {
-  background-color: rgba(96, 165, 250, 0.2);
-}
-.fav-icon {
-  width: 12px;
-  height: 12px;
-}
-
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid rgba(255, 255, 255, 0.1);
-  border-top-color: var(--color-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: var(--spacing-4);
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 </style>

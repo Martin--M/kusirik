@@ -1,19 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useVodCategories, useVodStreams, useVodInfo } from '@/composables/useVodStreams'
+import { useVodCategories, useVodStreams } from '@/composables/useVodStreams'
 import { usePlayer } from '@/composables/usePlayer'
 import MovieList from '@/components/movies/MovieList.vue'
 import CategorySidebar from '@/components/ui/CategorySidebar.vue'
 import FilterHeader from '@/components/ui/FilterHeader.vue'
-import StreamDetailPanel from '@/components/ui/StreamDetailPanel.vue'
+import MovieDetailPanel from '@/components/movies/MovieDetailPanel.vue'
 import type { VodStream, VodCategory } from '@/types/vod'
 import { useProfileStore } from '@/stores/profile.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useI18n } from '@/composables/useI18n'
 import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
 import { buildMovieUrl } from '@/lib/url-builder'
-import IconStar from '@/components/icons/IconStar.vue'
-import IconTVGrid from '@/components/icons/IconTVGrid.vue'
 import { useToggleFavorite } from '@/composables/useFavorites'
 
 const selectedCategoryId = ref<string>('all')
@@ -136,9 +134,7 @@ const filteredStreams = computed(() => {
   })
 })
 
-// Selected stream ID for on-demand details query
-const selectedStreamId = computed(() => selectedStream.value?.stream_id || 0)
-const { data: movieInfo, isLoading: isLoadingInfo } = useVodInfo(selectedStreamId)
+
 
 const { playMovie } = usePlayer()
 
@@ -245,92 +241,14 @@ async function copyUrl(movie: VodStream) {
     </section>
 
     <!-- Details Sidebar (Desktop Only) & Bottom Sheet (Mobile Only) -->
-    <StreamDetailPanel
+    <MovieDetailPanel
       :stream="selectedStream"
       :is-mobile-open="isMobileDetailOpen"
-      :play-button-text="$t('media.play')"
-      :copy-button-text="$t('media.copyUrl')"
       @close="closeDetails"
-      @play="handlePlay(selectedStream!)"
-      @copy="copyUrl(selectedStream!)"
-    >
-      <template #header-meta>
-        <div class="movie-header-meta-row">
-          <span v-if="selectedStream?.rating && parseFloat(selectedStream.rating) > 0" class="rating-text-chip">
-            <IconStar style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;" />
-            <span>{{ parseFloat(selectedStream.rating).toFixed(1) }}</span>
-          </span>
-          <button class="btn-fav" :class="{ favorited: !!selectedStream?.is_favorite }" @click="handleToggleFavorite(selectedStream!)">
-            <IconStar class="fav-icon" />
-            <span>{{ selectedStream?.is_favorite ? 'Favorited' : 'Favorite' }}</span>
-          </button>
-        </div>
-      </template>
-
-      <template #header-meta-mobile>
-        <div class="movie-header-meta-row">
-          <span v-if="selectedStream?.rating && parseFloat(selectedStream.rating) > 0" class="rating-text-chip">
-            <IconStar style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;" />
-            <span>{{ parseFloat(selectedStream.rating).toFixed(1) }}</span>
-          </span>
-          <button class="btn-fav" :class="{ favorited: !!selectedStream?.is_favorite }" @click="handleToggleFavorite(selectedStream!)">
-            <IconStar class="fav-icon" />
-            <span>{{ selectedStream?.is_favorite ? 'Favorited' : 'Favorite' }}</span>
-          </button>
-        </div>
-      </template>
-
-      <!-- Metadata info loading / loaded -->
-      <div class="movie-metadata-box">
-        <div v-if="isLoadingInfo" class="metadata-loading">
-          <div class="skeleton-meta-line"></div>
-          <div class="skeleton-meta-line short"></div>
-          <div class="skeleton-meta-line"></div>
-        </div>
-        <div v-else-if="movieInfo" class="metadata-content">
-          <div class="meta-row" v-if="movieInfo.info?.releasedate">
-            <span class="meta-label">{{ $t('media.releaseDate') }}:</span>
-            <span class="meta-value">{{ movieInfo.info.releasedate }}</span>
-          </div>
-          <div class="meta-row" v-if="movieInfo.info?.duration || movieInfo.info?.episode_run_time">
-            <span class="meta-label">{{ $t('media.duration') }}:</span>
-            <span class="meta-value">
-              {{ movieInfo.info.duration || `${movieInfo.info.episode_run_time} mins` }}
-            </span>
-          </div>
-          <div class="meta-row" v-if="movieInfo.info?.genre">
-            <span class="meta-label">{{ $t('media.genre') }}:</span>
-            <span class="meta-value">{{ movieInfo.info.genre }}</span>
-          </div>
-          <div class="meta-row" v-if="movieInfo.info?.director">
-            <span class="meta-label">{{ $t('media.director') }}:</span>
-            <span class="meta-value">{{ movieInfo.info.director }}</span>
-          </div>
-          <div class="meta-row" v-if="movieInfo.info?.cast || movieInfo.info?.actors">
-            <span class="meta-label">{{ $t('media.cast') }}:</span>
-            <span class="meta-value text-clamp" :title="movieInfo.info.cast || movieInfo.info.actors">
-              {{ movieInfo.info.cast || movieInfo.info.actors }}
-            </span>
-          </div>
-          <div class="meta-plot" v-if="movieInfo.info?.plot || movieInfo.info?.description">
-            <h4 class="section-subtitle">{{ $t('media.plot') }}</h4>
-            <p class="plot-text">{{ movieInfo.info.plot || movieInfo.info.description }}</p>
-          </div>
-        </div>
-        <div v-else class="metadata-empty">
-          <p>{{ $t('media.empty') }}</p>
-        </div>
-      </div>
-
-      <template #no-selection>
-        <div class="no-selection">
-          <div class="tv-art">
-            <IconTVGrid />
-          </div>
-          <p>{{ $t('media.selectToView') }}</p>
-        </div>
-      </template>
-    </StreamDetailPanel>
+      @play="handlePlay"
+      @copy="copyUrl"
+      @toggle-favorite="handleToggleFavorite"
+    />
   </div>
 </template>
 
@@ -407,157 +325,4 @@ async function copyUrl(movie: VodStream) {
   100% { opacity: 0.6; }
 }
 
-.movie-metadata-box {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-3);
-}
-
-.metadata-loading {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-3);
-  padding: var(--spacing-2);
-}
-
-.skeleton-meta-line {
-  height: 12px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-sm);
-  animation: pulse 1.5s infinite;
-}
-
-.skeleton-meta-line.short {
-  width: 50%;
-}
-
-.metadata-content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-3);
-  font-size: 0.85rem;
-}
-
-.meta-row {
-  display: flex;
-  gap: var(--spacing-2);
-}
-
-.meta-label {
-  color: var(--color-text-muted);
-  font-weight: 600;
-  min-width: 70px;
-}
-
-.meta-value {
-  color: var(--color-text);
-  font-weight: 500;
-}
-
-.text-clamp {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.meta-plot {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-2);
-  margin-top: var(--spacing-1);
-}
-
-.section-subtitle {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 700;
-  margin: 0;
-}
-
-.plot-text {
-  color: var(--color-text-muted);
-  line-height: 1.5;
-  font-size: 0.825rem;
-  margin: 0;
-}
-
-.metadata-empty {
-  color: var(--color-text-muted);
-  font-style: italic;
-  text-align: center;
-  padding: var(--spacing-4);
-}
-
-.no-selection {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-8) var(--spacing-6);
-  color: var(--color-text-muted);
-  text-align: center;
-  gap: var(--spacing-4);
-  height: 100%;
-}
-
-.tv-art {
-  width: 64px;
-  height: 64px;
-  opacity: 0.2;
-}
-
-.rating-text-chip {
-  font-size: 0.75rem;
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.1);
-  padding: 2px 10px;
-  border-radius: 9999px;
-  font-weight: 700;
-}
-
-.movie-header-meta-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  margin-top: var(--spacing-2);
-}
-.btn-fav {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-1);
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-border);
-  background-color: rgba(255, 255, 255, 0.03);
-  color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-fast) ease;
-}
-.btn-fav:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: var(--color-text);
-}
-.btn-fav.favorited {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-  background-color: rgba(59, 130, 246, 0.1);
-}
-[data-theme='dark'] .btn-fav.favorited {
-  background-color: rgba(96, 165, 250, 0.1);
-}
-.btn-fav.favorited:hover {
-  background-color: rgba(59, 130, 246, 0.2);
-}
-[data-theme='dark'] .btn-fav.favorited:hover {
-  background-color: rgba(96, 165, 250, 0.2);
-}
-.fav-icon {
-  width: 12px;
-  height: 12px;
-}
 </style>

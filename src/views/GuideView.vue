@@ -8,7 +8,7 @@ import { usePlayer } from '@/composables/usePlayer'
 import { useI18n } from '@/composables/useI18n'
 import { useToastStore } from '@/stores/toast.store'
 import CachedImage from '@/components/ui/CachedImage.vue'
-import StreamDetailPanel from '@/components/ui/StreamDetailPanel.vue'
+import LiveDetailPanel from '@/components/live/LiveDetailPanel.vue'
 import IconCheck from '@/components/icons/IconCheck.vue'
 import { buildLiveUrl, buildCatchupUrl } from '@/lib/url-builder'
 import {
@@ -21,7 +21,6 @@ import { useProfileStore } from '@/stores/profile.store'
 import type { EpgEntry } from '@/types/epg'
 
 import { useToggleFavorite } from '@/composables/useFavorites'
-import IconStar from '@/components/icons/IconStar.vue'
 
 const { t } = useI18n()
 const toastStore = useToastStore()
@@ -631,43 +630,16 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
       </div>
 
       <!-- Side details sidebar -->
-      <StreamDetailPanel
+      <LiveDetailPanel
         :stream="selectedChannel"
         :is-mobile-open="isMobileDetailOpen"
-        square-image
-        :default-width="500"
-        :play-button-text="$t('media.play')"
-        :copy-button-text="$t('media.copyUrl')"
         :show-actions="showSidebarActions"
         :play-disabled="isPlayDisabled"
         @close="closeDetails"
         @play="handlePlay"
         @copy="copyUrl"
+        @toggle-favorite="handleToggleFavorite"
       >
-        <template #header-meta>
-          <div class="live-header-meta-row">
-            <span v-if="selectedChannel?.tv_archive === 1" class="archive-text">
-              ⏱ {{ $t('media.catchupDays', { days: selectedChannel.tv_archive_duration }) }}
-            </span>
-            <button class="btn-fav" :class="{ favorited: !!selectedChannel?.is_favorite }" @click="handleToggleFavorite(selectedChannel!)">
-              <IconStar class="fav-icon" />
-              <span>{{ selectedChannel?.is_favorite ? 'Favorited' : 'Favorite' }}</span>
-            </button>
-          </div>
-        </template>
-
-        <template #header-meta-mobile>
-          <div class="live-header-meta-row">
-            <span v-if="selectedChannel?.tv_archive === 1" class="archive-text">
-              ⏱ {{ $t('media.catchupDays', { days: selectedChannel.tv_archive_duration }) }}
-            </span>
-            <button class="btn-fav" :class="{ favorited: !!selectedChannel?.is_favorite }" @click="handleToggleFavorite(selectedChannel!)">
-              <IconStar class="fav-icon" />
-              <span>{{ selectedChannel?.is_favorite ? 'Favorited' : 'Favorite' }}</span>
-            </button>
-          </div>
-        </template>
-
         <!-- Custom selected program detail block in EPG Sidebar -->
         <div v-if="selectedProgram" class="guide-selection-details">
           <h4 class="selection-title">{{ selectedProgram.title }}</h4>
@@ -677,7 +649,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
           </span>
           <p v-if="selectedProgram.description" class="selection-desc">{{ selectedProgram.description }}</p>
         </div>
-      </StreamDetailPanel>
+      </LiveDetailPanel>
     </div>
   </div>
 </template>
@@ -1131,46 +1103,4 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
   white-space: nowrap;
 }
 
-.live-header-meta-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  margin-top: var(--spacing-2);
-}
-.btn-fav {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-1);
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-border);
-  background-color: rgba(255, 255, 255, 0.03);
-  color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-fast) ease;
-}
-.btn-fav:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: var(--color-text);
-}
-.btn-fav.favorited {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-  background-color: rgba(59, 130, 246, 0.1);
-}
-[data-theme='dark'] .btn-fav.favorited {
-  background-color: rgba(96, 165, 250, 0.1);
-}
-.btn-fav.favorited:hover {
-  background-color: rgba(59, 130, 246, 0.2);
-}
-[data-theme='dark'] .btn-fav.favorited:hover {
-  background-color: rgba(96, 165, 250, 0.2);
-}
-.fav-icon {
-  width: 12px;
-  height: 12px;
-}
 </style>
