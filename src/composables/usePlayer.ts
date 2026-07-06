@@ -4,6 +4,7 @@ import { buildLiveUrl, buildMovieUrl, buildEpisodeUrl, buildCatchupUrl } from '@
 import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useToastStore } from '@/stores/toast.store'
+import { checkIsAndroid } from '@/lib/device'
 
 export function usePlayer() {
   const profileStore = useProfileStore()
@@ -13,7 +14,7 @@ export function usePlayer() {
   const canPlay = computed(() => profileStore.hasProfile)
 
   const isAndroid = computed(() => {
-    return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+    return checkIsAndroid()
   })
 
   async function startPlayback(url: string) {

@@ -21,6 +21,7 @@ import { useProfileStore } from '@/stores/profile.store'
 import type { EpgEntry } from '@/types/epg'
 
 import { useToggleFavorite } from '@/composables/useFavorites'
+import { checkIsDesktop } from '@/lib/device'
 
 const { t } = useI18n()
 const toastStore = useToastStore()
@@ -317,7 +318,7 @@ function scrollToNow() {
 }
 
 const isDesktop = computed(() => {
-  return !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  return checkIsDesktop()
 })
 const rowHeight = computed(() => isDesktop.value ? 72 : 50)
 const rowHeightPx = computed(() => `${rowHeight.value}px`)

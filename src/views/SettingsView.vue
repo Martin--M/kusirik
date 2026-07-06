@@ -28,7 +28,7 @@ import IconMoon from '@/components/icons/IconMoon.vue'
 import IconSun from '@/components/icons/IconSun.vue'
 import IconPlay from '@/components/icons/IconPlay.vue'
 import IconSync from '@/components/icons/IconSync.vue'
-
+import { checkIsAndroid } from '@/lib/device'
 const router = useRouter()
 const profileStore = useProfileStore()
 const settingsStore = useSettingsStore()
@@ -148,7 +148,7 @@ async function loadCounts() {
 }
 
 onMounted(async () => {
-  isAndroid.value = /Android/i.test(navigator.userAgent)
+  isAndroid.value = checkIsAndroid()
   await settingsStore.load()
   playerWindowsInput.value = settingsStore.playerWindows
   playerAndroidInput.value = settingsStore.playerAndroid

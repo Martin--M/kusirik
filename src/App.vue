@@ -8,6 +8,7 @@ import AppBottomNav from '@/components/layout/AppBottomNav.vue'
 import AppTopBar from '@/components/layout/AppTopBar.vue'
 import AppTitleBar from '@/components/layout/AppTitleBar.vue'
 import AppToast from '@/components/ui/AppToast.vue'
+import { checkIsDesktop } from '@/lib/device'
 
 const settingsStore = useSettingsStore()
 const route = useRoute()
@@ -23,7 +24,7 @@ const showLayout = computed(() => {
 })
 
 const isDesktop = computed(() => {
-  return !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  return checkIsDesktop()
 })
 </script>
 
