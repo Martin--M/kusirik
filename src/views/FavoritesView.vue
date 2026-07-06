@@ -210,9 +210,6 @@ function selectSeries(series: Series) {
 <template>
   <div class="search-view-container">
     <div class="search-content">
-      <header class="view-header">
-        <h1 class="view-title">{{ $t('favorites.title') }}</h1>
-      </header>
 
       <!-- Loading State -->
       <div v-if="isLoading" class="search-loading-state">

@@ -20,6 +20,8 @@ const title = computed(() => {
       return t('sidebar.settings')
     case 'search':
       return t('sidebar.search')
+    case 'favorites':
+      return t('sidebar.favorites')
     default:
       return 'Kusirik'
   }
