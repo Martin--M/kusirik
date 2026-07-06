@@ -316,11 +316,17 @@ function scrollToNow() {
   }
 }
 
+const isDesktop = computed(() => {
+  return !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+})
+const rowHeight = computed(() => isDesktop.value ? 72 : 50)
+const rowHeightPx = computed(() => `${rowHeight.value}px`)
+
 const rowVirtualizer = useVirtualizer(
   computed(() => ({
     count: filteredChannels.value?.length || 0,
     getScrollElement: () => scrollContainer.value,
-    estimateSize: () => 72,
+    estimateSize: () => rowHeight.value,
     overscan: 10,
   }))
 )
@@ -500,7 +506,6 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
     <header class="guide-header-bar">
       <div class="header-left">
         <h2 class="page-title">{{ $t('sidebar.guide') }}</h2>
-        <span class="guide-sub">{{ $t('media.nowPlaying') }}</span>
       </div>
       <div class="header-right-actions">
         <label class="custom-checkbox">
@@ -535,10 +540,10 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
     </div>
 
     <!-- Main TV Guide Workspace -->
-    <div v-else class="guide-main-workspace">
+    <div v-else class="guide-main-workspace" :class="{ 'compact-rows': !isDesktop }">
       <!-- Scrollable EPG Timeline Grid -->
       <div class="guide-scroll-container" ref="scrollContainer">
-        <div class="guide-grid-wrapper" :style="{ width: `${totalTimelineMinutes * pxPerMinute + 200}px`, height: `${rowVirtualizer.getTotalSize() + 48}px` }">
+        <div class="guide-grid-wrapper" :style="{ width: `${totalTimelineMinutes * pxPerMinute + 200}px`, height: `${rowVirtualizer.getTotalSize() + 36}px` }">
           
           <!-- Sticky Headers Row -->
           <div class="guide-sticky-header">
@@ -560,7 +565,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
           </div>
 
           <!-- Vertical Current Time Line Pointer extending down the grid -->
-          <div class="current-time-line-indicator" :style="{ left: `${currentTimeLeft + 200}px`, height: `${rowVirtualizer.getTotalSize() + 48}px` }"></div>
+          <div class="current-time-line-indicator" :style="{ left: `${currentTimeLeft + 200}px`, height: `${rowVirtualizer.getTotalSize() + 36}px` }"></div>
 
           <!-- Virtualized Rows Container -->
           <div class="virtual-rows-container" :style="{ height: `${rowVirtualizer.getTotalSize()}px` }">
@@ -676,7 +681,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-4) var(--spacing-6);
+  padding: var(--spacing-2) var(--spacing-6);
   border-bottom: 1px solid var(--color-border);
   background-color: var(--color-surface);
   flex-shrink: 0;
@@ -774,7 +779,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
   display: flex;
   position: sticky;
   top: 0;
-  height: 48px;
+  height: 36px;
   z-index: 15;
   background-color: var(--color-surface);
   width: 100%;
@@ -783,7 +788,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
 
 .channel-header-filler {
   width: 200px;
-  height: 48px;
+  height: 36px;
   position: sticky;
   left: 0;
   z-index: 16;
@@ -813,7 +818,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
 /* Time slots header */
 .timeline-header {
   flex-grow: 1;
-  height: 48px;
+  height: 36px;
   position: relative;
   border-bottom: 1px solid var(--color-border);
   background-color: var(--color-surface);
@@ -822,7 +827,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
 
 .time-slot-tick {
   position: absolute;
-  top: 14px;
+  top: 9px;
   transform: translateX(-50%);
   font-size: 0.8rem;
   font-weight: 600;
@@ -842,19 +847,19 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
 /* Virtualized list styles */
 .virtual-rows-container {
   position: absolute;
-  top: 48px;
+  top: 36px;
   left: 0;
   width: 100%;
 }
 
 .virtual-row-item {
   display: flex;
-  height: 72px;
+  height: v-bind(rowHeightPx);
 }
 
 .channel-cell-sticky {
   width: 200px;
-  height: 72px;
+  height: v-bind(rowHeightPx);
   position: sticky;
   left: 0;
   z-index: 10;
@@ -868,9 +873,14 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
   flex-shrink: 0;
 }
 
+.compact-rows .channel-cell-sticky {
+  padding: 0 var(--spacing-3);
+  gap: var(--spacing-2);
+}
+
 .grid-schedule-row {
   flex-grow: 1;
-  height: 72px;
+  height: v-bind(rowHeightPx);
   position: relative;
   border-bottom: 1px solid var(--color-border);
 }
@@ -888,6 +898,12 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
   border: 1px solid var(--color-border);
   transition: all var(--transition-fast);
   overflow: hidden;
+}
+
+.compact-rows .program-block {
+  top: var(--spacing-1);
+  bottom: var(--spacing-1);
+  padding: 2px var(--spacing-2);
 }
 
 .program-block:hover {
@@ -947,9 +963,17 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
   text-overflow: ellipsis;
 }
 
+.compact-rows .program-title {
+  font-size: 0.8rem;
+}
+
 .program-time {
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+.compact-rows .program-time {
+  font-size: 0.7rem;
 }
 
 /* Time Indicator Line */

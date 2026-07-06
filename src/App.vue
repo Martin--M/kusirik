@@ -38,7 +38,7 @@ const isDesktop = computed(() => {
 
       <div class="main-container">
         <!-- Top header bar -->
-        <AppTopBar v-if="showLayout" />
+        <AppTopBar v-if="showLayout && route.name !== 'guide'" />
 
         <!-- Main screen viewport with Keep-Alive view caching -->
         <main class="content-area">
