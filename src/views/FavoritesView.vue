@@ -320,7 +320,7 @@ function selectSeries(series: Series) {
 .search-view-container {
   display: flex;
   flex-direction: row;
-  height: 100vh;
+  height: 100%;
   width: 100%;
   overflow: hidden;
   background-color: var(--color-bg);

@@ -342,7 +342,7 @@ function selectSeries(series: Series) {
   display: flex;
   flex: 1;
   min-width: 0;
-  height: 100vh;
+  height: 100%;
 }
 
 .search-content {

@@ -127,6 +127,8 @@ function navigate(name: string) {
   padding: var(--spacing-6) var(--spacing-4);
   flex-shrink: 0;
   transition: width var(--transition-normal) ease, padding var(--transition-normal) ease;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .app-sidebar.collapsed {
@@ -381,5 +383,23 @@ function navigate(name: string) {
 
 [data-theme='light'] .sidebar-search-input:focus {
   background: rgba(0, 0, 0, 0.04);
+}
+
+@media (max-height: 550px) {
+  .app-sidebar {
+    padding: var(--spacing-3) var(--spacing-2) !important;
+  }
+  .logo-container {
+    margin-bottom: var(--spacing-3) !important;
+  }
+  .search-container {
+    margin-bottom: var(--spacing-3) !important;
+  }
+  .nav-menu {
+    gap: var(--spacing-1) !important;
+  }
+  .nav-item {
+    padding: var(--spacing-2) var(--spacing-3) !important;
+  }
 }
 </style>

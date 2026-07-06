@@ -664,7 +664,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
 .guide-view-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   width: 100%;
   overflow: hidden;
   background-color: var(--color-bg);
