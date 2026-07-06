@@ -128,3 +128,11 @@ export interface SearchResults {
 export const searchAllMedia = (profileId: number, query: string) =>
   invoke<SearchResults>('search_all_media', { profileId, query })
 
+// ─── Favorites ───────────────────────────────────────────────────────────────
+
+export const toggleFavorite = (profileId: number, mediaType: 'live' | 'vod' | 'series', streamId: number) =>
+  invoke<boolean>('toggle_favorite', { profileId, mediaType, streamId })
+
+export const getFavorites = (profileId: number) =>
+  invoke<SearchResults>('get_favorites', { profileId })
+

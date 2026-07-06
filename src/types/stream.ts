@@ -14,6 +14,8 @@ export interface LiveStream {
   tv_archive: number
   tv_archive_duration: number
   added: string | null
+  is_favorite?: number
 }
 
 export type SortOrder = 'asc' | 'desc'
+

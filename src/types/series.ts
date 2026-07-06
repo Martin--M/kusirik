@@ -17,6 +17,7 @@ export interface Series {
   genre: string | null
   release_date: string | null
   last_modified: string | null
+  is_favorite?: number
 }
 
 export interface SeriesInfo {

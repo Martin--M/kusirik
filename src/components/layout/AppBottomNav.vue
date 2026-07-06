@@ -7,6 +7,7 @@ import IconCalendar from '../icons/IconCalendar.vue'
 import IconMovies from '../icons/IconMovies.vue'
 import IconSeries from '../icons/IconSeries.vue'
 import IconSettings from '../icons/IconSettings.vue'
+import IconStar from '../icons/IconStar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +18,7 @@ const navItems = computed(() => [
   { name: 'guide', label: t('sidebar.guide'), icon: IconCalendar },
   { name: 'movies', label: t('sidebar.movies'), icon: IconMovies },
   { name: 'series', label: t('sidebar.series'), icon: IconSeries },
+  { name: 'favorites', label: t('sidebar.favorites'), icon: IconStar },
   { name: 'settings', label: t('sidebar.settings'), icon: IconSettings }
 ])
 

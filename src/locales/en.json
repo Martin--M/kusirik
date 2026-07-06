@@ -6,6 +6,7 @@
     "series": "TV Series",
     "settings": "Settings",
     "search": "Search",
+    "favorites": "Favorites",
     "expand": "Expand Sidebar",
     "collapse": "Collapse Sidebar",
     "placeholder": "Search..."
@@ -183,6 +184,14 @@
     "movieResults": "VOD Movies ({count})",
     "seriesResults": "TV Series ({count})",
     "clickToPlay": "Click Play to stream this channel live in your configured media player."
+  },
+  "favorites": {
+    "title": "Favorites",
+    "emptyState": "No favorites added yet",
+    "descEmpty": "You can add channels, movies, or series to your favorites from their details panel.",
+    "liveResults": "Live Channels ({count})",
+    "movieResults": "VOD Movies ({count})",
+    "seriesResults": "TV Series ({count})"
   }
 }
 
