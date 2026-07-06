@@ -54,6 +54,9 @@ const displayRating = computed(() => {
         :alt="series.name || 'Series'"
         :fallback-text="cleanTitle"
       />
+      <div v-if="series.is_favorite === 1" class="favorite-badge" title="Favorited">
+        <IconStar class="star-icon" />
+      </div>
       <div v-if="displayRating" class="rating-badge">
         <IconStar class="star-icon" />
         <span>{{ displayRating }}</span>
@@ -118,6 +121,22 @@ const displayRating = computed(() => {
   color: #fbbf24;
   font-size: 0.75rem;
   font-weight: 700;
+  z-index: 2;
+}
+
+.favorite-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  background-color: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  color: var(--color-primary);
   z-index: 2;
 }
 

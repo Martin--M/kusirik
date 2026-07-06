@@ -18,6 +18,8 @@ import StreamDetailPanel from '@/components/ui/StreamDetailPanel.vue'
 import IconChevron from '@/components/icons/IconChevron.vue'
 import IconPlay from '@/components/icons/IconPlay.vue'
 import IconSearch from '@/components/icons/IconSearch.vue'
+import IconStar from '@/components/icons/IconStar.vue'
+import { useToggleFavorite } from '@/composables/useFavorites'
 
 import type { LiveStream } from '@/types/stream'
 import type { VodStream } from '@/types/vod'
@@ -28,6 +30,100 @@ const toastStore = useToastStore()
 const profileStore = useProfileStore()
 const { playLive, playMovie, playEpisode } = usePlayer()
 const { t } = useI18n()
+const { toggle: toggleFav } = useToggleFavorite()
+
+async function handleToggleLiveFavorite(stream: LiveStream) {
+  const originalState = selectedLive.value?.is_favorite
+  const nextState = originalState === 1 ? 0 : 1
+
+  if (selectedLive.value && selectedLive.value.stream_id === stream.stream_id) {
+    selectedLive.value = {
+      ...selectedLive.value,
+      is_favorite: nextState
+    }
+  }
+
+  try {
+    const isFav = await toggleFav('live', stream.stream_id)
+    if (selectedLive.value && selectedLive.value.stream_id === stream.stream_id) {
+      selectedLive.value = {
+        ...selectedLive.value,
+        is_favorite: isFav ? 1 : 0
+      }
+    }
+  } catch (err) {
+    console.error('Failed to toggle favorite:', err)
+    if (selectedLive.value && selectedLive.value.stream_id === stream.stream_id) {
+      selectedLive.value = {
+        ...selectedLive.value,
+        is_favorite: originalState
+      }
+    }
+    toastStore.showToast(t('media.favoriteToggleFailed') || 'Failed to update favorite status', 'error')
+  }
+}
+
+async function handleToggleMovieFavorite(movie: VodStream) {
+  const originalState = selectedMovie.value?.is_favorite
+  const nextState = originalState === 1 ? 0 : 1
+
+  if (selectedMovie.value && selectedMovie.value.stream_id === movie.stream_id) {
+    selectedMovie.value = {
+      ...selectedMovie.value,
+      is_favorite: nextState
+    }
+  }
+
+  try {
+    const isFav = await toggleFav('vod', movie.stream_id)
+    if (selectedMovie.value && selectedMovie.value.stream_id === movie.stream_id) {
+      selectedMovie.value = {
+        ...selectedMovie.value,
+        is_favorite: isFav ? 1 : 0
+      }
+    }
+  } catch (err) {
+    console.error('Failed to toggle favorite:', err)
+    if (selectedMovie.value && selectedMovie.value.stream_id === movie.stream_id) {
+      selectedMovie.value = {
+        ...selectedMovie.value,
+        is_favorite: originalState
+      }
+    }
+    toastStore.showToast(t('media.favoriteToggleFailed') || 'Failed to update favorite status', 'error')
+  }
+}
+
+async function handleToggleSeriesFavorite(series: Series) {
+  const originalState = selectedSeries.value?.is_favorite
+  const nextState = originalState === 1 ? 0 : 1
+
+  if (selectedSeries.value && selectedSeries.value.series_id === series.series_id) {
+    selectedSeries.value = {
+      ...selectedSeries.value,
+      is_favorite: nextState
+    }
+  }
+
+  try {
+    const isFav = await toggleFav('series', series.series_id)
+    if (selectedSeries.value && selectedSeries.value.series_id === series.series_id) {
+      selectedSeries.value = {
+        ...selectedSeries.value,
+        is_favorite: isFav ? 1 : 0
+      }
+    }
+  } catch (err) {
+    console.error('Failed to toggle favorite:', err)
+    if (selectedSeries.value && selectedSeries.value.series_id === series.series_id) {
+      selectedSeries.value = {
+        ...selectedSeries.value,
+        is_favorite: originalState
+      }
+    }
+    toastStore.showToast(t('media.favoriteToggleFailed') || 'Failed to update favorite status', 'error')
+  }
+}
 
 const queryText = computed(() => (route.query.q as string) || '')
 const { data, isLoading } = useGlobalSearch(queryText)
@@ -257,6 +353,23 @@ function selectSeries(series: Series) {
       @play="handlePlayLive(selectedLive)"
       @copy="copyUrl(selectedLive, 'live')"
     >
+      <template #header-meta>
+        <div class="live-header-meta-row">
+          <button class="btn-fav" :class="{ favorited: selectedLive.is_favorite === 1 }" @click="handleToggleLiveFavorite(selectedLive)">
+            <IconStar class="fav-icon" />
+            <span>{{ selectedLive.is_favorite === 1 ? 'Favorited' : 'Favorite' }}</span>
+          </button>
+        </div>
+      </template>
+
+      <template #header-meta-mobile>
+        <div class="live-header-meta-row">
+          <button class="btn-fav" :class="{ favorited: selectedLive.is_favorite === 1 }" @click="handleToggleLiveFavorite(selectedLive)">
+            <IconStar class="fav-icon" />
+            <span>{{ selectedLive.is_favorite === 1 ? 'Favorited' : 'Favorite' }}</span>
+          </button>
+        </div>
+      </template>
       <div class="live-info-box">
         <p>{{ $t('search.clickToPlay') }}</p>
       </div>
@@ -276,6 +389,23 @@ function selectSeries(series: Series) {
       @play="handlePlayMovie(selectedMovie)"
       @copy="copyUrl(selectedMovie, 'movie')"
     >
+      <template #header-meta>
+        <div class="movie-header-meta-row">
+          <button class="btn-fav" :class="{ favorited: selectedMovie.is_favorite === 1 }" @click="handleToggleMovieFavorite(selectedMovie)">
+            <IconStar class="fav-icon" />
+            <span>{{ selectedMovie.is_favorite === 1 ? 'Favorited' : 'Favorite' }}</span>
+          </button>
+        </div>
+      </template>
+
+      <template #header-meta-mobile>
+        <div class="movie-header-meta-row">
+          <button class="btn-fav" :class="{ favorited: selectedMovie.is_favorite === 1 }" @click="handleToggleMovieFavorite(selectedMovie)">
+            <IconStar class="fav-icon" />
+            <span>{{ selectedMovie.is_favorite === 1 ? 'Favorited' : 'Favorite' }}</span>
+          </button>
+        </div>
+      </template>
       <div class="movie-metadata-box">
         <div v-if="isLoadingMovieInfo" class="metadata-loading">
           <div class="skeleton-meta-line"></div>
@@ -327,6 +457,31 @@ function selectSeries(series: Series) {
       :show-actions="false"
       @close="closeDetails"
     >
+      <template #header-meta>
+        <div class="series-header-meta-row">
+          <span v-if="selectedSeries?.rating && parseFloat(selectedSeries.rating) > 0" class="rating-text-chip">
+            <IconStar style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;" />
+            <span>{{ parseFloat(selectedSeries.rating).toFixed(1) }}</span>
+          </span>
+          <button class="btn-fav" :class="{ favorited: selectedSeries?.is_favorite === 1 }" @click="handleToggleSeriesFavorite(selectedSeries!)">
+            <IconStar class="fav-icon" />
+            <span>{{ selectedSeries?.is_favorite === 1 ? 'Favorited' : 'Favorite' }}</span>
+          </button>
+        </div>
+      </template>
+
+      <template #header-meta-mobile>
+        <div class="series-header-meta-row">
+          <span v-if="selectedSeries?.rating && parseFloat(selectedSeries.rating) > 0" class="rating-text-chip">
+            <IconStar style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;" />
+            <span>{{ parseFloat(selectedSeries.rating).toFixed(1) }}</span>
+          </span>
+          <button class="btn-fav" :class="{ favorited: selectedSeries?.is_favorite === 1 }" @click="handleToggleSeriesFavorite(selectedSeries!)">
+            <IconStar class="fav-icon" />
+            <span>{{ selectedSeries?.is_favorite === 1 ? 'Favorited' : 'Favorite' }}</span>
+          </button>
+        </div>
+      </template>
       <div class="series-metadata-box">
         <div v-if="isLoadingSeriesInfo" class="metadata-loading">
           <div class="skeleton-meta-line"></div>
@@ -749,5 +904,50 @@ function selectSeries(series: Series) {
 .action-icon {
   width: 14px;
   height: 14px;
+}
+
+.series-header-meta-row,
+.live-header-meta-row,
+.movie-header-meta-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-2);
+}
+.btn-fav {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+}
+.btn-fav:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-text);
+}
+.btn-fav.favorited {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background-color: rgba(59, 130, 246, 0.1);
+}
+[data-theme='dark'] .btn-fav.favorited {
+  background-color: rgba(96, 165, 250, 0.1);
+}
+.btn-fav.favorited:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+[data-theme='dark'] .btn-fav.favorited:hover {
+  background-color: rgba(96, 165, 250, 0.2);
+}
+.fav-icon {
+  width: 12px;
+  height: 12px;
 }
 </style>

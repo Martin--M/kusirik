@@ -4,6 +4,7 @@ import CachedImage from './CachedImage.vue'
 import IconPlay from '../icons/IconPlay.vue'
 import IconCopy from '../icons/IconCopy.vue'
 
+
 const props = withDefaults(
   defineProps<{
     stream: {
@@ -19,12 +20,16 @@ const props = withDefaults(
     squareImage?: boolean
     defaultWidth?: number
     playDisabled?: boolean
+    showFavorite?: boolean
+    isFavorite?: boolean
   }>(),
   {
     showActions: true,
     squareImage: false,
     defaultWidth: 320,
-    playDisabled: false
+    playDisabled: false,
+    showFavorite: false,
+    isFavorite: false
   }
 )
 
@@ -32,6 +37,7 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'play'): void
   (e: 'copy'): void
+  (e: 'toggleFavorite'): void
 }>()
 
 const sidebarWidth = ref(props.defaultWidth)
@@ -98,12 +104,14 @@ function startResize(e: MouseEvent) {
               </slot>
               {{ playButtonText || 'Play' }}
             </button>
-            <button class="btn btn-secondary" @click="emit('copy')">
-              <slot name="copy-icon">
-                <IconCopy class="btn-icon" />
-              </slot>
-              {{ copyButtonText || 'Copy URL' }}
-            </button>
+            <div class="action-row">
+              <button class="btn btn-secondary" @click="emit('copy')">
+                <slot name="copy-icon">
+                  <IconCopy class="btn-icon" />
+                </slot>
+                {{ copyButtonText || 'Copy URL' }}
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -143,9 +151,11 @@ function startResize(e: MouseEvent) {
           <button class="btn btn-primary" :disabled="playDisabled" @click="emit('play')">
             {{ playButtonText || 'Play' }}
           </button>
-          <button class="btn btn-secondary" @click="emit('copy')">
-            {{ copyButtonText || 'Copy URL' }}
-          </button>
+          <div class="action-row">
+            <button class="btn btn-secondary" @click="emit('copy')">
+              {{ copyButtonText || 'Copy URL' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -438,5 +448,37 @@ function startResize(e: MouseEvent) {
   .desktop-only {
     display: none !important;
   }
+}
+
+.action-row {
+  display: flex;
+  gap: var(--spacing-3);
+  width: 100%;
+}
+.action-row .btn-secondary {
+  flex: 1;
+}
+.favorite-btn {
+  width: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--color-text-muted);
+}
+.favorite-btn.favorited {
+  color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  background-color: rgba(59, 130, 246, 0.1) !important;
+}
+[data-theme='dark'] .favorite-btn.favorited {
+  background-color: rgba(96, 165, 250, 0.1) !important;
+}
+.favorite-btn.favorited:hover {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+}
+[data-theme='dark'] .favorite-btn.favorited:hover {
+  background-color: rgba(96, 165, 250, 0.2) !important;
 }
 </style>

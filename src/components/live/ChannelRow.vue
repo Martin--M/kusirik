@@ -4,6 +4,7 @@ import type { LiveStream } from '@/types/stream'
 import CachedImage from '@/components/ui/CachedImage.vue'
 import IconClock from '@/components/icons/IconClock.vue'
 import IconPlay from '@/components/icons/IconPlay.vue'
+import IconStar from '@/components/icons/IconStar.vue'
 import { useEpg, globalNow } from '@/composables/useEpg'
 
 const props = defineProps<{
@@ -62,6 +63,7 @@ const progress = computed(() => {
     <div class="info-cell">
       <div class="name-container">
         <span class="channel-name">{{ stream.name || $t('media.empty') }}</span>
+        <IconStar v-if="stream.is_favorite === 1" class="star-icon-fav favorited" title="Favorited" />
         <span v-if="stream.tv_archive === 1" class="archive-badge" :title="$t('media.catchup')">
           <IconClock class="badge-icon" />
           <span>{{ $t('media.catchup') }}</span>
@@ -182,6 +184,13 @@ const progress = computed(() => {
 .badge-icon {
   width: 10px;
   height: 10px;
+}
+
+.star-icon-fav.favorited {
+  width: 13px;
+  height: 13px;
+  color: var(--color-primary);
+  flex-shrink: 0;
 }
 
 .epg-placeholder {

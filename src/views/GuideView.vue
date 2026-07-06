@@ -20,10 +20,45 @@ import {
 import { useProfileStore } from '@/stores/profile.store'
 import type { EpgEntry } from '@/types/epg'
 
+import { useToggleFavorite } from '@/composables/useFavorites'
+import IconStar from '@/components/icons/IconStar.vue'
+
 const { t } = useI18n()
 const toastStore = useToastStore()
 const profileStore = useProfileStore()
 const { playLive, playCatchup } = usePlayer()
+const { toggle: toggleFav } = useToggleFavorite()
+
+async function handleToggleFavorite(channel: any) {
+  const originalState = selectedChannel.value?.is_favorite
+  const nextState = originalState === 1 ? 0 : 1
+
+  if (selectedChannel.value && selectedChannel.value.stream_id === channel.stream_id) {
+    selectedChannel.value = {
+      ...selectedChannel.value,
+      is_favorite: nextState
+    }
+  }
+
+  try {
+    const isFav = await toggleFav('live', channel.stream_id)
+    if (selectedChannel.value && selectedChannel.value.stream_id === channel.stream_id) {
+      selectedChannel.value = {
+        ...selectedChannel.value,
+        is_favorite: isFav ? 1 : 0
+      }
+    }
+  } catch (err) {
+    console.error('Failed to toggle favorite:', err)
+    if (selectedChannel.value && selectedChannel.value.stream_id === channel.stream_id) {
+      selectedChannel.value = {
+        ...selectedChannel.value,
+        is_favorite: originalState
+      }
+    }
+    toastStore.showToast(t('media.favoriteToggleFailed') || 'Failed to update favorite status', 'error')
+  }
+}
 
 // Setup time window parameters
 const pxPerMinute = 4
@@ -610,15 +645,27 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
         @copy="copyUrl"
       >
         <template #header-meta>
-          <span v-if="selectedChannel?.tv_archive === 1" class="archive-text">
-            ⏱ {{ $t('media.catchupDays', { days: selectedChannel.tv_archive_duration }) }}
-          </span>
+          <div class="live-header-meta-row">
+            <span v-if="selectedChannel?.tv_archive === 1" class="archive-text">
+              ⏱ {{ $t('media.catchupDays', { days: selectedChannel.tv_archive_duration }) }}
+            </span>
+            <button class="btn-fav" :class="{ favorited: !!selectedChannel?.is_favorite }" @click="handleToggleFavorite(selectedChannel!)">
+              <IconStar class="fav-icon" />
+              <span>{{ selectedChannel?.is_favorite ? 'Favorited' : 'Favorite' }}</span>
+            </button>
+          </div>
         </template>
 
         <template #header-meta-mobile>
-          <span v-if="selectedChannel?.tv_archive === 1" class="archive-text">
-            ⏱ {{ $t('media.catchupDays', { days: selectedChannel.tv_archive_duration }) }}
-          </span>
+          <div class="live-header-meta-row">
+            <span v-if="selectedChannel?.tv_archive === 1" class="archive-text">
+              ⏱ {{ $t('media.catchupDays', { days: selectedChannel.tv_archive_duration }) }}
+            </span>
+            <button class="btn-fav" :class="{ favorited: !!selectedChannel?.is_favorite }" @click="handleToggleFavorite(selectedChannel!)">
+              <IconStar class="fav-icon" />
+              <span>{{ selectedChannel?.is_favorite ? 'Favorited' : 'Favorite' }}</span>
+            </button>
+          </div>
         </template>
 
         <!-- Custom selected program detail block in EPG Sidebar -->
@@ -1082,5 +1129,48 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
 
 .checkbox-label {
   white-space: nowrap;
+}
+
+.live-header-meta-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-2);
+}
+.btn-fav {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+}
+.btn-fav:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-text);
+}
+.btn-fav.favorited {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background-color: rgba(59, 130, 246, 0.1);
+}
+[data-theme='dark'] .btn-fav.favorited {
+  background-color: rgba(96, 165, 250, 0.1);
+}
+.btn-fav.favorited:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+[data-theme='dark'] .btn-fav.favorited:hover {
+  background-color: rgba(96, 165, 250, 0.2);
+}
+.fav-icon {
+  width: 12px;
+  height: 12px;
 }
 </style>

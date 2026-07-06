@@ -17,9 +17,44 @@ import IconChevron from '@/components/icons/IconChevron.vue'
 import IconPlay from '@/components/icons/IconPlay.vue'
 import IconCopy from '@/components/icons/IconCopy.vue'
 import IconTVPlus from '@/components/icons/IconTVPlus.vue'
+import { useToggleFavorite } from '@/composables/useFavorites'
 
 const selectedCategoryId = ref<string>('all')
 const selectedSeries = ref<Series | null>(null)
+const { toggle: toggleFav } = useToggleFavorite()
+
+async function handleToggleFavorite(series: Series) {
+  const originalState = selectedSeries.value?.is_favorite
+  const nextState = originalState === 1 ? 0 : 1
+
+  // Optimistic update
+  if (selectedSeries.value && selectedSeries.value.series_id === series.series_id) {
+    selectedSeries.value = {
+      ...selectedSeries.value,
+      is_favorite: nextState
+    }
+  }
+
+  try {
+    const isFav = await toggleFav('series', series.series_id)
+    if (selectedSeries.value && selectedSeries.value.series_id === series.series_id) {
+      selectedSeries.value = {
+        ...selectedSeries.value,
+        is_favorite: isFav ? 1 : 0
+      }
+    }
+  } catch (err) {
+    console.error('Failed to toggle favorite:', err)
+    // Revert on error
+    if (selectedSeries.value && selectedSeries.value.series_id === series.series_id) {
+      selectedSeries.value = {
+        ...selectedSeries.value,
+        is_favorite: originalState
+      }
+    }
+    toastStore.showToast(t('media.favoriteToggleFailed') || 'Failed to update favorite status', 'error')
+  }
+}
 const searchQuery = ref('')
 const sortField = ref<'name' | 'rating'>('name')
 const sortOrder = ref<'asc' | 'desc'>('asc')
@@ -250,11 +285,30 @@ async function copyEpisodeUrl(episode: any) {
       :show-actions="false"
       @close="closeDetails"
     >
+      <template #header-meta>
+        <div class="series-header-meta-row">
+          <span v-if="selectedSeries?.rating && parseFloat(selectedSeries.rating) > 0" class="rating-text-chip">
+            <IconStar style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;" />
+            <span>{{ parseFloat(selectedSeries.rating).toFixed(1) }}</span>
+          </span>
+          <button class="btn-fav" :class="{ favorited: !!selectedSeries?.is_favorite }" @click="handleToggleFavorite(selectedSeries!)">
+            <IconStar class="fav-icon" />
+            <span>{{ selectedSeries?.is_favorite ? 'Favorited' : 'Favorite' }}</span>
+          </button>
+        </div>
+      </template>
+
       <template #header-meta-mobile>
-        <span v-if="selectedSeries?.rating && parseFloat(selectedSeries.rating) > 0" class="rating-text-chip">
-          <IconStar style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;" />
-          <span>{{ parseFloat(selectedSeries.rating).toFixed(1) }}</span>
-        </span>
+        <div class="series-header-meta-row">
+          <span v-if="selectedSeries?.rating && parseFloat(selectedSeries.rating) > 0" class="rating-text-chip">
+            <IconStar style="width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 4px;" />
+            <span>{{ parseFloat(selectedSeries.rating).toFixed(1) }}</span>
+          </span>
+          <button class="btn-fav" :class="{ favorited: !!selectedSeries?.is_favorite }" @click="handleToggleFavorite(selectedSeries!)">
+            <IconStar class="fav-icon" />
+            <span>{{ selectedSeries?.is_favorite ? 'Favorited' : 'Favorite' }}</span>
+          </button>
+        </div>
       </template>
 
       <!-- Metadata info loading / loaded + Accordion episodes list -->
@@ -706,5 +760,48 @@ async function copyEpisodeUrl(episode: any) {
   font-style: italic;
   padding: var(--spacing-4);
   text-align: center;
+}
+
+.series-header-meta-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-2);
+}
+.btn-fav {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+}
+.btn-fav:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-text);
+}
+.btn-fav.favorited {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background-color: rgba(59, 130, 246, 0.1);
+}
+[data-theme='dark'] .btn-fav.favorited {
+  background-color: rgba(96, 165, 250, 0.1);
+}
+.btn-fav.favorited:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+[data-theme='dark'] .btn-fav.favorited:hover {
+  background-color: rgba(96, 165, 250, 0.2);
+}
+.fav-icon {
+  width: 12px;
+  height: 12px;
 }
 </style>
