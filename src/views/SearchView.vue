@@ -7,6 +7,8 @@ import { useToastStore } from '@/stores/toast.store'
 import { useProfileStore } from '@/stores/profile.store'
 import { useI18n } from '@/composables/useI18n'
 import { getSetting } from '@/lib/tauri-commands'
+import { checkIsDesktop } from '@/lib/device'
+import IconSearch from '@/components/icons/IconSearch.vue'
 
 import ChannelRow from '@/components/live/ChannelRow.vue'
 import MovieCard from '@/components/movies/MovieCard.vue'
@@ -124,6 +126,26 @@ async function handleToggleSeriesFavorite(series: Series) {
 const queryText = computed(() => (route.query.q as string) || '')
 const { data, isLoading } = useGlobalSearch(queryText)
 
+const isDesktop = computed(() => checkIsDesktop())
+const localSearchQuery = ref('')
+
+watch(
+  () => route.query.q,
+  (newQ) => {
+    localSearchQuery.value = (newQ as string) || ''
+  },
+  { immediate: true }
+)
+
+const router = useRouter()
+import { useRouter } from 'vue-router'
+
+function handleLocalSearch() {
+  const val = localSearchQuery.value.trim()
+  const targetQuery = val ? { q: val } : {}
+  router.replace({ name: 'search', query: targetQuery })
+}
+
 
 // Detail panel selection states
 const selectedLive = ref<LiveStream | null>(null)
@@ -222,7 +244,19 @@ function selectSeries(series: Series) {
   <div class="search-view-container">
     <div class="search-content">
       <header class="view-header">
-        <h1 class="view-title">{{ $t('search.title') }}</h1>
+       
+        <!-- Mobile Search Input Box -->
+        <div v-if="!isDesktop" class="mobile-search-wrapper">
+          <IconSearch class="mobile-search-icon" />
+          <input
+            v-model="localSearchQuery"
+            @input="handleLocalSearch"
+            type="text"
+            :placeholder="$t('sidebar.placeholder')"
+            class="mobile-search-input"
+          />
+        </div>
+
         <p v-if="queryText" class="search-meta">
           {{ $t('search.showingResults', { query: queryText }) }}
         </p>
@@ -368,6 +402,51 @@ function selectSeries(series: Series) {
   font-size: 0.95rem;
   color: var(--color-text-muted);
   margin: 0;
+}
+
+.mobile-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-top: var(--spacing-4);
+  margin-bottom: var(--spacing-2);
+}
+
+.mobile-search-icon {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.mobile-search-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 var(--spacing-3) 0 38px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.95rem;
+  outline: none;
+  transition: all var(--transition-fast) ease;
+}
+
+.mobile-search-input:focus {
+  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='light'] .mobile-search-input {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme='light'] .mobile-search-input:focus {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .query-highlight {

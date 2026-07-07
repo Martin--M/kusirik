@@ -3,10 +3,22 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSyncStore } from '@/stores/sync.store'
 import { useI18n } from '@/composables/useI18n'
+import { useRouter } from 'vue-router'
+import { checkIsAndroid } from '@/lib/device'
+import IconSearch from '../icons/IconSearch.vue'
 
 const route = useRoute()
+const router = useRouter()
 const syncStore = useSyncStore()
 const { t } = useI18n()
+
+const showSearchIcon = computed(() => {
+  return checkIsAndroid() && route.name !== 'search'
+})
+
+function goToSearch() {
+  router.push({ name: 'search' })
+}
 
 const title = computed(() => {
   switch (route.name) {
@@ -48,6 +60,15 @@ const currentSyncStatus = computed(() => {
     </div>
 
     <div class="status-section">
+      <button
+        v-if="showSearchIcon"
+        class="search-icon-btn mobile-only"
+        @click="goToSearch"
+        :title="$t('sidebar.search')"
+      >
+        <IconSearch class="search-icon" />
+      </button>
+
       <div v-if="isAnySyncing" class="sync-indicator">
         <span class="spinner-icon"></span>
         <span class="sync-text desktop-only">{{ currentSyncStatus }}</span>
@@ -119,5 +140,29 @@ const currentSyncStatus = computed(() => {
 
 .sync-text {
   text-transform: capitalize;
+}
+
+.search-icon-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.search-icon-btn:hover {
+  color: var(--color-text);
+  background-color: var(--color-surface-hover);
+}
+
+.search-icon {
+  width: 20px;
+  height: 20px;
 }
 </style>
