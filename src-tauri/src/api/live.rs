@@ -19,6 +19,8 @@ pub struct LiveStreamApi {
     pub added: Option<String>,
     #[serde(default)]
     pub is_favorite: Option<i32>,
+    #[serde(default)]
+    pub current_title: Option<String>,
 }
 
 pub async fn fetch_categories(client: &XtreamClient) -> Result<Vec<CategoryApi>> {
