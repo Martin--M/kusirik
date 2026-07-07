@@ -118,6 +118,7 @@
     }
   },
   "media": {
+    "liveTag": "LIVE",
     "allChannels": "All Channels",
     "uncategorized": "Uncategorized",
     "allMovies": "All Movies",

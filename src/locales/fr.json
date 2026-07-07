@@ -6,6 +6,7 @@
     "series": "Séries TV",
     "settings": "Paramètres",
     "search": "Recherche",
+    "favorites": "Favoris",
     "expand": "Développer le menu",
     "collapse": "Réduire le menu",
     "placeholder": "Rechercher..."
@@ -117,6 +118,7 @@
     }
   },
   "media": {
+    "liveTag": "DIRECT",
     "allChannels": "Toutes les chaînes",
     "uncategorized": "Sans catégorie",
     "allMovies": "Tous les films",
@@ -183,6 +185,14 @@
     "movieResults": "Films ({count})",
     "seriesResults": "Séries TV ({count})",
     "clickToPlay": "Cliquez sur Jouer pour visionner cette chaîne dans le lecteur multimédia configuré."
+  },
+  "favorites": {
+    "title": "Favoris",
+    "emptyState": "Aucun favori ajouté pour le moment",
+    "descEmpty": "Vous pouvez ajouter des chaînes, des films ou des séries à vos favoris depuis leur panneau de détails.",
+    "liveResults": "Chaînes en direct ({count})",
+    "movieResults": "Films ({count})",
+    "seriesResults": "Séries TV ({count})"
   }
 }
 

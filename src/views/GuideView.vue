@@ -616,7 +616,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
                 >
                   <div class="program-block-inner">
                     <div class="program-title-line">
-                      <span v-if="isCurrentProgram(entry.start, entry.stop)" class="live-tag">LIVE</span>
+                      <span v-if="isCurrentProgram(entry.start, entry.stop)" class="live-tag">{{ $t('media.liveTag') }}</span>
                       <span class="program-title" :title="entry.title || ''">{{ entry.title }}</span>
                     </div>
                     <span class="program-time">
