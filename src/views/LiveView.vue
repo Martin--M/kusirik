@@ -113,7 +113,8 @@ const filteredStreams = computed(() => {
     result = result.filter(
       (s) =>
         (s.name && s.name.toLowerCase().includes(query)) ||
-        (s.epg_channel_id && s.epg_channel_id.toLowerCase().includes(query))
+        (s.epg_channel_id && s.epg_channel_id.toLowerCase().includes(query)) ||
+        (s.current_title && s.current_title.toLowerCase().includes(query))
     )
   }
 
