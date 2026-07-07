@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rusqlite::Connection;
-use crate::api::live::LiveStreamApi;
+use crate::api::live::{LiveStreamApi, LiveStreamDto};
 use crate::api::common::CategoryApi;
 
 pub fn upsert_categories(conn: &mut Connection, profile_id: i64, categories: &[CategoryApi]) -> Result<()> {
@@ -59,7 +59,7 @@ pub fn query_streams(
     category_id: Option<&str>,
     offset: u32,
     limit: u32,
-) -> Result<Vec<LiveStreamApi>> {
+) -> Result<Vec<LiveStreamDto>> {
     let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let streams = match category_id {
         None | Some("all") => {
@@ -75,16 +75,18 @@ pub fn query_streams(
                  LIMIT ?2 OFFSET ?3",
             )?;
             let rows = stmt.query_map(rusqlite::params![profile_id, limit, offset, &now], |row| {
-                Ok(LiveStreamApi {
-                    stream_id: row.get(0)?,
-                    name: row.get(1)?,
-                    stream_icon: row.get(2)?,
-                    epg_channel_id: row.get(3)?,
-                    category_id: row.get(4)?,
-                    tv_archive: row.get(5)?,
-                    tv_archive_duration: row.get(6)?,
-                    added: row.get(7)?,
-                    is_favorite: row.get(8)?,
+                Ok(LiveStreamDto {
+                    stream: LiveStreamApi {
+                        stream_id: row.get(0)?,
+                        name: row.get(1)?,
+                        stream_icon: row.get(2)?,
+                        epg_channel_id: row.get(3)?,
+                        category_id: row.get(4)?,
+                        tv_archive: row.get(5)?,
+                        tv_archive_duration: row.get(6)?,
+                        added: row.get(7)?,
+                        is_favorite: row.get(8)?,
+                    },
                     current_title: row.get(9)?,
                 })
             })?;
@@ -107,16 +109,18 @@ pub fn query_streams(
                  LIMIT ?2 OFFSET ?3",
             )?;
             let rows = stmt.query_map(rusqlite::params![profile_id, limit, offset, &now], |row| {
-                Ok(LiveStreamApi {
-                    stream_id: row.get(0)?,
-                    name: row.get(1)?,
-                    stream_icon: row.get(2)?,
-                    epg_channel_id: row.get(3)?,
-                    category_id: row.get(4)?,
-                    tv_archive: row.get(5)?,
-                    tv_archive_duration: row.get(6)?,
-                    added: row.get(7)?,
-                    is_favorite: row.get(8)?,
+                Ok(LiveStreamDto {
+                    stream: LiveStreamApi {
+                        stream_id: row.get(0)?,
+                        name: row.get(1)?,
+                        stream_icon: row.get(2)?,
+                        epg_channel_id: row.get(3)?,
+                        category_id: row.get(4)?,
+                        tv_archive: row.get(5)?,
+                        tv_archive_duration: row.get(6)?,
+                        added: row.get(7)?,
+                        is_favorite: row.get(8)?,
+                    },
                     current_title: row.get(9)?,
                 })
             })?;
@@ -139,16 +143,18 @@ pub fn query_streams(
                  LIMIT ?3 OFFSET ?4",
             )?;
             let rows = stmt.query_map(rusqlite::params![profile_id, cat, limit, offset, &now], |row| {
-                Ok(LiveStreamApi {
-                    stream_id: row.get(0)?,
-                    name: row.get(1)?,
-                    stream_icon: row.get(2)?,
-                    epg_channel_id: row.get(3)?,
-                    category_id: row.get(4)?,
-                    tv_archive: row.get(5)?,
-                    tv_archive_duration: row.get(6)?,
-                    added: row.get(7)?,
-                    is_favorite: row.get(8)?,
+                Ok(LiveStreamDto {
+                    stream: LiveStreamApi {
+                        stream_id: row.get(0)?,
+                        name: row.get(1)?,
+                        stream_icon: row.get(2)?,
+                        epg_channel_id: row.get(3)?,
+                        category_id: row.get(4)?,
+                        tv_archive: row.get(5)?,
+                        tv_archive_duration: row.get(6)?,
+                        added: row.get(7)?,
+                        is_favorite: row.get(8)?,
+                    },
                     current_title: row.get(9)?,
                 })
             })?;
@@ -167,7 +173,7 @@ pub fn search_streams(
     profile_id: i64,
     query: &str,
     limit: u32,
-) -> Result<Vec<LiveStreamApi>> {
+) -> Result<Vec<LiveStreamDto>> {
     let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let mut stmt = conn.prepare_cached(
         "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite,
@@ -190,16 +196,18 @@ pub fn search_streams(
          LIMIT ?3",
     )?;
     let rows = stmt.query_map(rusqlite::params![profile_id, query, limit, &now], |row| {
-        Ok(LiveStreamApi {
-            stream_id: row.get(0)?,
-            name: row.get(1)?,
-            stream_icon: row.get(2)?,
-            epg_channel_id: row.get(3)?,
-            category_id: row.get(4)?,
-            tv_archive: row.get(5)?,
-            tv_archive_duration: row.get(6)?,
-            added: row.get(7)?,
-            is_favorite: row.get(8)?,
+        Ok(LiveStreamDto {
+            stream: LiveStreamApi {
+                stream_id: row.get(0)?,
+                name: row.get(1)?,
+                stream_icon: row.get(2)?,
+                epg_channel_id: row.get(3)?,
+                category_id: row.get(4)?,
+                tv_archive: row.get(5)?,
+                tv_archive_duration: row.get(6)?,
+                added: row.get(7)?,
+                is_favorite: row.get(8)?,
+            },
             current_title: row.get(9)?,
         })
     })?;

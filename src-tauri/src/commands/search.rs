@@ -1,13 +1,13 @@
 use tauri::State;
 use crate::db::DbConn;
-use crate::api::live::LiveStreamApi;
+use crate::api::live::LiveStreamDto;
 use crate::api::vod::VodStreamApi;
 use crate::api::series::SeriesApi;
 use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct SearchResults {
-    pub live: Vec<LiveStreamApi>,
+    pub live: Vec<LiveStreamDto>,
     pub vod: Vec<VodStreamApi>,
     pub series: Vec<SeriesApi>,
 }

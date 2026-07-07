@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, anyhow};
 use rusqlite::{Connection, OptionalExtension};
-use crate::api::live::LiveStreamApi;
+use crate::api::live::{LiveStreamApi, LiveStreamDto};
 use crate::api::vod::VodStreamApi;
 use crate::api::series::SeriesApi;
 use crate::commands::search::SearchResults;
@@ -46,30 +46,27 @@ pub fn toggle_favorite(
 }
 
 pub fn query_favorites(conn: &Connection, profile_id: i64) -> Result<SearchResults> {
-    let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     // 1. Live streams
     let mut live_stmt = conn.prepare(
-        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite,
-                (SELECT title FROM epg_entries
-                 WHERE epg_entries.profile_id = live_streams.profile_id
-                   AND epg_entries.channel_id = live_streams.epg_channel_id
-                   AND epg_entries.start <= ?2 AND epg_entries.stop > ?2 LIMIT 1) AS current_title
+        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite
          FROM live_streams
          WHERE profile_id = ?1 AND is_favorite = 1
          ORDER BY name ASC",
     )?;
-    let live_rows = live_stmt.query_map(rusqlite::params![profile_id, &now], |row| {
-        Ok(LiveStreamApi {
-            stream_id: row.get(0)?,
-            name: row.get(1)?,
-            stream_icon: row.get(2)?,
-            epg_channel_id: row.get(3)?,
-            category_id: row.get(4)?,
-            tv_archive: row.get(5)?,
-            tv_archive_duration: row.get(6)?,
-            added: row.get(7)?,
-            is_favorite: row.get(8)?,
-            current_title: row.get(9)?,
+    let live_rows = live_stmt.query_map(rusqlite::params![profile_id], |row| {
+        Ok(LiveStreamDto {
+            stream: LiveStreamApi {
+                stream_id: row.get(0)?,
+                name: row.get(1)?,
+                stream_icon: row.get(2)?,
+                epg_channel_id: row.get(3)?,
+                category_id: row.get(4)?,
+                tv_archive: row.get(5)?,
+                tv_archive_duration: row.get(6)?,
+                added: row.get(7)?,
+                is_favorite: row.get(8)?,
+            },
+            current_title: None,
         })
     })?;
     let mut live = Vec::new();

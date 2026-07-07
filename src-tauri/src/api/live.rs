@@ -19,7 +19,12 @@ pub struct LiveStreamApi {
     pub added: Option<String>,
     #[serde(default)]
     pub is_favorite: Option<i32>,
-    #[serde(default)]
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LiveStreamDto {
+    #[serde(flatten)]
+    pub stream: LiveStreamApi,
     pub current_title: Option<String>,
 }
 
