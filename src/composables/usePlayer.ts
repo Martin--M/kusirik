@@ -1,6 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
-import { launchPlayer, resolveStreamUrl, launchAndroidIntent, recordPlaybackHistory } from '@/lib/tauri-commands'
+import { launchPlayer, resolveStreamUrl, launchAndroidIntent, recordPlaybackHistory, getProfile } from '@/lib/tauri-commands'
 import { buildLiveUrl, buildMovieUrl, buildEpisodeUrl, buildCatchupUrl } from '@/lib/url-builder'
 import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
@@ -19,15 +19,15 @@ export function usePlayer() {
     return checkIsAndroid()
   })
 
-  async function startPlayback(url: string) {
+  async function startPlayback(url: string, profileId?: number) {
     try {
       if (isAndroid.value) {
         // Android requires resolving the final URL with the actual password and launching it via Intent
-        const finalUrl = await resolveStreamUrl(url)
+        const finalUrl = await resolveStreamUrl(url, profileId)
         await launchAndroidIntent(finalUrl)
       } else {
         // Desktop handles resolution and process spawning inside launch_player
-        await launchPlayer(url)
+        await launchPlayer(url, profileId)
       }
     } catch (e: any) {
       console.error('Playback launch failed:', e)
@@ -35,22 +35,30 @@ export function usePlayer() {
     }
   }
 
-  async function playLive(streamId: MaybeRefOrGetter<number>) {
-    if (!profileStore.profile) return
+  async function playLive(streamId: MaybeRefOrGetter<number>, profileId?: number) {
+    let profile = profileStore.profile
+    if (profileId && profileId !== profile?.id) {
+      try {
+        profile = await getProfile(profileId)
+      } catch (e) {
+        console.error('Failed to get profile for live playback:', e)
+      }
+    }
+    if (!profile) return
     const id = toValue(streamId)
     const url = buildLiveUrl(
       {
-        serverUrl: profileStore.profile.server_url,
-        username: profileStore.profile.username,
+        serverUrl: profile.server_url,
+        username: profile.username,
         password: '***',
       },
       id,
       settingsStore.liveFormat
     )
-    await startPlayback(url)
+    await startPlayback(url, profile.id)
     if (settingsStore.historyEnabled) {
       try {
-        await recordPlaybackHistory(profileStore.profile.id, 'live', id)
+        await recordPlaybackHistory(profile.id, 'live', id)
         queryClient.invalidateQueries({ queryKey: ['playback_history'] })
       } catch (e) {
         console.error('Failed to record live history:', e)
@@ -58,22 +66,34 @@ export function usePlayer() {
     }
   }
 
-  async function playMovie(streamId: MaybeRefOrGetter<number>, containerExtension: MaybeRefOrGetter<string>) {
-    if (!profileStore.profile) return
+  async function playMovie(
+    streamId: MaybeRefOrGetter<number>,
+    containerExtension: MaybeRefOrGetter<string>,
+    profileId?: number
+  ) {
+    let profile = profileStore.profile
+    if (profileId && profileId !== profile?.id) {
+      try {
+        profile = await getProfile(profileId)
+      } catch (e) {
+        console.error('Failed to get profile for movie playback:', e)
+      }
+    }
+    if (!profile) return
     const id = toValue(streamId)
     const url = buildMovieUrl(
       {
-        serverUrl: profileStore.profile.server_url,
-        username: profileStore.profile.username,
+        serverUrl: profile.server_url,
+        username: profile.username,
         password: '***',
       },
       id,
       toValue(containerExtension)
     )
-    await startPlayback(url)
+    await startPlayback(url, profile.id)
     if (settingsStore.historyEnabled) {
       try {
-        await recordPlaybackHistory(profileStore.profile.id, 'vod', id)
+        await recordPlaybackHistory(profile.id, 'vod', id)
         queryClient.invalidateQueries({ queryKey: ['playback_history'] })
       } catch (e) {
         console.error('Failed to record movie history:', e)
@@ -84,23 +104,32 @@ export function usePlayer() {
   async function playEpisode(
     streamId: MaybeRefOrGetter<number>,
     containerExtension: MaybeRefOrGetter<string>,
-    seriesId?: number
+    seriesId?: number,
+    profileId?: number
   ) {
-    if (!profileStore.profile) return
+    let profile = profileStore.profile
+    if (profileId && profileId !== profile?.id) {
+      try {
+        profile = await getProfile(profileId)
+      } catch (e) {
+        console.error('Failed to get profile for episode playback:', e)
+      }
+    }
+    if (!profile) return
     const id = toValue(streamId)
     const url = buildEpisodeUrl(
       {
-        serverUrl: profileStore.profile.server_url,
-        username: profileStore.profile.username,
+        serverUrl: profile.server_url,
+        username: profile.username,
         password: '***',
       },
       id,
       toValue(containerExtension)
     )
-    await startPlayback(url)
+    await startPlayback(url, profile.id)
     if (settingsStore.historyEnabled && seriesId) {
       try {
-        await recordPlaybackHistory(profileStore.profile.id, 'series', seriesId)
+        await recordPlaybackHistory(profile.id, 'series', seriesId)
         queryClient.invalidateQueries({ queryKey: ['playback_history'] })
       } catch (e) {
         console.error('Failed to record series history:', e)
@@ -108,23 +137,36 @@ export function usePlayer() {
     }
   }
 
-  async function playCatchup(streamId: MaybeRefOrGetter<number>, startDateTime: string, durationMinutes: number) {
-    if (!profileStore.profile) return
+  async function playCatchup(
+    streamId: MaybeRefOrGetter<number>,
+    startDateTime: string,
+    durationMinutes: number,
+    profileId?: number
+  ) {
+    let profile = profileStore.profile
+    if (profileId && profileId !== profile?.id) {
+      try {
+        profile = await getProfile(profileId)
+      } catch (e) {
+        console.error('Failed to get profile for catchup playback:', e)
+      }
+    }
+    if (!profile) return
     const id = toValue(streamId)
     const url = buildCatchupUrl(
       {
-        serverUrl: profileStore.profile.server_url,
-        username: profileStore.profile.username,
+        serverUrl: profile.server_url,
+        username: profile.username,
         password: '***',
       },
       id,
       startDateTime,
       durationMinutes
     )
-    await startPlayback(url)
+    await startPlayback(url, profile.id)
     if (settingsStore.historyEnabled) {
       try {
-        await recordPlaybackHistory(profileStore.profile.id, 'live', id)
+        await recordPlaybackHistory(profile.id, 'live', id)
         queryClient.invalidateQueries({ queryKey: ['playback_history'] })
       } catch (e) {
         console.error('Failed to record catchup history:', e)

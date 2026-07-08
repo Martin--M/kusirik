@@ -136,7 +136,7 @@ function selectChannel(stream: LiveStream) {
 }
 
 function handlePlay(stream: LiveStream) {
-  playLive(stream.stream_id)
+  playLive(stream.stream_id, stream.profile_id)
 }
 
 function closeDetails() {

@@ -144,7 +144,7 @@ function selectMovie(movie: VodStream) {
 }
 
 function handlePlay(movie: VodStream) {
-  playMovie(movie.stream_id, movie.container_extension || 'mp4')
+  playMovie(movie.stream_id, movie.container_extension || 'mp4', movie.profile_id)
 }
 
 function closeDetails() {

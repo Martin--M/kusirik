@@ -93,17 +93,17 @@ export const setSetting = (key: string, value: string) =>
 
 // ─── Player ──────────────────────────────────────────────────────────────────
 
-export const launchPlayer = (url: string) =>
-  invoke<void>('launch_player', { url })
+export const launchPlayer = (url: string, profileId?: number) =>
+  invoke<void>('launch_player', { url, profileId })
 
-export const resolveStreamUrl = (url: string) =>
-  invoke<string>('resolve_stream_url', { url })
+export const resolveStreamUrl = (url: string, profileId?: number) =>
+  invoke<string>('resolve_stream_url', { url, profileId })
 
 export const launchAndroidIntent = (url: string) =>
   invoke<void>('launch_android_intent', { url })
 
-export const validateStreamUrl = (url: string) =>
-  invoke<boolean>('validate_stream_url', { url })
+export const validateStreamUrl = (url: string, profileId?: number) =>
+  invoke<boolean>('validate_stream_url', { url, profileId })
 
 export const copyToSystemClipboard = async (text: string) => {
   if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {

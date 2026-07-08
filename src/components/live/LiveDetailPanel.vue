@@ -129,7 +129,7 @@ watch(pastPrograms, async (newPastPrograms) => {
     )
 
     const { validateStreamUrl } = await import('@/lib/tauri-commands')
-    const valid = await validateStreamUrl(url)
+    const valid = await validateStreamUrl(url, props.stream.profile_id)
 
     if (lastCheckStreamId === streamId) {
       isCatchupValid.value = valid
@@ -148,7 +148,7 @@ async function handlePlayCatchup(item: any) {
   if (!props.stream) return
   const startDateTime = formatUtcForCatchup(item.start, item.tz_offset)
   const duration = getDurationMinutes(item.start, item.stop)
-  await playCatchup(props.stream.stream_id, startDateTime, duration)
+  await playCatchup(props.stream.stream_id, startDateTime, duration, props.stream.profile_id)
 }
 
 async function copyCatchupUrl(item: any) {

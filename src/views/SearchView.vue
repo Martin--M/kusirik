@@ -174,11 +174,11 @@ function closeDetails() {
 }
 
 function handlePlayLive(stream: LiveStream) {
-  playLive(stream.stream_id)
+  playLive(stream.stream_id, stream.profile_id)
 }
 
 function handlePlayMovie(stream: VodStream) {
-  playMovie(stream.stream_id, stream.container_extension || 'mp4')
+  playMovie(stream.stream_id, stream.container_extension || 'mp4', stream.profile_id)
 }
 
 // Copy URLs fallback

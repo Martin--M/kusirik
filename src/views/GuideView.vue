@@ -405,11 +405,11 @@ const isPlayDisabled = computed(() => {
 function handlePlay() {
   if (!selectedChannel.value || !selectedProgram.value) return
   if (isCurrentProgram(selectedProgram.value.start, selectedProgram.value.stop)) {
-    playLive(selectedChannel.value.stream_id)
+    playLive(selectedChannel.value.stream_id, selectedChannel.value.profile_id)
   } else if (isPastProgram(selectedProgram.value.stop) && selectedChannel.value.tv_archive === 1) {
     const startDateTime = formatUtcForCatchup(selectedProgram.value.start, selectedProgram.value.tz_offset)
     const duration = getDurationMinutes(selectedProgram.value.start, selectedProgram.value.stop)
-    playCatchup(selectedChannel.value.stream_id, startDateTime, duration)
+    playCatchup(selectedChannel.value.stream_id, startDateTime, duration, selectedChannel.value.profile_id)
   }
 }
 

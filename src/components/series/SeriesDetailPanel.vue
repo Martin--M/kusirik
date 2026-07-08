@@ -70,7 +70,7 @@ function toggleSeason(seasonKey: string | number) {
 function handlePlayEpisode(episode: any) {
   const ext = episode.container_extension || 'mp4'
   const episodeStreamId = typeof episode.id === 'string' ? parseInt(episode.id, 10) : episode.id
-  playEpisode(episodeStreamId, ext, props.series?.series_id)
+  playEpisode(episodeStreamId, ext, props.series?.series_id, props.series?.profile_id)
 }
 
 async function copyEpisodeUrl(episode: any) {
