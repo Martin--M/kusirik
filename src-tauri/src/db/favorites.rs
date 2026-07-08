@@ -48,7 +48,7 @@ pub fn toggle_favorite(
 pub fn query_favorites(conn: &Connection, profile_id: i64) -> Result<SearchResults> {
     // 1. Live streams
     let mut live_stmt = conn.prepare(
-        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite
+        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id
          FROM live_streams
          WHERE profile_id = ?1 AND is_favorite = 1
          ORDER BY name ASC",
@@ -65,6 +65,7 @@ pub fn query_favorites(conn: &Connection, profile_id: i64) -> Result<SearchResul
                 tv_archive_duration: row.get(6)?,
                 added: row.get(7)?,
                 is_favorite: row.get(8)?,
+                profile_id: Some(row.get(9)?),
             },
             current_title: None,
         })
@@ -76,7 +77,7 @@ pub fn query_favorites(conn: &Connection, profile_id: i64) -> Result<SearchResul
 
     // 2. Vod streams
     let mut vod_stmt = conn.prepare(
-        "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite
+        "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite, profile_id
          FROM vod_streams
          WHERE profile_id = ?1 AND is_favorite = 1
          ORDER BY name ASC",
@@ -91,6 +92,7 @@ pub fn query_favorites(conn: &Connection, profile_id: i64) -> Result<SearchResul
             container_extension: row.get(5)?,
             added: row.get(6)?,
             is_favorite: row.get(7)?,
+            profile_id: Some(row.get(8)?),
         })
     })?;
     let mut vod = Vec::new();
@@ -100,7 +102,7 @@ pub fn query_favorites(conn: &Connection, profile_id: i64) -> Result<SearchResul
 
     // 3. Series
     let mut series_stmt = conn.prepare(
-        "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified, is_favorite
+        "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified, is_favorite, profile_id
          FROM series
          WHERE profile_id = ?1 AND is_favorite = 1
          ORDER BY name ASC",
@@ -119,6 +121,7 @@ pub fn query_favorites(conn: &Connection, profile_id: i64) -> Result<SearchResul
             release_date: row.get(9)?,
             last_modified: row.get(10)?,
             is_favorite: row.get(11)?,
+            profile_id: Some(row.get(12)?),
         })
     })?;
     let mut series = Vec::new();

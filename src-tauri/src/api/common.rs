@@ -6,4 +6,6 @@ pub struct CategoryApi {
     #[serde(default, deserialize_with = "deserialize_option_string")]
     pub category_id: Option<String>,
     pub category_name: String,
+    #[serde(default)]
+    pub profile_id: Option<i64>,
 }

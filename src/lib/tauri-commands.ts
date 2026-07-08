@@ -47,32 +47,32 @@ export const getSyncStatus = (profileId: number) =>
 
 // ─── Live ────────────────────────────────────────────────────────────────────
 
-export const getLiveCategories = (profileId: number) =>
+export const getLiveCategories = (profileId?: number | null) =>
   invoke<LiveCategory[]>('get_live_categories', { profileId })
 
-export const getLiveStreams = (profileId: number, categoryId?: string, offset = 0, limit = 100) =>
+export const getLiveStreams = (profileId?: number | null, categoryId?: string, offset = 0, limit = 100) =>
   invoke<LiveStream[]>('get_live_streams', { profileId, categoryId, offset, limit })
 
 // ─── VOD ─────────────────────────────────────────────────────────────────────
 
-export const getVodCategories = (profileId: number) =>
+export const getVodCategories = (profileId?: number | null) =>
   invoke<VodCategory[]>('get_vod_categories', { profileId })
 
-export const getVodStreams = (profileId: number, categoryId?: string, offset = 0, limit = 100) =>
+export const getVodStreams = (profileId?: number | null, categoryId?: string, offset = 0, limit = 100) =>
   invoke<VodStream[]>('get_vod_streams', { profileId, categoryId, offset, limit })
 
-export const getVodInfo = (profileId: number, streamId: number) =>
+export const getVodInfo = (profileId: number | null | undefined, streamId: number) =>
   invoke<any>('get_vod_info', { profileId, streamId })
 
 // ─── Series ──────────────────────────────────────────────────────────────────
 
-export const getSeriesCategories = (profileId: number) =>
+export const getSeriesCategories = (profileId?: number | null) =>
   invoke<SeriesCategory[]>('get_series_categories', { profileId })
 
-export const getSeriesList = (profileId: number, categoryId?: string, offset = 0, limit = 100) =>
+export const getSeriesList = (profileId?: number | null, categoryId?: string, offset = 0, limit = 100) =>
   invoke<Series[]>('get_series', { profileId, categoryId, offset, limit })
 
-export const getSeriesInfo = (profileId: number, seriesId: number) =>
+export const getSeriesInfo = (profileId: number | null | undefined, seriesId: number) =>
   invoke<any>('get_series_info', { profileId, seriesId })
 
 // ─── EPG ─────────────────────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ export interface SearchResults {
   series: Series[]
 }
 
-export const searchAllMedia = (profileId: number, query: string) =>
+export const searchAllMedia = (profileId: number | null | undefined, query: string) =>
   invoke<SearchResults>('search_all_media', { profileId, query })
 
 // ─── Favorites ───────────────────────────────────────────────────────────────

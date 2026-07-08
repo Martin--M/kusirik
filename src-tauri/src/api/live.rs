@@ -19,6 +19,8 @@ pub struct LiveStreamApi {
     pub added: Option<String>,
     #[serde(default)]
     pub is_favorite: Option<i32>,
+    #[serde(default)]
+    pub profile_id: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

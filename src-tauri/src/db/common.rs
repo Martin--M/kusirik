@@ -5,12 +5,12 @@ use crate::api::common::CategoryApi;
 pub fn query_categories_generic(
     conn: &Connection,
     table_name: &str,
-    profile_id: i64,
+    profile_id: Option<i64>,
 ) -> Result<Vec<CategoryApi>> {
     let sql = format!(
-        "SELECT category_id, category_name
+        "SELECT category_id, category_name, profile_id
          FROM {}
-         WHERE profile_id = ?1
+         WHERE (?1 IS NULL OR profile_id = ?1)
          ORDER BY category_name ASC",
         table_name
     );
@@ -20,6 +20,7 @@ pub fn query_categories_generic(
         Ok(CategoryApi {
             category_id: row.get(0)?,
             category_name: row.get(1)?,
+            profile_id: Some(row.get(2)?),
         })
     })?;
 

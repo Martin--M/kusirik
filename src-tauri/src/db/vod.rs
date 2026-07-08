@@ -75,26 +75,25 @@ pub fn get_vod_info(conn: &Connection, profile_id: i64, stream_id: i64) -> Resul
     }
 }
 
-pub fn query_categories(conn: &Connection, profile_id: i64) -> Result<Vec<CategoryApi>> {
+pub fn query_categories(conn: &Connection, profile_id: Option<i64>) -> Result<Vec<CategoryApi>> {
     crate::db::common::query_categories_generic(conn, "vod_categories", profile_id)
 }
 
 pub fn query_streams(
     conn: &Connection,
-    profile_id: i64,
+    profile_id: Option<i64>,
     category_id: Option<&str>,
     offset: u32,
     limit: u32,
 ) -> Result<Vec<VodStreamApi>> {
     let streams = match category_id {
         None | Some("all") => {
-            let mut stmt = conn.prepare(
-                "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite
-                 FROM vod_streams
-                 WHERE profile_id = ?1
-                 ORDER BY name ASC
-                 LIMIT ?2 OFFSET ?3",
-            )?;
+            let sql = "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite, profile_id
+                       FROM vod_streams
+                       WHERE (?1 IS NULL OR profile_id = ?1)
+                       ORDER BY name ASC
+                       LIMIT ?2 OFFSET ?3";
+            let mut stmt = conn.prepare(sql)?;
             let rows = stmt.query_map(rusqlite::params![profile_id, limit, offset], |row| {
                 Ok(VodStreamApi {
                     stream_id: row.get(0)?,
@@ -105,6 +104,7 @@ pub fn query_streams(
                     container_extension: row.get(5)?,
                     added: row.get(6)?,
                     is_favorite: row.get(7)?,
+                    profile_id: Some(row.get(8)?),
                 })
             })?;
             let mut res = Vec::new();
@@ -114,13 +114,12 @@ pub fn query_streams(
             res
         }
         Some("0") | Some("") | Some("uncategorized") => {
-            let mut stmt = conn.prepare(
-                "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite
-                 FROM vod_streams
-                 WHERE profile_id = ?1 AND (category_id = '0' OR category_id = '' OR category_id IS NULL)
-                 ORDER BY name ASC
-                 LIMIT ?2 OFFSET ?3",
-            )?;
+            let sql = "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite, profile_id
+                       FROM vod_streams
+                       WHERE (?1 IS NULL OR profile_id = ?1) AND (category_id = '0' OR category_id = '' OR category_id IS NULL)
+                       ORDER BY name ASC
+                       LIMIT ?2 OFFSET ?3";
+            let mut stmt = conn.prepare(sql)?;
             let rows = stmt.query_map(rusqlite::params![profile_id, limit, offset], |row| {
                 Ok(VodStreamApi {
                     stream_id: row.get(0)?,
@@ -131,6 +130,7 @@ pub fn query_streams(
                     container_extension: row.get(5)?,
                     added: row.get(6)?,
                     is_favorite: row.get(7)?,
+                    profile_id: Some(row.get(8)?),
                 })
             })?;
             let mut res = Vec::new();
@@ -140,13 +140,12 @@ pub fn query_streams(
             res
         }
         Some(cat_id) => {
-            let mut stmt = conn.prepare(
-                "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite
-                 FROM vod_streams
-                 WHERE profile_id = ?1 AND category_id = ?2
-                 ORDER BY name ASC
-                 LIMIT ?3 OFFSET ?4",
-            )?;
+            let sql = "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite, profile_id
+                       FROM vod_streams
+                       WHERE (?1 IS NULL OR profile_id = ?1) AND category_id = ?2
+                       ORDER BY name ASC
+                       LIMIT ?3 OFFSET ?4";
+            let mut stmt = conn.prepare(sql)?;
             let rows = stmt.query_map(rusqlite::params![profile_id, cat_id, limit, offset], |row| {
                 Ok(VodStreamApi {
                     stream_id: row.get(0)?,
@@ -157,6 +156,7 @@ pub fn query_streams(
                     container_extension: row.get(5)?,
                     added: row.get(6)?,
                     is_favorite: row.get(7)?,
+                    profile_id: Some(row.get(8)?),
                 })
             })?;
             let mut res = Vec::new();
@@ -171,17 +171,16 @@ pub fn query_streams(
 
 pub fn search_streams(
     conn: &Connection,
-    profile_id: i64,
+    profile_id: Option<i64>,
     query: &str,
     limit: u32,
 ) -> Result<Vec<VodStreamApi>> {
-    let mut stmt = conn.prepare_cached(
-        "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite
-         FROM vod_streams
-         WHERE profile_id = ?1 AND name LIKE ?2
-         ORDER BY name ASC
-         LIMIT ?3",
-    )?;
+    let sql = "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite, profile_id
+               FROM vod_streams
+               WHERE (?1 IS NULL OR profile_id = ?1) AND name LIKE ?2
+               ORDER BY name ASC
+               LIMIT ?3";
+    let mut stmt = conn.prepare_cached(sql)?;
     let rows = stmt.query_map(rusqlite::params![profile_id, query, limit], |row| {
         Ok(VodStreamApi {
             stream_id: row.get(0)?,
@@ -192,6 +191,7 @@ pub fn search_streams(
             container_extension: row.get(5)?,
             added: row.get(6)?,
             is_favorite: row.get(7)?,
+            profile_id: Some(row.get(8)?),
         })
     })?;
     let mut res = Vec::new();

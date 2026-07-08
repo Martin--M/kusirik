@@ -15,7 +15,7 @@ pub struct SearchResults {
 #[tauri::command]
 pub async fn search_all_media(
     state: State<'_, DbConn>,
-    profile_id: i64,
+    profile_id: Option<i64>,
     query: String,
 ) -> Result<SearchResults, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;

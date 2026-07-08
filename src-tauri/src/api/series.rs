@@ -7,6 +7,8 @@ pub struct SeriesCategoryApi {
     #[serde(default, deserialize_with = "deserialize_option_string")]
     pub category_id: Option<String>,
     pub category_name: String,
+    #[serde(default)]
+    pub profile_id: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -28,6 +30,8 @@ pub struct SeriesApi {
     pub last_modified: Option<String>,
     #[serde(default)]
     pub is_favorite: Option<i32>,
+    #[serde(default)]
+    pub profile_id: Option<i64>,
 }
 
 pub async fn fetch_categories(client: &XtreamClient) -> Result<Vec<SeriesCategoryApi>> {
