@@ -136,3 +136,17 @@ export const toggleFavorite = (profileId: number, mediaType: 'live' | 'vod' | 's
 export const getFavorites = (profileId: number) =>
   invoke<SearchResults>('get_favorites', { profileId })
 
+// ─── Playback History ─────────────────────────────────────────────────────────
+
+export const recordPlaybackHistory = (profileId: number, mediaType: 'live' | 'vod' | 'series', streamId: number) =>
+  invoke<void>('record_playback_history', { profileId, mediaType, streamId })
+
+export const getPlaybackHistory = (profileId: number) =>
+  invoke<SearchResults>('get_playback_history', { profileId })
+
+export const removeFromPlaybackHistory = (profileId: number, mediaType: 'live' | 'vod' | 'series', streamId: number) =>
+  invoke<void>('remove_from_playback_history', { profileId, mediaType, streamId })
+
+export const clearPlaybackHistory = (profileId: number) =>
+  invoke<void>('clear_playback_history', { profileId })
+
