@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { testConnection, saveProfile, triggerSync, getSyncStatus, getSetting } from '@/lib/tauri-commands'
-import { useProfileStore } from '@/stores/profile.store'
+import { useProfileStore, PROFILE_ID } from '@/stores/profile.store'
 import { useSyncStore } from '@/stores/sync.store'
 import { useI18n } from '@/composables/useI18n'
 import type { DataType } from '@/types/sync'
@@ -108,7 +108,7 @@ async function handleSave() {
     syncStore.reset()
     isSyncing.value = true
     syncError.value = null
-    await triggerSync('live_streams')
+    await triggerSync(profile.id, 'live_streams')
     isSaving.value = false
   } catch (err) {
     saveError.value = String(err)
@@ -129,7 +129,7 @@ onMounted(async () => {
     }
 
     try {
-      const statuses = await getSyncStatus()
+      const statuses = await getSyncStatus(PROFILE_ID)
       const live = statuses.find((s) => s.data_type === 'live_streams')
       const vod = statuses.find((s) => s.data_type === 'vod_streams')
       const series = statuses.find((s) => s.data_type === 'series')
@@ -160,7 +160,7 @@ onMounted(async () => {
         // Auto-trigger sync to resume/retry
         isSyncing.value = true
         syncError.value = null
-        await triggerSync('live_streams')
+        await triggerSync(PROFILE_ID, 'live_streams')
       }
     } catch (e) {
       console.error("Failed to check sync status on mount:", e)

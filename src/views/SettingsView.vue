@@ -106,7 +106,7 @@ async function handleSyncAll() {
 
   toastStore.showToast(t('settings.sync.starting'), 'success')
   try {
-    await triggerSync('live_streams')
+    await triggerSync(PROFILE_ID, 'live_streams', true)
   } catch (err) {
     toastStore.showToast(t('settings.sync.failed', { error: String(err) }), 'error')
   }
@@ -154,7 +154,7 @@ onMounted(async () => {
   playerAndroidInput.value = settingsStore.playerAndroid
 
   try {
-    const statuses = await getSyncStatus()
+    const statuses = await getSyncStatus(PROFILE_ID)
     for (const s of statuses) {
       if (s.fetched_at && s.item_count !== null) {
         syncStore.onDone(s.data_type as DataType, s.item_count, s.fetched_at)

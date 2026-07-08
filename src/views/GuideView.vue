@@ -98,7 +98,7 @@ let timer: any = null
 onMounted(async () => {
   // Capture initial fetched_at
   try {
-    const statuses = await getSyncStatus()
+    const statuses = await getSyncStatus(PROFILE_ID)
     const epgStatus = statuses.find(s => s.data_type === 'epg')
     if (epgStatus) {
       lastEpgFetchedAt.value = epgStatus.fetched_at
@@ -112,7 +112,7 @@ onMounted(async () => {
     
     // Check if new EPG dataset has been fetched
     try {
-      const statuses = await getSyncStatus()
+      const statuses = await getSyncStatus(PROFILE_ID)
       const epgStatus = statuses.find(s => s.data_type === 'epg')
       if (epgStatus && epgStatus.fetched_at !== lastEpgFetchedAt.value) {
         lastEpgFetchedAt.value = epgStatus.fetched_at
