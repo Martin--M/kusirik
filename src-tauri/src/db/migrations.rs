@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 
 /// Current schema version. Bump this when adding a new migration.
-const CURRENT_VERSION: u32 = 4;
+const CURRENT_VERSION: u32 = 5;
 
 pub fn run(conn: &Connection) -> Result<()> {
     let current_version: u32 = conn
@@ -39,11 +39,30 @@ pub fn run(conn: &Connection) -> Result<()> {
         migration_v4(conn).context("Migration v4 failed")?;
     }
 
+    if current_version < 5 {
+        migration_v5(conn).context("Migration v5 failed")?;
+    }
+
     // Update schema version
     conn.execute_batch(&format!("PRAGMA user_version = {CURRENT_VERSION}"))
         .context("Failed to update user_version")?;
 
     tracing::info!("Migrations complete (schema v{CURRENT_VERSION})");
+    Ok(())
+}
+
+fn migration_v5(conn: &Connection) -> Result<()> {
+    tracing::info!("Applying migration v5 — playback_history table");
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS playback_history (
+            profile_id  INTEGER NOT NULL,
+            media_type  TEXT NOT NULL,
+            stream_id   INTEGER NOT NULL,
+            played_at   TEXT NOT NULL,
+            PRIMARY KEY (profile_id, media_type, stream_id)
+         );
+         CREATE INDEX IF NOT EXISTS idx_playback_history_played ON playback_history(profile_id, played_at);"
+    ).context("Failed to create playback_history table")?;
     Ok(())
 }
 
