@@ -218,12 +218,6 @@ function selectSeries(series: Series) {
 <template>
   <div class="search-view-container">
     <div class="search-content">
-      <header class="view-header">
-        <div class="header-title-row">
-          <h2 class="view-title">{{ $t('history.title') }}</h2>
-        </div>
-      </header>
-
       <!-- Loading State -->
       <div v-if="isLoading" class="search-loading-state">
         <span class="spinner"></span>

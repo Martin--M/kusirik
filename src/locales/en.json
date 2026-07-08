@@ -196,7 +196,6 @@
     "seriesResults": "TV Series ({count})"
   },
   "history": {
-    "title": "Playback History",
     "emptyState": "No playback history yet",
     "descEmpty": "Everything you stream (Live TV, movies, or series) will be saved in your playback history.",
     "liveResults": "Recently Watched Live Channels ({count})",
@@ -206,4 +205,3 @@
     "clearSuccess": "Playback history cleared successfully"
   }
 }
-

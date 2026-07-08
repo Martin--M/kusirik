@@ -196,7 +196,6 @@
     "seriesResults": "Séries TV ({count})"
   },
   "history": {
-    "title": "Historique de lecture",
     "emptyState": "Aucun historique de lecture",
     "descEmpty": "Tout ce que vous visionnez (TV en direct, films ou séries) sera enregistré dans votre historique.",
     "liveResults": "Chaînes en direct regardées récemment ({count})",
@@ -206,4 +205,3 @@
     "clearSuccess": "Historique de lecture effacé avec succès"
   }
 }
-
