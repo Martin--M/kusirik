@@ -2,29 +2,56 @@ use tauri::State;
 use crate::db::DbConn;
 
 #[tauri::command]
-pub fn resolve_stream_url(state: State<'_, DbConn>, url: String) -> Result<String, String> {
+pub fn resolve_stream_url(
+    state: State<'_, DbConn>,
+    url: String,
+    profile_id: Option<i64>,
+) -> Result<String, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    let password = crate::db::settings::get(&conn, "password")
-        .map_err(|e| e.to_string())?
-        .unwrap_or_default();
+    let password = if let Some(pid) = profile_id {
+        match crate::db::profile::get(&conn, pid) {
+            Ok(Some(p)) => p.password,
+            _ => crate::db::settings::get(&conn, "password")
+                .map_err(|e| e.to_string())?
+                .unwrap_or_default(),
+        }
+    } else {
+        crate::db::settings::get(&conn, "password")
+            .map_err(|e| e.to_string())?
+            .unwrap_or_default()
+    };
     Ok(url.replace("***", &password))
 }
 
 #[tauri::command]
-pub fn launch_player(state: State<'_, DbConn>, url: String) -> Result<(), String> {
+pub fn launch_player(
+    state: State<'_, DbConn>,
+    url: String,
+    profile_id: Option<i64>,
+) -> Result<(), String> {
     #[cfg(target_os = "android")]
     {
         let _ = state;
         let _ = url;
+        let _ = profile_id;
         Err("On Android, launch_player should be handled via the native IntentPlugin.".to_string())
     }
 
     #[cfg(not(target_os = "android"))]
     {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
-        let password = crate::db::settings::get(&conn, "password")
-            .map_err(|e| e.to_string())?
-            .unwrap_or_default();
+        let password = if let Some(pid) = profile_id {
+            match crate::db::profile::get(&conn, pid) {
+                Ok(Some(p)) => p.password,
+                _ => crate::db::settings::get(&conn, "password")
+                    .map_err(|e| e.to_string())?
+                    .unwrap_or_default(),
+            }
+        } else {
+            crate::db::settings::get(&conn, "password")
+                .map_err(|e| e.to_string())?
+                .unwrap_or_default()
+        };
         let final_url = url.replace("***", &password);
         use std::process::Command;
 
@@ -168,12 +195,25 @@ pub fn launch_android_intent(
 }
 
 #[tauri::command]
-pub async fn validate_stream_url(state: State<'_, DbConn>, url: String) -> Result<bool, String> {
+pub async fn validate_stream_url(
+    state: State<'_, DbConn>,
+    url: String,
+    profile_id: Option<i64>,
+) -> Result<bool, String> {
     let password = {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
-        crate::db::settings::get(&conn, "password")
-            .map_err(|e| e.to_string())?
-            .unwrap_or_default()
+        if let Some(pid) = profile_id {
+            match crate::db::profile::get(&conn, pid) {
+                Ok(Some(p)) => p.password,
+                _ => crate::db::settings::get(&conn, "password")
+                    .map_err(|e| e.to_string())?
+                    .unwrap_or_default(),
+            }
+        } else {
+            crate::db::settings::get(&conn, "password")
+                .map_err(|e| e.to_string())?
+                .unwrap_or_default()
+        }
     };
     let final_url = url.replace("***", &password);
 

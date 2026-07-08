@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 
 /// Current schema version. Bump this when adding a new migration.
-const CURRENT_VERSION: u32 = 5;
+const CURRENT_VERSION: u32 = 6;
 
 pub fn run(conn: &Connection) -> Result<()> {
     let current_version: u32 = conn
@@ -43,11 +43,24 @@ pub fn run(conn: &Connection) -> Result<()> {
         migration_v5(conn).context("Migration v5 failed")?;
     }
 
+    if current_version < 6 {
+        migration_v6(conn).context("Migration v6 failed")?;
+    }
+
     // Update schema version
     conn.execute_batch(&format!("PRAGMA user_version = {CURRENT_VERSION}"))
         .context("Failed to update user_version")?;
 
     tracing::info!("Migrations complete (schema v{CURRENT_VERSION})");
+    Ok(())
+}
+
+fn migration_v6(conn: &Connection) -> Result<()> {
+    tracing::info!("Applying migration v6 — password column in profiles");
+    // Add password column with default empty string.
+    conn.execute_batch(
+        "ALTER TABLE profiles ADD COLUMN password TEXT NOT NULL DEFAULT '';"
+    ).context("Failed to add password column to profiles")?;
     Ok(())
 }
 

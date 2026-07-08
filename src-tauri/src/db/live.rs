@@ -71,7 +71,7 @@ pub fn query_streams(
                       (SELECT title FROM epg_entries
                        WHERE epg_entries.profile_id = live_streams.profile_id
                          AND epg_entries.channel_id = live_streams.epg_channel_id
-                         AND epg_entries.start <= ?5 AND epg_entries.stop > ?5 LIMIT 1) AS current_title
+                         AND epg_entries.start <= ?6 AND epg_entries.stop > ?6 LIMIT 1) AS current_title
                FROM live_streams
                WHERE (?1 IS NULL OR profile_id = ?1)
                  AND (

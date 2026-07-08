@@ -47,6 +47,7 @@ pub async fn save_profile(
         name: payload.name.clone(),
         server_url: payload.server_url.clone(),
         username: payload.username.clone(),
+        password: payload.password.clone().unwrap_or_default(),
         epg_mode: epg_mode.clone(),
         created_at: created_at.clone(),
     };
@@ -75,6 +76,7 @@ pub async fn save_profile(
         "name": payload.name,
         "server_url": payload.server_url,
         "username": payload.username,
+        "password": payload.password.clone().unwrap_or_default(),
         "epg_mode": epg_mode,
         "created_at": created_at,
     }))
@@ -94,6 +96,7 @@ pub fn get_profile(
             "name": p.name,
             "server_url": p.server_url,
             "username": p.username,
+            "password": p.password,
             "epg_mode": p.epg_mode,
             "created_at": p.created_at,
         }))),
