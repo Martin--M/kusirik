@@ -4,15 +4,18 @@ import type { Series } from '@/types/series'
 import CachedImage from '@/components/ui/CachedImage.vue'
 import IconStar from '@/components/icons/IconStar.vue'
 import IconEye from '@/components/icons/IconEye.vue'
+import IconClose from '@/components/icons/IconClose.vue'
 
 const props = defineProps<{
   series: Series
   isSelected: boolean
+  showDelete?: boolean
 }>()
 
 defineEmits<{
   (e: 'select', series: Series): void
   (e: 'play', series: Series): void
+  (e: 'delete'): void
 }>()
 
 // Extract year from series name (e.g. "Series Name (2020)") or use release_date
@@ -54,6 +57,14 @@ const displayRating = computed(() => {
         :alt="series.name || 'Series'"
         :fallback-text="cleanTitle"
       />
+      <button
+        v-if="showDelete"
+        class="delete-btn"
+        @click.stop="$emit('delete')"
+        title="Remove from history"
+      >
+        <IconClose class="delete-icon" />
+      </button>
       <div v-if="series.is_favorite === 1" class="favorite-badge" title="Favorited">
         <IconStar class="star-icon" />
       </div>
@@ -218,5 +229,39 @@ const displayRating = computed(() => {
 
 [data-theme='light'] .series-card:hover {
   background-color: rgba(0, 0, 0, 0.03);
+}
+
+.delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: rgba(239, 68, 68, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  z-index: 3;
+  cursor: pointer;
+  opacity: 0;
+  transition: all var(--transition-fast) ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.series-card:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  background-color: rgb(220, 38, 38);
+  transform: scale(1.1);
+}
+
+.delete-icon {
+  width: 14px;
+  height: 14px;
 }
 </style>

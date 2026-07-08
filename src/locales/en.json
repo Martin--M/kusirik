@@ -7,6 +7,7 @@
     "settings": "Settings",
     "search": "Search",
     "favorites": "Favorites",
+    "history": "History",
     "expand": "Expand Sidebar",
     "collapse": "Collapse Sidebar",
     "placeholder": "Search..."
@@ -193,6 +194,16 @@
     "liveResults": "Live Channels ({count})",
     "movieResults": "VOD Movies ({count})",
     "seriesResults": "TV Series ({count})"
+  },
+  "history": {
+    "title": "Playback History",
+    "emptyState": "No playback history yet",
+    "descEmpty": "Everything you stream (Live TV, movies, or series) will be saved in your playback history.",
+    "liveResults": "Recently Watched Live Channels ({count})",
+    "movieResults": "Recently Watched VOD Movies ({count})",
+    "seriesResults": "Recently Watched TV Series ({count})",
+    "clearHistory": "Clear History",
+    "clearSuccess": "Playback history cleared successfully"
   }
 }
 

@@ -34,6 +34,8 @@ const title = computed(() => {
       return t('sidebar.search')
     case 'favorites':
       return t('sidebar.favorites')
+    case 'history':
+      return t('sidebar.history')
     default:
       return 'Kusirik'
   }

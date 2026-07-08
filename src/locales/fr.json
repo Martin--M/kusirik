@@ -7,6 +7,7 @@
     "settings": "Paramètres",
     "search": "Recherche",
     "favorites": "Favoris",
+    "history": "Historique",
     "expand": "Développer le menu",
     "collapse": "Réduire le menu",
     "placeholder": "Rechercher..."
@@ -193,6 +194,16 @@
     "liveResults": "Chaînes en direct ({count})",
     "movieResults": "Films ({count})",
     "seriesResults": "Séries TV ({count})"
+  },
+  "history": {
+    "title": "Historique de lecture",
+    "emptyState": "Aucun historique de lecture",
+    "descEmpty": "Tout ce que vous visionnez (TV en direct, films ou séries) sera enregistré dans votre historique.",
+    "liveResults": "Chaînes en direct regardées récemment ({count})",
+    "movieResults": "Films regardés récemment ({count})",
+    "seriesResults": "Séries TV regardées récemment ({count})",
+    "clearHistory": "Effacer l'historique",
+    "clearSuccess": "Historique de lecture effacé avec succès"
   }
 }
 

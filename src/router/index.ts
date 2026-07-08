@@ -53,6 +53,12 @@ const router = createRouter({
       meta: { requiresProfile: true },
     },
     {
+      path: '/history',
+      name: 'history',
+      component: () => import('@/views/HistoryView.vue'),
+      meta: { requiresProfile: true },
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('@/views/SettingsView.vue'),

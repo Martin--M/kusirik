@@ -5,17 +5,20 @@ import CachedImage from '@/components/ui/CachedImage.vue'
 import IconClock from '@/components/icons/IconClock.vue'
 import IconPlay from '@/components/icons/IconPlay.vue'
 import IconStar from '@/components/icons/IconStar.vue'
+import IconClose from '@/components/icons/IconClose.vue'
 import { useEpg, globalNow } from '@/composables/useEpg'
 
 const props = defineProps<{
   stream: LiveStream
   isSelected: boolean
   index: number
+  showDelete?: boolean
 }>()
 
 defineEmits<{
   (e: 'select', stream: LiveStream): void
   (e: 'play', stream: LiveStream): void
+  (e: 'delete'): void
 }>()
 
 // Fetch EPG — narrow window: 1h back, 1h forward (captures current programme)
@@ -84,6 +87,9 @@ const progress = computed(() => {
     </div>
 
     <div class="action-cell">
+      <button v-if="showDelete" class="delete-row-btn" @click.stop="$emit('delete')" title="Remove from history">
+        <IconClose class="delete-row-icon" />
+      </button>
       <button class="play-btn" @click.stop="$emit('play', stream)" :title="$t('media.play')">
         <IconPlay class="play-icon" />
       </button>
@@ -238,6 +244,8 @@ const progress = computed(() => {
 .action-cell {
   opacity: 0;
   transition: opacity var(--transition-fast);
+  display: flex;
+  align-items: center;
 }
 
 .channel-row:hover .action-cell,
@@ -269,5 +277,30 @@ const progress = computed(() => {
   width: 14px;
   height: 14px;
   margin-left: 2px;
+}
+
+.delete-row-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-right: var(--spacing-2);
+}
+
+.delete-row-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+  transform: scale(1.05);
+}
+
+.delete-row-icon {
+  width: 14px;
+  height: 14px;
 }
 </style>

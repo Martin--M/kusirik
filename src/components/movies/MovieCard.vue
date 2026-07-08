@@ -4,15 +4,18 @@ import type { VodStream } from '@/types/vod'
 import CachedImage from '@/components/ui/CachedImage.vue'
 import IconStar from '@/components/icons/IconStar.vue'
 import IconPlay from '@/components/icons/IconPlay.vue'
+import IconClose from '@/components/icons/IconClose.vue'
 
 const props = defineProps<{
   movie: VodStream
   isSelected: boolean
+  showDelete?: boolean
 }>()
 
 defineEmits<{
   (e: 'select', movie: VodStream): void
   (e: 'play', movie: VodStream): void
+  (e: 'delete'): void
 }>()
 
 // Extract year from movie title like "Movie Name (2020)"
@@ -48,6 +51,14 @@ const displayRating = computed(() => {
         :alt="movie.name || 'Movie'"
         :fallback-text="cleanTitle"
       />
+      <button
+        v-if="showDelete"
+        class="delete-btn"
+        @click.stop="$emit('delete')"
+        title="Remove from history"
+      >
+        <IconClose class="delete-icon" />
+      </button>
       <div v-if="movie.is_favorite === 1" class="favorite-badge" title="Favorited">
         <IconStar class="star-icon" />
       </div>
@@ -213,5 +224,39 @@ const displayRating = computed(() => {
 
 [data-theme='light'] .movie-card:hover {
   background-color: rgba(0, 0, 0, 0.03);
+}
+
+.delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: rgba(239, 68, 68, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  z-index: 3;
+  cursor: pointer;
+  opacity: 0;
+  transition: all var(--transition-fast) ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.movie-card:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  background-color: rgb(220, 38, 38);
+  transform: scale(1.1);
+}
+
+.delete-icon {
+  width: 14px;
+  height: 14px;
 }
 </style>
