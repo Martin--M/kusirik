@@ -48,11 +48,13 @@ export function usePlayer() {
       settingsStore.liveFormat
     )
     await startPlayback(url)
-    try {
-      await recordPlaybackHistory(profileStore.profile.id, 'live', id)
-      queryClient.invalidateQueries({ queryKey: ['playback_history'] })
-    } catch (e) {
-      console.error('Failed to record live history:', e)
+    if (settingsStore.historyEnabled) {
+      try {
+        await recordPlaybackHistory(profileStore.profile.id, 'live', id)
+        queryClient.invalidateQueries({ queryKey: ['playback_history'] })
+      } catch (e) {
+        console.error('Failed to record live history:', e)
+      }
     }
   }
 
@@ -69,11 +71,13 @@ export function usePlayer() {
       toValue(containerExtension)
     )
     await startPlayback(url)
-    try {
-      await recordPlaybackHistory(profileStore.profile.id, 'vod', id)
-      queryClient.invalidateQueries({ queryKey: ['playback_history'] })
-    } catch (e) {
-      console.error('Failed to record movie history:', e)
+    if (settingsStore.historyEnabled) {
+      try {
+        await recordPlaybackHistory(profileStore.profile.id, 'vod', id)
+        queryClient.invalidateQueries({ queryKey: ['playback_history'] })
+      } catch (e) {
+        console.error('Failed to record movie history:', e)
+      }
     }
   }
 
@@ -94,7 +98,7 @@ export function usePlayer() {
       toValue(containerExtension)
     )
     await startPlayback(url)
-    if (seriesId) {
+    if (settingsStore.historyEnabled && seriesId) {
       try {
         await recordPlaybackHistory(profileStore.profile.id, 'series', seriesId)
         queryClient.invalidateQueries({ queryKey: ['playback_history'] })
@@ -118,11 +122,13 @@ export function usePlayer() {
       durationMinutes
     )
     await startPlayback(url)
-    try {
-      await recordPlaybackHistory(profileStore.profile.id, 'live', id)
-      queryClient.invalidateQueries({ queryKey: ['playback_history'] })
-    } catch (e) {
-      console.error('Failed to record catchup history:', e)
+    if (settingsStore.historyEnabled) {
+      try {
+        await recordPlaybackHistory(profileStore.profile.id, 'live', id)
+        queryClient.invalidateQueries({ queryKey: ['playback_history'] })
+      } catch (e) {
+        console.error('Failed to record catchup history:', e)
+      }
     }
   }
 

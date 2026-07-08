@@ -79,6 +79,9 @@
       "dark": "Dark",
       "light": "Light",
       "language": "Language",
+      "history": "Playback History",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
       "formatOverride": "Live Stream Format Override",
       "formatOptions": {
         "auto": "Default (Auto-detect)",

@@ -299,6 +299,26 @@ onMounted(async () => {
           </div>
 
           <div class="form-group">
+            <label>{{ $t('settings.preferences.history') }}</label>
+            <div class="theme-toggle-group">
+              <button 
+                class="theme-btn" 
+                :class="{ active: settingsStore.historyEnabled }"
+                @click="settingsStore.setHistoryEnabled(true)"
+              >
+                {{ $t('settings.preferences.enabled') }}
+              </button>
+              <button 
+                class="theme-btn" 
+                :class="{ active: !settingsStore.historyEnabled }"
+                @click="settingsStore.setHistoryEnabled(false)"
+              >
+                {{ $t('settings.preferences.disabled') }}
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
             <label>{{ $t('settings.preferences.formatOverride') }}</label>
             <CustomSelect
               v-model="selectedFormat"

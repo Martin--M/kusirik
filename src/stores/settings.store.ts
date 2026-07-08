@@ -15,6 +15,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const liveFormatOverride = ref<StreamFormat | null>(null)
   const sidebarCollapsed = ref(false)
   const language = ref<string>('en')
+  const historyEnabled = ref(true)
 
   const liveFormat = computed(() =>
     pickLiveFormat(allowedFormats.value, liveFormatOverride.value)
@@ -27,19 +28,23 @@ export const useSettingsStore = defineStore('settings', () => {
       sidebarCollapsed.value = storedSidebar === 'true'
     }
     try {
-      const [themeVal, playerWin, playerAnd, fmtsJson, overrideVal, langVal] = await Promise.all([
+      const [themeVal, playerWin, playerAnd, fmtsJson, overrideVal, langVal, historyEnabledVal] = await Promise.all([
         getSetting('theme'),
         getSetting('player_windows'),
         getSetting('player_android'),
         getSetting('allowed_formats'),
         getSetting('live_format_override'),
         getSetting('language'),
+        getSetting('history_enabled'),
       ])
       if (themeVal) theme.value = themeVal as Theme
       if (playerWin) playerWindows.value = playerWin
       if (playerAnd) playerAndroid.value = playerAnd
       if (fmtsJson) allowedFormats.value = JSON.parse(fmtsJson) as StreamFormat[]
       if (overrideVal) liveFormatOverride.value = overrideVal
+      if (historyEnabledVal !== null && historyEnabledVal !== undefined) {
+        historyEnabled.value = historyEnabledVal !== 'false'
+      }
       
       // Load language preference, fallback to system locale detection
       const activeLang = langVal || (navigator.language.startsWith('fr') ? 'fr' : 'en')
@@ -84,6 +89,11 @@ export const useSettingsStore = defineStore('settings', () => {
     setLocale(lang)
   }
 
+  async function setHistoryEnabled(enabled: boolean) {
+    historyEnabled.value = enabled
+    await setSetting('history_enabled', enabled ? 'true' : 'false')
+  }
+
   function applyTheme() {
     document.documentElement.setAttribute('data-theme', theme.value)
   }
@@ -102,6 +112,7 @@ export const useSettingsStore = defineStore('settings', () => {
     liveFormat,
     sidebarCollapsed,
     language,
+    historyEnabled,
     load,
     setTheme,
     setPlayerWindows,
@@ -109,6 +120,7 @@ export const useSettingsStore = defineStore('settings', () => {
     setAllowedFormats,
     setLiveFormatOverride,
     setLanguage,
+    setHistoryEnabled,
     applyTheme,
     toggleSidebar,
   }

@@ -79,6 +79,9 @@
       "dark": "Sombre",
       "light": "Clair",
       "language": "Langue",
+      "history": "Historique de lecture",
+      "enabled": "Activé",
+      "disabled": "Désactivé",
       "formatOverride": "Forcer le format du flux en direct",
       "formatOptions": {
         "auto": "Par défaut (Auto-détection)",
