@@ -61,111 +61,51 @@ pub fn query_streams(
     limit: u32,
 ) -> Result<Vec<LiveStreamDto>> {
     let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-    let streams = match category_id {
-        None | Some("all") => {
-            let sql = "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id,
-                              (SELECT title FROM epg_entries
-                               WHERE epg_entries.profile_id = live_streams.profile_id
-                                 AND epg_entries.channel_id = live_streams.epg_channel_id
-                                 AND epg_entries.start <= ?4 AND epg_entries.stop > ?4 LIMIT 1) AS current_title
-                       FROM live_streams
-                       WHERE (?1 IS NULL OR profile_id = ?1)
-                       ORDER BY name ASC
-                       LIMIT ?2 OFFSET ?3";
-            let mut stmt = conn.prepare(sql)?;
-            let rows = stmt.query_map(rusqlite::params![profile_id, limit, offset, &now], |row| {
-                Ok(LiveStreamDto {
-                    stream: LiveStreamApi {
-                        stream_id: row.get(0)?,
-                        name: row.get(1)?,
-                        stream_icon: row.get(2)?,
-                        epg_channel_id: row.get(3)?,
-                        category_id: row.get(4)?,
-                        tv_archive: row.get(5)?,
-                        tv_archive_duration: row.get(6)?,
-                        added: row.get(7)?,
-                        is_favorite: row.get(8)?,
-                        profile_id: Some(row.get(9)?),
-                    },
-                    current_title: row.get(10)?,
-                })
-            })?;
-            let mut res = Vec::new();
-            for r in rows {
-                res.push(r?);
-            }
-            res
-        }
-        Some("0") | Some("") | Some("uncategorized") => {
-            let sql = "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id,
-                              (SELECT title FROM epg_entries
-                               WHERE epg_entries.profile_id = live_streams.profile_id
-                                 AND epg_entries.channel_id = live_streams.epg_channel_id
-                                 AND epg_entries.start <= ?4 AND epg_entries.stop > ?4 LIMIT 1) AS current_title
-                       FROM live_streams
-                       WHERE (?1 IS NULL OR profile_id = ?1) AND (category_id = '0' OR category_id = '' OR category_id IS NULL)
-                       ORDER BY name ASC
-                       LIMIT ?2 OFFSET ?3";
-            let mut stmt = conn.prepare(sql)?;
-            let rows = stmt.query_map(rusqlite::params![profile_id, limit, offset, &now], |row| {
-                Ok(LiveStreamDto {
-                    stream: LiveStreamApi {
-                        stream_id: row.get(0)?,
-                        name: row.get(1)?,
-                        stream_icon: row.get(2)?,
-                        epg_channel_id: row.get(3)?,
-                        category_id: row.get(4)?,
-                        tv_archive: row.get(5)?,
-                        tv_archive_duration: row.get(6)?,
-                        added: row.get(7)?,
-                        is_favorite: row.get(8)?,
-                        profile_id: Some(row.get(9)?),
-                    },
-                    current_title: row.get(10)?,
-                })
-            })?;
-            let mut res = Vec::new();
-            for r in rows {
-                res.push(r?);
-            }
-            res
-        }
-        Some(cat) => {
-            let sql = "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id,
-                              (SELECT title FROM epg_entries
-                               WHERE epg_entries.profile_id = live_streams.profile_id
-                                 AND epg_entries.channel_id = live_streams.epg_channel_id
-                                 AND epg_entries.start <= ?5 AND epg_entries.stop > ?5 LIMIT 1) AS current_title
-                       FROM live_streams
-                       WHERE (?1 IS NULL OR profile_id = ?1) AND category_id = ?2
-                       ORDER BY name ASC
-                       LIMIT ?3 OFFSET ?4";
-            let mut stmt = conn.prepare(sql)?;
-            let rows = stmt.query_map(rusqlite::params![profile_id, cat, limit, offset, &now], |row| {
-                Ok(LiveStreamDto {
-                    stream: LiveStreamApi {
-                        stream_id: row.get(0)?,
-                        name: row.get(1)?,
-                        stream_icon: row.get(2)?,
-                        epg_channel_id: row.get(3)?,
-                        category_id: row.get(4)?,
-                        tv_archive: row.get(5)?,
-                        tv_archive_duration: row.get(6)?,
-                        added: row.get(7)?,
-                        is_favorite: row.get(8)?,
-                        profile_id: Some(row.get(9)?),
-                    },
-                    current_title: row.get(10)?,
-                })
-            })?;
-            let mut res = Vec::new();
-            for r in rows {
-                res.push(r?);
-            }
-            res
-        }
+    let (db_category, is_uncategorized) = match category_id {
+        None | Some("all") => (None, false),
+        Some("0") | Some("") | Some("uncategorized") => (None, true),
+        Some(cat) => (Some(cat), false),
     };
-    Ok(streams)
+
+    let sql = "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id,
+                      (SELECT title FROM epg_entries
+                       WHERE epg_entries.profile_id = live_streams.profile_id
+                         AND epg_entries.channel_id = live_streams.epg_channel_id
+                         AND epg_entries.start <= ?5 AND epg_entries.stop > ?5 LIMIT 1) AS current_title
+               FROM live_streams
+               WHERE (?1 IS NULL OR profile_id = ?1)
+                 AND (
+                   (?2 IS NULL AND ?3 = 0) OR
+                   (?3 = 1 AND (category_id = '0' OR category_id = '' OR category_id IS NULL)) OR
+                   (category_id = ?2)
+                 )
+               ORDER BY name ASC
+               LIMIT ?4 OFFSET ?5";
+
+    let mut stmt = conn.prepare(sql)?;
+    let rows = stmt.query_map(rusqlite::params![profile_id, db_category, is_uncategorized, limit, offset, &now], |row| {
+        Ok(LiveStreamDto {
+            stream: LiveStreamApi {
+                stream_id: row.get(0)?,
+                name: row.get(1)?,
+                stream_icon: row.get(2)?,
+                epg_channel_id: row.get(3)?,
+                category_id: row.get(4)?,
+                tv_archive: row.get(5)?,
+                tv_archive_duration: row.get(6)?,
+                added: row.get(7)?,
+                is_favorite: row.get(8)?,
+                profile_id: Some(row.get(9)?),
+            },
+            current_title: row.get(10)?,
+        })
+    })?;
+
+    let mut res = Vec::new();
+    for r in rows {
+        res.push(r?);
+    }
+    Ok(res)
 }
 
 pub fn search_streams(

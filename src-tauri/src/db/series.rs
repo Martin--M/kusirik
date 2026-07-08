@@ -90,69 +90,42 @@ pub fn query_series(
     offset: u32,
     limit: u32,
 ) -> Result<Vec<SeriesApi>> {
-    let list = match category_id {
-        None | Some("all") => {
-            let sql = "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified, is_favorite, profile_id
-                       FROM series
-                       WHERE (?1 IS NULL OR profile_id = ?1)
-                       ORDER BY name ASC
-                       LIMIT ?2 OFFSET ?3";
-            let mut stmt = conn.prepare(sql)?;
-            let rows = stmt.query_map(rusqlite::params![profile_id, limit, offset], |row| {
-                Ok(SeriesApi {
-                    series_id: row.get(0)?,
-                    name: row.get(1)?,
-                    cover: row.get(2)?,
-                    category_id: row.get(3)?,
-                    rating: row.get(4)?,
-                    plot: row.get(5)?,
-                    cast: row.get(6)?,
-                    director: row.get(7)?,
-                    genre: row.get(8)?,
-                    release_date: row.get(9)?,
-                    last_modified: row.get(10)?,
-                    is_favorite: row.get(11)?,
-                    profile_id: Some(row.get(12)?),
-                })
-            })?;
-            let mut res = Vec::new();
-            for r in rows {
-                res.push(r?);
-            }
-            res
-        }
-        Some(cat_id) => {
-            let sql = "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified, is_favorite, profile_id
-                       FROM series
-                       WHERE (?1 IS NULL OR profile_id = ?1) AND category_id = ?2
-                       ORDER BY name ASC
-                       LIMIT ?3 OFFSET ?4";
-            let mut stmt = conn.prepare(sql)?;
-            let rows = stmt.query_map(rusqlite::params![profile_id, cat_id, limit, offset], |row| {
-                Ok(SeriesApi {
-                    series_id: row.get(0)?,
-                    name: row.get(1)?,
-                    cover: row.get(2)?,
-                    category_id: row.get(3)?,
-                    rating: row.get(4)?,
-                    plot: row.get(5)?,
-                    cast: row.get(6)?,
-                    director: row.get(7)?,
-                    genre: row.get(8)?,
-                    release_date: row.get(9)?,
-                    last_modified: row.get(10)?,
-                    is_favorite: row.get(11)?,
-                    profile_id: Some(row.get(12)?),
-                })
-            })?;
-            let mut res = Vec::new();
-            for r in rows {
-                res.push(r?);
-            }
-            res
-        }
+    let db_category = match category_id {
+        None | Some("all") => None,
+        Some(cat) => Some(cat),
     };
-    Ok(list)
+
+    let sql = "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified, is_favorite, profile_id
+               FROM series
+               WHERE (?1 IS NULL OR profile_id = ?1)
+                 AND (?2 IS NULL OR category_id = ?2)
+               ORDER BY name ASC
+               LIMIT ?3 OFFSET ?4";
+
+    let mut stmt = conn.prepare(sql)?;
+    let rows = stmt.query_map(rusqlite::params![profile_id, db_category, limit, offset], |row| {
+        Ok(SeriesApi {
+            series_id: row.get(0)?,
+            name: row.get(1)?,
+            cover: row.get(2)?,
+            category_id: row.get(3)?,
+            rating: row.get(4)?,
+            plot: row.get(5)?,
+            cast: row.get(6)?,
+            director: row.get(7)?,
+            genre: row.get(8)?,
+            release_date: row.get(9)?,
+            last_modified: row.get(10)?,
+            is_favorite: row.get(11)?,
+            profile_id: Some(row.get(12)?),
+        })
+    })?;
+
+    let mut res = Vec::new();
+    for r in rows {
+        res.push(r?);
+    }
+    Ok(res)
 }
 
 pub fn search_series(
