@@ -9,4 +9,5 @@ pub mod player;
 pub mod image;
 pub mod search;
 pub mod favorites;
+pub mod history;
 

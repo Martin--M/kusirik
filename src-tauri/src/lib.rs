@@ -100,6 +100,10 @@ pub fn run() {
             commands::search::search_all_media,
             commands::favorites::toggle_favorite,
             commands::favorites::get_favorites,
+            commands::history::record_playback_history,
+            commands::history::get_playback_history,
+            commands::history::remove_from_playback_history,
+            commands::history::clear_playback_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
