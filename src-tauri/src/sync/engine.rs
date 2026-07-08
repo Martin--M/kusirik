@@ -34,7 +34,7 @@ struct SyncErrorPayload {
     message: String,
 }
 
-pub async fn run_sync_all(app: AppHandle, force: bool) -> Result<()> {
+pub async fn run_sync_all(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
     if IS_SYNCING.swap(true, Ordering::SeqCst) {
         tracing::warn!("Sync already in progress, ignoring request");
         return Ok(());
@@ -42,7 +42,7 @@ pub async fn run_sync_all(app: AppHandle, force: bool) -> Result<()> {
 
     let app_clone = app.clone();
     tokio::spawn(async move {
-        if let Err(e) = do_sync(app_clone, force).await {
+        if let Err(e) = do_sync(app_clone, profile_id, force).await {
             tracing::error!(error = %e, "Sync execution failed");
         }
         IS_SYNCING.store(false, Ordering::SeqCst);
@@ -51,7 +51,7 @@ pub async fn run_sync_all(app: AppHandle, force: bool) -> Result<()> {
     Ok(())
 }
 
-async fn do_sync(app: AppHandle, force: bool) -> Result<()> {
+async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
     let db_conn = app.state::<DbConn>();
 
     use tauri::Manager;
@@ -69,7 +69,7 @@ async fn do_sync(app: AppHandle, force: bool) -> Result<()> {
         // Check if stale
         let is_stale = {
             let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-            match get_last_sync_time(&conn, 1, dt)? {
+            match get_last_sync_time(&conn, profile_id, dt)? {
                 Some(last_time) => {
                     let diff = Utc::now() - last_time;
                     if dt == "epg" {
@@ -87,9 +87,9 @@ async fn do_sync(app: AppHandle, force: bool) -> Result<()> {
             let item_count = {
                 let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
                 let mut stmt = conn.prepare_cached(
-                    "SELECT item_count FROM sync_log WHERE profile_id = 1 AND data_type = ?1"
+                    "SELECT item_count FROM sync_log WHERE profile_id = ?1 AND data_type = ?2"
                 )?;
-                let mut rows = stmt.query(rusqlite::params![dt])?;
+                let mut rows = stmt.query(rusqlite::params![profile_id, dt])?;
                 if let Some(row) = rows.next()? {
                     let ic: Option<i64> = row.get(0)?;
                     ic.unwrap_or(0) as usize
@@ -137,7 +137,7 @@ async fn do_sync(app: AppHandle, force: bool) -> Result<()> {
                     (Ok(c), Ok(s)) => (c, s),
                     (Err(e), _) | (_, Err(e)) => {
                         let err_msg = format!("Failed to fetch live streams: {}", e);
-                        let _ = record_error(&db_conn, dt, &err_msg);
+                        let _ = record_error(&db_conn, profile_id, dt, &err_msg);
                         let _ = app.emit("sync://error", SyncErrorPayload {
                             data_type: dt.to_string(),
                             message: err_msg.clone(),
@@ -158,9 +158,9 @@ async fn do_sync(app: AppHandle, force: bool) -> Result<()> {
 
                 {
                     let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-                    crate::db::live::upsert_categories(&mut conn, 1, &categories)?;
-                    crate::db::live::upsert_streams(&mut conn, 1, &streams)?;
-                    update_sync_log(&conn, 1, dt, Some(streams.len()), None)?;
+                    crate::db::live::upsert_categories(&mut conn, profile_id, &categories)?;
+                    crate::db::live::upsert_streams(&mut conn, profile_id, &streams)?;
+                    update_sync_log(&conn, profile_id, dt, Some(streams.len()), None)?;
                 }
 
                 let _ = app.emit("sync://done", SyncDonePayload {
@@ -181,7 +181,7 @@ async fn do_sync(app: AppHandle, force: bool) -> Result<()> {
                     (Ok(c), Ok(s)) => (c, s),
                     (Err(e), _) | (_, Err(e)) => {
                         let err_msg = format!("Failed to fetch VOD streams: {}", e);
-                        let _ = record_error(&db_conn, dt, &err_msg);
+                        let _ = record_error(&db_conn, profile_id, dt, &err_msg);
                         let _ = app.emit("sync://error", SyncErrorPayload {
                             data_type: dt.to_string(),
                             message: err_msg.clone(),
@@ -202,9 +202,9 @@ async fn do_sync(app: AppHandle, force: bool) -> Result<()> {
 
                 {
                     let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-                    crate::db::vod::upsert_categories(&mut conn, 1, &categories)?;
-                    crate::db::vod::upsert_streams(&mut conn, 1, &streams)?;
-                    update_sync_log(&conn, 1, dt, Some(streams.len()), None)?;
+                    crate::db::vod::upsert_categories(&mut conn, profile_id, &categories)?;
+                    crate::db::vod::upsert_streams(&mut conn, profile_id, &streams)?;
+                    update_sync_log(&conn, profile_id, dt, Some(streams.len()), None)?;
                 }
 
                 let _ = app.emit("sync://done", SyncDonePayload {
@@ -225,7 +225,7 @@ async fn do_sync(app: AppHandle, force: bool) -> Result<()> {
                     (Ok(c), Ok(s)) => (c, s),
                     (Err(e), _) | (_, Err(e)) => {
                         let err_msg = format!("Failed to fetch series: {}", e);
-                        let _ = record_error(&db_conn, dt, &err_msg);
+                        let _ = record_error(&db_conn, profile_id, dt, &err_msg);
                         let _ = app.emit("sync://error", SyncErrorPayload {
                             data_type: dt.to_string(),
                             message: err_msg.clone(),
@@ -246,9 +246,9 @@ async fn do_sync(app: AppHandle, force: bool) -> Result<()> {
 
                 {
                     let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-                    crate::db::series::upsert_categories(&mut conn, 1, &categories)?;
-                    crate::db::series::upsert_series(&mut conn, 1, &series_list)?;
-                    update_sync_log(&conn, 1, dt, Some(series_list.len()), None)?;
+                    crate::db::series::upsert_categories(&mut conn, profile_id, &categories)?;
+                    crate::db::series::upsert_series(&mut conn, profile_id, &series_list)?;
+                    update_sync_log(&conn, profile_id, dt, Some(series_list.len()), None)?;
                 }
 
                 let _ = app.emit("sync://done", SyncDonePayload {
@@ -257,9 +257,9 @@ async fn do_sync(app: AppHandle, force: bool) -> Result<()> {
                 });
             }
             "epg" => {
-                if let Err(e) = sync_epg_internal(app.clone(), &client).await {
+                if let Err(e) = sync_epg_internal(app.clone(), profile_id, &client).await {
                     let err_msg = format!("Failed to sync EPG: {}", e);
-                    let _ = record_error(&db_conn, dt, &err_msg);
+                    let _ = record_error(&db_conn, profile_id, dt, &err_msg);
                     let _ = app.emit("sync://error", SyncErrorPayload {
                         data_type: dt.to_string(),
                         message: err_msg.clone(),
@@ -322,9 +322,9 @@ fn update_sync_log(
     Ok(())
 }
 
-fn record_error(db_conn: &DbConn, data_type: &str, error: &str) -> Result<()> {
+fn record_error(db_conn: &DbConn, profile_id: i64, data_type: &str, error: &str) -> Result<()> {
     let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-    update_sync_log(&conn, 1, data_type, None, Some(error))?;
+    update_sync_log(&conn, profile_id, data_type, None, Some(error))?;
     Ok(())
 }
 
@@ -336,12 +336,12 @@ where
     fetch_fn().await
 }
 
-async fn sync_epg_internal(app: AppHandle, client: &XtreamClient) -> Result<usize> {
+async fn sync_epg_internal(app: AppHandle, profile_id: i64, client: &XtreamClient) -> Result<usize> {
     let db_conn = app.state::<DbConn>();
 
     let epg_mode = {
         let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-        let profile = crate::db::profile::get(&conn, 1)?;
+        let profile = crate::db::profile::get(&conn, profile_id)?;
         profile.map(|p| p.epg_mode).unwrap_or_else(|| "xmltv".to_string())
     };
 
@@ -420,7 +420,7 @@ async fn sync_epg_internal(app: AppHandle, client: &XtreamClient) -> Result<usiz
                             .unwrap_or(stop);
 
                         current_entry = Some(crate::db::epg::EpgEntry {
-                            profile_id: 1,
+                            profile_id,
                             channel_id: channel,
                             start: start_normalized,
                             stop: stop_normalized,
@@ -492,7 +492,7 @@ async fn sync_epg_internal(app: AppHandle, client: &XtreamClient) -> Result<usiz
 
     {
         let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-        update_sync_log(&conn, 1, "epg", Some(count), None)?;
+        update_sync_log(&conn, profile_id, "epg", Some(count), None)?;
     }
 
     let _ = app.emit("sync://done", SyncDonePayload {
@@ -580,13 +580,13 @@ async fn run_epg_sync_startup_background(app: AppHandle) -> Result<()> {
     }
     let _ = app.emit("sync://started", SyncStartedPayload { data_type: "epg".to_string() });
 
-    match sync_epg_internal(app.clone(), &client).await {
+    match sync_epg_internal(app.clone(), 1, &client).await {
         Ok(count) => {
             tracing::info!(count, "EPG startup background sync completed successfully");
         }
         Err(e) => {
             let err_msg = format!("Failed to sync EPG: {}", e);
-            let _ = record_error(&db_conn, "epg", &err_msg);
+            let _ = record_error(&db_conn, 1, "epg", &err_msg);
             let _ = app.emit("sync://error", SyncErrorPayload {
                 data_type: "epg".to_string(),
                 message: err_msg,

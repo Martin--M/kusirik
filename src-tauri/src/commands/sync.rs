@@ -4,10 +4,11 @@ use crate::db::DbConn;
 #[tauri::command]
 pub async fn trigger_sync(
     app: tauri::AppHandle,
+    profile_id: i64,
     _data_type: Option<String>,
     force: Option<bool>,
 ) -> Result<(), String> {
-    crate::sync::engine::run_sync_all(app, force.unwrap_or(false))
+    crate::sync::engine::run_sync_all(app, profile_id, force.unwrap_or(false))
         .await
         .map_err(|e| e.to_string())
 }
@@ -15,16 +16,17 @@ pub async fn trigger_sync(
 #[tauri::command]
 pub fn get_sync_status(
     state: State<'_, DbConn>,
+    profile_id: i64,
 ) -> Result<Vec<serde_json::Value>, String> {
     let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
     let conn = &*conn_guard;
 
     let mut stmt = conn
-        .prepare("SELECT data_type, fetched_at, item_count, last_error FROM sync_log WHERE profile_id = 1")
+        .prepare("SELECT data_type, fetched_at, item_count, last_error FROM sync_log WHERE profile_id = ?1")
         .map_err(|e| e.to_string())?;
 
     let rows = stmt
-        .query_map([], |row| {
+        .query_map(rusqlite::params![profile_id], |row| {
             Ok(serde_json::json!({
                 "data_type": row.get::<_, String>(0)?,
                 "fetched_at": row.get::<_, String>(1)?,

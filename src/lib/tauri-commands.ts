@@ -39,11 +39,11 @@ export const testConnection = (payload: any) =>
 
 // ─── Sync ────────────────────────────────────────────────────────────────────
 
-export const triggerSync = (dataType: DataType) =>
-  invoke<void>('trigger_sync', { dataType })
+export const triggerSync = (profileId: number, dataType: DataType, force?: boolean) =>
+  invoke<void>('trigger_sync', { profileId, dataType, force })
 
-export const getSyncStatus = () =>
-  invoke<SyncStatus[]>('get_sync_status')
+export const getSyncStatus = (profileId: number) =>
+  invoke<SyncStatus[]>('get_sync_status', { profileId })
 
 // ─── Live ────────────────────────────────────────────────────────────────────
 
