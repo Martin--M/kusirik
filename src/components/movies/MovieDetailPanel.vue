@@ -20,7 +20,10 @@ const emit = defineEmits<{
 
 // On-demand details query when a movie is selected
 const selectedMovieId = computed(() => props.stream?.stream_id || 0)
-const { data: movieInfo, isLoading: isLoadingInfo } = useVodInfo(selectedMovieId)
+const { data: movieInfo, isLoading: isLoadingInfo } = useVodInfo(
+  selectedMovieId,
+  computed(() => props.stream?.profile_id)
+)
 </script>
 
 <template>

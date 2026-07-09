@@ -1,35 +1,51 @@
 import { useQuery } from '@tanstack/vue-query'
 import { getVodCategories, getVodStreams, getVodInfo } from '@/lib/tauri-commands'
-import { PROFILE_ID } from '@/stores/profile.store'
 import type { MaybeRefOrGetter } from 'vue'
 import { toValue } from 'vue'
 
-export function useVodCategories() {
+export function useVodCategories(profileId?: MaybeRefOrGetter<number | null | undefined>) {
   return useQuery({
-    queryKey: ['vod_streams', 'categories'],
+    queryKey: ['vod_streams', 'categories', () => (profileId !== undefined ? toValue(profileId) : undefined)],
     queryFn: async () => {
-      const res = await getVodCategories(PROFILE_ID)
+      const pid = profileId !== undefined ? toValue(profileId) : undefined
+      const res = await getVodCategories(pid)
       res.forEach(Object.freeze)
       return Object.freeze(res)
     },
   })
 }
 
-export function useVodStreams(categoryId?: MaybeRefOrGetter<string | undefined>) {
+export function useVodStreams(
+  categoryId?: MaybeRefOrGetter<string | undefined>,
+  profileId?: MaybeRefOrGetter<number | null | undefined>
+) {
   return useQuery({
-    queryKey: ['vod_streams', 'streams', categoryId],
+    queryKey: [
+      'vod_streams',
+      'streams',
+      () => (profileId !== undefined ? toValue(profileId) : undefined),
+      () => toValue(categoryId)
+    ],
     queryFn: async () => {
-      const res = await getVodStreams(PROFILE_ID, toValue(categoryId), 0, 10000)
+      const pid = profileId !== undefined ? toValue(profileId) : undefined
+      const res = await getVodStreams(pid, toValue(categoryId), 0, 10000)
       res.forEach(Object.freeze)
       return Object.freeze(res)
     },
   })
 }
 
-export function useVodInfo(streamId: MaybeRefOrGetter<number>) {
+export function useVodInfo(streamId: MaybeRefOrGetter<number>, profileId?: MaybeRefOrGetter<number | null | undefined>) {
   return useQuery({
-    queryKey: ['vod_info', streamId],
-    queryFn: () => getVodInfo(PROFILE_ID, toValue(streamId)),
+    queryKey: [
+      'vod_info',
+      () => (profileId !== undefined ? toValue(profileId) : undefined),
+      () => toValue(streamId)
+    ],
+    queryFn: () => {
+      const pid = profileId !== undefined ? toValue(profileId) : undefined
+      return getVodInfo(pid, toValue(streamId))
+    },
     enabled: () => toValue(streamId) > 0,
   })
 }

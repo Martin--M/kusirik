@@ -34,7 +34,10 @@ const expandedSeason = ref<string | number | null>(null)
 
 // Computed series ID for details query
 const selectedSeriesId = computed(() => props.series?.series_id || 0)
-const { data: seriesDetails, isLoading: isLoadingDetails } = useSeriesInfo(selectedSeriesId)
+const { data: seriesDetails, isLoading: isLoadingDetails } = useSeriesInfo(
+  selectedSeriesId,
+  computed(() => props.series?.profile_id)
+)
 
 // Map selected series structure to StreamDetailPanel format
 const mappedSelectedSeries = computed(() => {

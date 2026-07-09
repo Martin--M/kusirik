@@ -3,7 +3,6 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { getEpgGuide, getSetting, getSyncStatus } from '@/lib/tauri-commands'
-import { PROFILE_ID } from '@/stores/profile.store'
 import { usePlayer } from '@/composables/usePlayer'
 import { useI18n } from '@/composables/useI18n'
 import { useToastStore } from '@/stores/toast.store'
@@ -98,7 +97,11 @@ let timer: any = null
 onMounted(async () => {
   // Capture initial fetched_at
   try {
-    const statuses = await getSyncStatus(PROFILE_ID)
+    const profileId = profileStore.profile?.id
+    if (profileId === undefined) {
+      throw new Error('Cannot get sync status: No active profile is loaded.')
+    }
+    const statuses = await getSyncStatus(profileId)
     const epgStatus = statuses.find(s => s.data_type === 'epg')
     if (epgStatus) {
       lastEpgFetchedAt.value = epgStatus.fetched_at
@@ -112,7 +115,11 @@ onMounted(async () => {
     
     // Check if new EPG dataset has been fetched
     try {
-      const statuses = await getSyncStatus(PROFILE_ID)
+      const profileId = profileStore.profile?.id
+      if (profileId === undefined) {
+        throw new Error('Cannot check sync status: No active profile is loaded.')
+      }
+      const statuses = await getSyncStatus(profileId)
       const epgStatus = statuses.find(s => s.data_type === 'epg')
       if (epgStatus && epgStatus.fetched_at !== lastEpgFetchedAt.value) {
         lastEpgFetchedAt.value = epgStatus.fetched_at
@@ -137,11 +144,15 @@ onUnmounted(() => {
 
 // Query EPG Guide data via tauri command
 const { data: channels, isLoading, error } = useQuery({
-  queryKey: ['epg_guide', queryStartTime, queryEndTime],
+  queryKey: ['epg_guide', queryStartTime, queryEndTime, () => profileStore.profile?.id],
   queryFn: async () => {
     const fromStr = queryStartTime.value.toISOString()
     const toStr = queryEndTime.value.toISOString()
-    return await getEpgGuide(PROFILE_ID, fromStr, toStr)
+    const profileId = profileStore.profile?.id
+    if (profileId === undefined) {
+      throw new Error('Cannot query EPG Guide: No active profile is loaded.')
+    }
+    return await getEpgGuide(profileId, fromStr, toStr)
   },
   refetchInterval: 300000 // 5 minutes refresh
 })

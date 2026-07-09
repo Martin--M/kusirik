@@ -23,6 +23,7 @@ defineEmits<{
 
 // Fetch EPG — narrow window: 1h back, 1h forward (captures current programme)
 const { data: epgEntries } = useEpg(
+  () => props.stream.profile_id,
   () => props.stream.epg_channel_id,
   1,
   1,

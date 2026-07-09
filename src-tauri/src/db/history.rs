@@ -42,13 +42,13 @@ pub fn clear_history(conn: &Connection, profile_id: i64) -> Result<()> {
     Ok(())
 }
 
-pub fn query_history(conn: &Connection, profile_id: i64) -> Result<SearchResults> {
+pub fn query_history(conn: &Connection, profile_id: Option<i64>) -> Result<SearchResults> {
     // 1. Live streams (join with playback_history)
     let mut live_stmt = conn.prepare(
         "SELECT s.stream_id, s.name, s.stream_icon, s.epg_channel_id, s.category_id, s.tv_archive, s.tv_archive_duration, s.added, s.is_favorite, s.profile_id
          FROM playback_history h
          JOIN live_streams s ON h.profile_id = s.profile_id AND h.stream_id = s.stream_id
-         WHERE h.profile_id = ?1 AND h.media_type = 'live'
+         WHERE (?1 IS NULL OR h.profile_id = ?1) AND h.media_type = 'live'
          ORDER BY h.played_at DESC",
     )?;
     let live_rows = live_stmt.query_map(rusqlite::params![profile_id], |row| {
@@ -78,7 +78,7 @@ pub fn query_history(conn: &Connection, profile_id: i64) -> Result<SearchResults
         "SELECT s.stream_id, s.name, s.stream_icon, s.category_id, s.rating, s.container_extension, s.added, s.is_favorite, s.profile_id
          FROM playback_history h
          JOIN vod_streams s ON h.profile_id = s.profile_id AND h.stream_id = s.stream_id
-         WHERE h.profile_id = ?1 AND h.media_type = 'vod'
+         WHERE (?1 IS NULL OR h.profile_id = ?1) AND h.media_type = 'vod'
          ORDER BY h.played_at DESC",
     )?;
     let vod_rows = vod_stmt.query_map(rusqlite::params![profile_id], |row| {
@@ -104,7 +104,7 @@ pub fn query_history(conn: &Connection, profile_id: i64) -> Result<SearchResults
         "SELECT s.series_id, s.name, s.cover, s.category_id, s.rating, s.plot, s.cast_, s.director, s.genre, s.release_date, s.last_modified, s.is_favorite, s.profile_id
          FROM playback_history h
          JOIN series s ON h.profile_id = s.profile_id AND h.stream_id = s.series_id
-         WHERE h.profile_id = ?1 AND h.media_type = 'series'
+         WHERE (?1 IS NULL OR h.profile_id = ?1) AND h.media_type = 'series'
          ORDER BY h.played_at DESC",
     )?;
     let series_rows = series_stmt.query_map(rusqlite::params![profile_id], |row| {

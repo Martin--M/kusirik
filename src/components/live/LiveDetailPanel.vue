@@ -52,7 +52,11 @@ const hoursBack = computed(() => {
   return 1
 })
 
-const { data: epgData, isLoading: isLoadingEpg } = useEpg(selectedEpgChannelId, hoursBack)
+const { data: epgData, isLoading: isLoadingEpg } = useEpg(
+  computed(() => props.stream?.profile_id),
+  selectedEpgChannelId,
+  hoursBack
+)
 
 const now = ref(new Date())
 const timer = setInterval(() => {

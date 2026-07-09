@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/vue-query'
 import { getEpgForChannel } from '@/lib/tauri-commands'
-import { PROFILE_ID } from '@/stores/profile.store'
 import type { MaybeRefOrGetter } from 'vue'
 import { toValue, ref } from 'vue'
 
@@ -24,13 +23,18 @@ if (typeof window !== 'undefined') {
  * though they represent the same instant, causing all rows to be missed.
  */
 export function useEpg(
+  profileId: MaybeRefOrGetter<number | undefined>,
   channelId: MaybeRefOrGetter<string | null>,
   hoursBack: MaybeRefOrGetter<number> = 1,
   hoursForward: MaybeRefOrGetter<number> = 24,
 ) {
   return useQuery({
-    queryKey: ['epg', channelId, hoursBack, hoursForward],
+    queryKey: ['epg', profileId, channelId, hoursBack, hoursForward],
     queryFn: () => {
+      const pid = toValue(profileId)
+      if (pid === undefined) {
+        throw new Error('Cannot query EPG: No profile ID was supplied.')
+      }
       const id = toValue(channelId)
       if (!id) return []
       const nowMs = Date.now()
@@ -38,9 +42,9 @@ export function useEpg(
       const hf = toValue(hoursForward)
       const from = new Date(nowMs - hb * 3_600_000).toISOString()
       const to   = new Date(nowMs + hf * 3_600_000).toISOString()
-      return getEpgForChannel(PROFILE_ID, id, from, to)
+      return getEpgForChannel(pid, id, from, to)
     },
-    enabled: () => !!toValue(channelId),
+    enabled: () => !!toValue(channelId) && toValue(profileId) !== undefined,
     refetchInterval: 15 * 60 * 1000, // Refetch EPG data from backend every 15 minutes
   })
 }

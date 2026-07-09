@@ -6,6 +6,8 @@ import { useToastStore } from '@/stores/toast.store'
 import { useProfileStore } from '@/stores/profile.store'
 import { useI18n } from '@/composables/useI18n'
 import { getSetting } from '@/lib/tauri-commands'
+import IconStar from '@/components/icons/IconStar.vue'
+import IconChevron from '@/components/icons/IconChevron.vue'
 
 import ChannelRow from '@/components/live/ChannelRow.vue'
 import MovieCard from '@/components/movies/MovieCard.vue'

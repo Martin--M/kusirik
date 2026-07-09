@@ -17,7 +17,7 @@ pub async fn toggle_favorite(
 #[tauri::command]
 pub async fn get_favorites(
     state: State<'_, DbConn>,
-    profile_id: i64,
+    profile_id: Option<i64>,
 ) -> Result<SearchResults, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     crate::db::favorites::query_favorites(&conn, profile_id)

@@ -1,19 +1,25 @@
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { getFavorites, toggleFavorite } from '@/lib/tauri-commands'
-import { PROFILE_ID } from '@/stores/profile.store'
+import { useProfileStore } from '@/stores/profile.store'
 
 export function useFavorites() {
+  const profileStore = useProfileStore()
   return useQuery({
-    queryKey: ['favorites', PROFILE_ID],
-    queryFn: () => getFavorites(PROFILE_ID),
+    queryKey: ['favorites', () => profileStore.filterProfileId],
+    queryFn: () => getFavorites(profileStore.filterProfileId),
   })
 }
 
 export function useToggleFavorite() {
   const queryClient = useQueryClient()
+  const profileStore = useProfileStore()
 
-  const toggle = async (mediaType: 'live' | 'vod' | 'series', streamId: number) => {
-    const isFav = await toggleFavorite(PROFILE_ID, mediaType, streamId)
+  const toggle = async (mediaType: 'live' | 'vod' | 'series', streamId: number, profileId?: number) => {
+    const targetProfileId = profileId ?? profileStore.profile?.id
+    if (targetProfileId === undefined) {
+      throw new Error('Cannot toggle favorite: No active profile is loaded.')
+    }
+    const isFav = await toggleFavorite(targetProfileId, mediaType, streamId)
     
     // Invalidate relevant queries so the cache updates
     queryClient.invalidateQueries({ queryKey: ['favorites'] })

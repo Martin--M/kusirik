@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useProfileStore, PROFILE_ID } from '@/stores/profile.store'
+import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useSyncStore } from '@/stores/sync.store'
 import { useToastStore } from '@/stores/toast.store'
@@ -106,7 +106,11 @@ async function handleSyncAll() {
 
   toastStore.showToast(t('settings.sync.starting'), 'success')
   try {
-    await triggerSync(PROFILE_ID, 'live_streams', true)
+    const profileId = profileStore.profile?.id
+    if (profileId === undefined) {
+      throw new Error('Cannot sync: profile ID is undefined.')
+    }
+    await triggerSync(profileId, 'live_streams', true)
   } catch (err) {
     toastStore.showToast(t('settings.sync.failed', { error: String(err) }), 'error')
   }
@@ -118,7 +122,11 @@ async function handleDisconnect() {
 
   try {
     toastStore.showToast(t('settings.profile.disconnecting'), 'success')
-    await deleteProfile(PROFILE_ID)
+    const profileId = profileStore.profile?.id
+    if (profileId === undefined) {
+      throw new Error('Cannot disconnect: profile ID is undefined.')
+    }
+    await deleteProfile(profileId)
     profileStore.clearProfile()
     syncStore.reset()
     toastStore.showToast(t('settings.profile.disconnectSuccess'), 'success')
@@ -134,10 +142,14 @@ function getTypeName(type: DataType): string {
 
 async function loadCounts() {
   try {
+    const profileId = profileStore.profile?.id
+    if (profileId === undefined) {
+      throw new Error('Cannot load counts: profile ID is undefined.')
+    }
     const [liveCats, vodCats, seriesCats] = await Promise.all([
-      getLiveCategories(PROFILE_ID).catch(() => []),
-      getVodCategories(PROFILE_ID).catch(() => []),
-      getSeriesCategories(PROFILE_ID).catch(() => [])
+      getLiveCategories(profileId).catch(() => []),
+      getVodCategories(profileId).catch(() => []),
+      getSeriesCategories(profileId).catch(() => [])
     ])
     liveCatCount.value = liveCats.length
     vodCatCount.value = vodCats.length
@@ -154,7 +166,11 @@ onMounted(async () => {
   playerAndroidInput.value = settingsStore.playerAndroid
 
   try {
-    const statuses = await getSyncStatus(PROFILE_ID)
+    const profileId = profileStore.profile?.id
+    if (profileId === undefined) {
+      throw new Error('Cannot get sync status: profile ID is undefined.')
+    }
+    const statuses = await getSyncStatus(profileId)
     for (const s of statuses) {
       if (s.fetched_at && s.item_count !== null) {
         syncStore.onDone(s.data_type as DataType, s.item_count, s.fetched_at)

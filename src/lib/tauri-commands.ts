@@ -47,11 +47,16 @@ export const getSyncStatus = (profileId: number) =>
 
 // ─── Live ────────────────────────────────────────────────────────────────────
 
+export interface LiveStreamDto {
+  stream: LiveStream
+  current_title: string | null
+}
+
 export const getLiveCategories = (profileId?: number | null) =>
   invoke<LiveCategory[]>('get_live_categories', { profileId })
 
 export const getLiveStreams = (profileId?: number | null, categoryId?: string, offset = 0, limit = 100) =>
-  invoke<LiveStream[]>('get_live_streams', { profileId, categoryId, offset, limit })
+  invoke<LiveStreamDto[]>('get_live_streams', { profileId, categoryId, offset, limit })
 
 // ─── VOD ─────────────────────────────────────────────────────────────────────
 
@@ -77,10 +82,10 @@ export const getSeriesInfo = (profileId: number | null | undefined, seriesId: nu
 
 // ─── EPG ─────────────────────────────────────────────────────────────────────
 
-export const getEpgForChannel = (profileId: number, channelId: string, from: string, to: string) =>
+export const getEpgForChannel = (profileId: number | null | undefined, channelId: string, from: string, to: string) =>
   invoke<EpgEntry[]>('get_epg_for_channel', { profileId, channelId, from, to })
 
-export const getEpgGuide = (profileId: number, from: string, to: string) =>
+export const getEpgGuide = (profileId: number | null | undefined, from: string, to: string) =>
   invoke<GuideChannel[]>('get_epg_guide', { profileId, from, to })
 
 // ─── Settings ────────────────────────────────────────────────────────────────
@@ -133,7 +138,7 @@ export const searchAllMedia = (profileId: number | null | undefined, query: stri
 export const toggleFavorite = (profileId: number, mediaType: 'live' | 'vod' | 'series', streamId: number) =>
   invoke<boolean>('toggle_favorite', { profileId, mediaType, streamId })
 
-export const getFavorites = (profileId: number) =>
+export const getFavorites = (profileId?: number | null) =>
   invoke<SearchResults>('get_favorites', { profileId })
 
 // ─── Playback History ─────────────────────────────────────────────────────────
@@ -141,7 +146,7 @@ export const getFavorites = (profileId: number) =>
 export const recordPlaybackHistory = (profileId: number, mediaType: 'live' | 'vod' | 'series', streamId: number) =>
   invoke<void>('record_playback_history', { profileId, mediaType, streamId })
 
-export const getPlaybackHistory = (profileId: number) =>
+export const getPlaybackHistory = (profileId?: number | null) =>
   invoke<SearchResults>('get_playback_history', { profileId })
 
 export const removeFromPlaybackHistory = (profileId: number, mediaType: 'live' | 'vod' | 'series', streamId: number) =>

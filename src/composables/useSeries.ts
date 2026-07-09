@@ -1,35 +1,51 @@
 import { useQuery } from '@tanstack/vue-query'
 import { getSeriesCategories, getSeriesList, getSeriesInfo } from '@/lib/tauri-commands'
-import { PROFILE_ID } from '@/stores/profile.store'
 import type { MaybeRefOrGetter } from 'vue'
 import { toValue } from 'vue'
 
-export function useSeriesCategories() {
+export function useSeriesCategories(profileId?: MaybeRefOrGetter<number | null | undefined>) {
   return useQuery({
-    queryKey: ['series', 'categories'],
+    queryKey: ['series', 'categories', () => (profileId !== undefined ? toValue(profileId) : undefined)],
     queryFn: async () => {
-      const res = await getSeriesCategories(PROFILE_ID)
+      const pid = profileId !== undefined ? toValue(profileId) : undefined
+      const res = await getSeriesCategories(pid)
       res.forEach(Object.freeze)
       return Object.freeze(res)
     },
   })
 }
 
-export function useSeries(categoryId?: MaybeRefOrGetter<string | undefined>) {
+export function useSeries(
+  categoryId?: MaybeRefOrGetter<string | undefined>,
+  profileId?: MaybeRefOrGetter<number | null | undefined>
+) {
   return useQuery({
-    queryKey: ['series', 'list', categoryId],
+    queryKey: [
+      'series',
+      'list',
+      () => (profileId !== undefined ? toValue(profileId) : undefined),
+      () => toValue(categoryId)
+    ],
     queryFn: async () => {
-      const res = await getSeriesList(PROFILE_ID, toValue(categoryId), 0, 10000)
+      const pid = profileId !== undefined ? toValue(profileId) : undefined
+      const res = await getSeriesList(pid, toValue(categoryId), 0, 10000)
       res.forEach(Object.freeze)
       return Object.freeze(res)
     },
   })
 }
 
-export function useSeriesInfo(seriesId: MaybeRefOrGetter<number>) {
+export function useSeriesInfo(seriesId: MaybeRefOrGetter<number>, profileId?: MaybeRefOrGetter<number | null | undefined>) {
   return useQuery({
-    queryKey: ['series_info', seriesId],
-    queryFn: () => getSeriesInfo(PROFILE_ID, toValue(seriesId)),
+    queryKey: [
+      'series_info',
+      () => (profileId !== undefined ? toValue(profileId) : undefined),
+      () => toValue(seriesId)
+    ],
+    queryFn: () => {
+      const pid = profileId !== undefined ? toValue(profileId) : undefined
+      return getSeriesInfo(pid, toValue(seriesId))
+    },
     enabled: () => toValue(seriesId) > 0,
   })
 }

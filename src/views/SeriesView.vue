@@ -63,13 +63,22 @@ const sortLabels = computed(() => ({
 
 const toastStore = useToastStore()
 
-const { data: categoriesData, isLoading: isLoadingCategories } = useSeriesCategories()
+import { useProfileStore } from '@/stores/profile.store'
+
+const profileStore = useProfileStore()
+const { data: categoriesData, isLoading: isLoadingCategories } = useSeriesCategories(
+  computed(() => profileStore.filterProfileId)
+)
 
 // Computed categories list including "All" and "Uncategorized"
 const categories = computed<SeriesCategory[]>(() => {
+  const currentProfileId = profileStore.profile?.id
+  if (currentProfileId === undefined) {
+    return []
+  }
   const list: SeriesCategory[] = [
-    { profile_id: 1, category_id: 'all', category_name: t('media.allSeries') },
-    { profile_id: 1, category_id: '0', category_name: t('media.uncategorized') }
+    { profile_id: currentProfileId, category_id: 'all', category_name: t('media.allSeries') },
+    { profile_id: currentProfileId, category_id: '0', category_name: t('media.uncategorized') }
   ]
   if (categoriesData.value) {
     const providerCats = categoriesData.value.filter(
@@ -87,7 +96,10 @@ const seriesQueryId = computed(() => {
   return selectedCategoryId.value
 })
 
-const { data: rawSeries, isLoading: isLoadingSeries } = useSeries(seriesQueryId)
+const { data: rawSeries, isLoading: isLoadingSeries } = useSeries(
+  seriesQueryId,
+  computed(() => profileStore.filterProfileId)
+)
 
 // Reset selection when changing categories
 watch(selectedCategoryId, () => {

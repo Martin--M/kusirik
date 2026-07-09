@@ -63,13 +63,19 @@ const settingsStore = useSettingsStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
 
-const { data: categoriesData, isLoading: isLoadingCategories } = useLiveCategories()
+const { data: categoriesData, isLoading: isLoadingCategories } = useLiveCategories(
+  computed(() => profileStore.filterProfileId)
+)
 
 // Computed categories list including "All" and "Uncategorized"
 const categories = computed<LiveCategory[]>(() => {
+  const currentProfileId = profileStore.profile?.id
+  if (currentProfileId === undefined) {
+    return []
+  }
   const list: LiveCategory[] = [
-    { profile_id: 1, category_id: 'all', category_name: t('media.allChannels') },
-    { profile_id: 1, category_id: '0', category_name: t('media.uncategorized') }
+    { profile_id: currentProfileId, category_id: 'all', category_name: t('media.allChannels') },
+    { profile_id: currentProfileId, category_id: '0', category_name: t('media.uncategorized') }
   ]
   if (categoriesData.value) {
     const providerCats = categoriesData.value.filter(
@@ -87,7 +93,10 @@ const streamsQueryId = computed(() => {
   return selectedCategoryId.value
 })
 
-const { data: rawStreams, isLoading: isLoadingStreams } = useLiveStreams(streamsQueryId)
+const { data: rawStreams, isLoading: isLoadingStreams } = useLiveStreams(
+  streamsQueryId,
+  computed(() => profileStore.filterProfileId)
+)
 
 // Reset selection when changing categories or toggle filters
 watch(selectedCategoryId, () => {
@@ -100,17 +109,28 @@ watch(showCatchupOnly, () => {
 
 // Filter and sort streams on client side
 const filteredStreams = computed(() => {
-  let result = rawStreams.value || []
+  const result = rawStreams.value || []
+  const mapped = result.map((dto) => {
+    // If it is already unwrapped (due to some other change), handle it gracefully
+    const streamObj = dto && 'stream' in dto ? dto.stream : dto
+    const titleVal = dto && 'current_title' in dto ? dto.current_title : (dto as any).current_title
+    return {
+      ...streamObj,
+      current_title: titleVal
+    }
+  })
+
+  let filtered = mapped
 
   // Apply catch-up filter
   if (showCatchupOnly.value) {
-    result = result.filter((s) => s.tv_archive === 1)
+    filtered = filtered.filter((s) => s.tv_archive === 1)
   }
 
   // Apply search query
   const query = searchQuery.value.toLowerCase().trim()
   if (query) {
-    result = result.filter(
+    filtered = filtered.filter(
       (s) =>
         (s.name && s.name.toLowerCase().includes(query)) ||
         (s.epg_channel_id && s.epg_channel_id.toLowerCase().includes(query)) ||
@@ -119,7 +139,7 @@ const filteredStreams = computed(() => {
   }
 
   // Apply sort (Alphabetical only)
-  return [...result].sort((a, b) => {
+  return [...filtered].sort((a, b) => {
     const nameA = a.name || ''
     const nameB = b.name || ''
     return sortOrder.value === 'asc'

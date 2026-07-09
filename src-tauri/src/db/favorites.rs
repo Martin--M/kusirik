@@ -45,12 +45,12 @@ pub fn toggle_favorite(
     Ok(new_favorite == 1)
 }
 
-pub fn query_favorites(conn: &Connection, profile_id: i64) -> Result<SearchResults> {
+pub fn query_favorites(conn: &Connection, profile_id: Option<i64>) -> Result<SearchResults> {
     // 1. Live streams
     let mut live_stmt = conn.prepare(
         "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id
          FROM live_streams
-         WHERE profile_id = ?1 AND is_favorite = 1
+         WHERE (?1 IS NULL OR profile_id = ?1) AND is_favorite = 1
          ORDER BY name ASC",
     )?;
     let live_rows = live_stmt.query_map(rusqlite::params![profile_id], |row| {
@@ -79,7 +79,7 @@ pub fn query_favorites(conn: &Connection, profile_id: i64) -> Result<SearchResul
     let mut vod_stmt = conn.prepare(
         "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite, profile_id
          FROM vod_streams
-         WHERE profile_id = ?1 AND is_favorite = 1
+         WHERE (?1 IS NULL OR profile_id = ?1) AND is_favorite = 1
          ORDER BY name ASC",
     )?;
     let vod_rows = vod_stmt.query_map(rusqlite::params![profile_id], |row| {
@@ -104,7 +104,7 @@ pub fn query_favorites(conn: &Connection, profile_id: i64) -> Result<SearchResul
     let mut series_stmt = conn.prepare(
         "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified, is_favorite, profile_id
          FROM series
-         WHERE profile_id = ?1 AND is_favorite = 1
+         WHERE (?1 IS NULL OR profile_id = ?1) AND is_favorite = 1
          ORDER BY name ASC",
     )?;
     let series_rows = series_stmt.query_map(rusqlite::params![profile_id], |row| {

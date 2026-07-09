@@ -68,13 +68,19 @@ const sortLabels = computed(() => ({
 const profileStore = useProfileStore()
 const toastStore = useToastStore()
 
-const { data: categoriesData, isLoading: isLoadingCategories } = useVodCategories()
+const { data: categoriesData, isLoading: isLoadingCategories } = useVodCategories(
+  computed(() => profileStore.filterProfileId)
+)
 
 // Computed categories list including "All" and "Uncategorized"
 const categories = computed<VodCategory[]>(() => {
+  const currentProfileId = profileStore.profile?.id
+  if (currentProfileId === undefined) {
+    return []
+  }
   const list: VodCategory[] = [
-    { profile_id: 1, category_id: 'all', category_name: t('media.allMovies') },
-    { profile_id: 1, category_id: '0', category_name: t('media.uncategorized') }
+    { profile_id: currentProfileId, category_id: 'all', category_name: t('media.allMovies') },
+    { profile_id: currentProfileId, category_id: '0', category_name: t('media.uncategorized') }
   ]
   if (categoriesData.value) {
     const providerCats = categoriesData.value.filter(
@@ -92,7 +98,10 @@ const streamsQueryId = computed(() => {
   return selectedCategoryId.value
 })
 
-const { data: rawStreams, isLoading: isLoadingStreams } = useVodStreams(streamsQueryId)
+const { data: rawStreams, isLoading: isLoadingStreams } = useVodStreams(
+  streamsQueryId,
+  computed(() => profileStore.filterProfileId)
+)
 
 // Reset selection when changing categories
 watch(selectedCategoryId, () => {
