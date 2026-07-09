@@ -13,8 +13,8 @@ pub struct XtreamConfig {
 pub struct XtreamClient {
     http: HttpClient,
     config: std::sync::RwLock<XtreamConfig>,
-    last_request_time: std::sync::Mutex<Option<std::time::Instant>>,
-    last_short_epg_time: std::sync::Mutex<Option<std::time::Instant>>,
+    last_request_time: tokio::sync::Mutex<Option<std::time::Instant>>,
+    last_short_epg_time: tokio::sync::Mutex<Option<std::time::Instant>>,
 }
 
 impl XtreamClient {
@@ -32,8 +32,8 @@ impl XtreamClient {
                 username,
                 password,
             }),
-            last_request_time: std::sync::Mutex::new(None),
-            last_short_epg_time: std::sync::Mutex::new(None),
+            last_request_time: tokio::sync::Mutex::new(None),
+            last_short_epg_time: tokio::sync::Mutex::new(None),
         }
     }
 
@@ -69,9 +69,9 @@ impl XtreamClient {
     pub async fn fetch<T: DeserializeOwned>(&self, action: Option<&str>) -> Result<T> {
         let is_short_epg = action.map(|a| a.starts_with("get_short_epg")).unwrap_or(false);
 
-        let wait_time = if is_short_epg {
-            let guard = self.last_short_epg_time.lock().unwrap();
-            guard.map(|last_time| {
+        if is_short_epg {
+            let mut guard = self.last_short_epg_time.lock().await;
+            let wait_time = guard.map(|last_time| {
                 let elapsed = last_time.elapsed();
                 let min_delay = std::time::Duration::from_millis(500);
                 if elapsed < min_delay {
@@ -79,10 +79,16 @@ impl XtreamClient {
                 } else {
                     std::time::Duration::ZERO
                 }
-            }).unwrap_or(std::time::Duration::ZERO)
+            }).unwrap_or(std::time::Duration::ZERO);
+
+            if !wait_time.is_zero() {
+                tracing::debug!("Rate limiting: sleeping for {:?} before next request", wait_time);
+                tokio::time::sleep(wait_time).await;
+            }
+            *guard = Some(std::time::Instant::now());
         } else {
-            let guard = self.last_request_time.lock().unwrap();
-            guard.map(|last_time| {
+            let mut guard = self.last_request_time.lock().await;
+            let wait_time = guard.map(|last_time| {
                 let elapsed = last_time.elapsed();
                 let min_delay = std::time::Duration::from_secs(2);
                 if elapsed < min_delay {
@@ -90,22 +96,14 @@ impl XtreamClient {
                 } else {
                     std::time::Duration::ZERO
                 }
-            }).unwrap_or(std::time::Duration::ZERO)
+            }).unwrap_or(std::time::Duration::ZERO);
+
+            if !wait_time.is_zero() {
+                tracing::debug!("Rate limiting: sleeping for {:?} before next request", wait_time);
+                tokio::time::sleep(wait_time).await;
+            }
+            *guard = Some(std::time::Instant::now());
         };
-
-        if !wait_time.is_zero() {
-            tracing::debug!("Rate limiting: sleeping for {:?} before next request", wait_time);
-            tokio::time::sleep(wait_time).await;
-        }
-
-        // Update the timestamp right before the call
-        if is_short_epg {
-            let mut guard = self.last_short_epg_time.lock().unwrap();
-            *guard = Some(std::time::Instant::now());
-        } else {
-            let mut guard = self.last_request_time.lock().unwrap();
-            *guard = Some(std::time::Instant::now());
-        }
 
         let url = self.get_url(action);
         tracing::debug!(url = %url, "Fetching Xtream API");
