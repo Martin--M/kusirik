@@ -168,7 +168,6 @@ async function handleTogglePublicProfile() {
       await profileStore.loadProfiles()
       toastStore.showToast(t('settings.profile.addedPublic'), 'success')
       await triggerSync(profile.id, 'live_streams', true)
-      await triggerSync(profile.id, 'epg', true)
     } catch (err) {
       toastStore.showToast(t('settings.profile.addPublicFailed', { error: String(err) }), 'error')
     }

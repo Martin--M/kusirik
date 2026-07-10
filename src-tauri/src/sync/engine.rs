@@ -67,7 +67,7 @@ pub async fn run_sync_all(app: AppHandle, profile_id: i64, force: bool) -> Resul
     }
 
     let app_clone = app.clone();
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         if let Err(e) = do_sync(app_clone, profile_id, force).await {
             tracing::error!(error = %e, "Sync execution failed");
         }
@@ -540,7 +540,12 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
         status: "downloading".to_string(),
     });
 
-    let http = reqwest::Client::new();
+    let http = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .user_agent("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+        .timeout(std::time::Duration::from_secs(30))
+        .build()?;
+        
     let cats: Vec<IptvCategory> = http.get("https://iptv-org.github.io/api/categories.json").send().await?.json().await?;
     let channels: Vec<IptvChannel> = http.get("https://iptv-org.github.io/api/channels.json").send().await?.json().await?;
     let logos: Vec<IptvLogo> = http.get("https://iptv-org.github.io/api/logos.json").send().await?.json().await?;
