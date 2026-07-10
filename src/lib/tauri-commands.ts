@@ -28,11 +28,17 @@ import type { SyncStatus, DataType } from '@/types/sync'
 export const saveProfile = (payload: SaveProfilePayload) =>
   invoke<Profile>('save_profile', { payload })
 
+export const getProfiles = () =>
+  invoke<Profile[]>('get_profiles')
+
 export const getProfile = (id: number) =>
   invoke<Profile | null>('get_profile', { id })
 
 export const deleteProfile = (id: number) =>
   invoke<void>('delete_profile', { id })
+
+export const activateProfile = (id: number) =>
+  invoke<void>('activate_profile', { id })
 
 export const testConnection = (payload: any) =>
   invoke<any>('test_connection', payload)

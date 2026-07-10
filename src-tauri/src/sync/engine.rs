@@ -53,15 +53,13 @@ pub async fn run_sync_all(app: AppHandle, profile_id: i64, force: bool) -> Resul
 
 async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
     let db_conn = app.state::<DbConn>();
+    let profile = {
+        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        crate::db::profile::get(&conn, profile_id)?
+            .ok_or_else(|| anyhow!("Profile not found"))?
+    };
 
-    use tauri::Manager;
-    let client = app.state::<XtreamClient>();
-
-    if !client.has_credentials() {
-        tracing::error!("Credentials missing, aborting sync");
-        let _ = app.emit("sync://error", "Credentials missing. Please configure settings first.");
-        return Err(anyhow!("Credentials missing"));
-    }
+    let client = XtreamClient::new(profile.server_url, profile.username, profile.password);
 
     // 2. Perform sequential syncs
     let data_types = vec!["live_streams", "vod_streams", "series", "epg"];
@@ -531,67 +529,78 @@ fn parse_xmltv_date_to_utc_and_offset(s: &str) -> Option<(String, String)> {
     None
 }
 
-pub async fn run_startup_tasks(app: AppHandle) -> Result<()> {
+async fn run_epg_sync_startup_background_for_profile(app: AppHandle, profile: crate::db::profile::Profile) -> Result<()> {
     let db_conn = app.state::<DbConn>();
-
-    // 1. Cleanup old entries (ended > 48h ago)
-    {
-        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-        let forty_eight_hours_ago = Utc::now() - chrono::Duration::hours(48);
-        let before_timestamp = forty_eight_hours_ago.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-        let deleted = crate::db::epg::cleanup_old_entries(&conn, 1, &before_timestamp)?;
-        tracing::info!(deleted_count = deleted, "EPG startup cleanup complete (removed items older than 48h)");
-    }
-
-    // 2. Check EPG Sync (24-hour limit on startup)
-    let needs_epg_sync = {
-        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-        match get_last_sync_time(&conn, 1, "epg")? {
-            Some(last_time) => {
-                let diff = Utc::now() - last_time;
-                diff.num_hours() >= 24
-            }
-            None => true,
-        }
-    };
-
-    if needs_epg_sync {
-        tracing::info!("EPG sync is needed on startup. Starting background sync...");
-        tauri::async_runtime::spawn(async move {
-            if let Err(e) = run_epg_sync_startup_background(app).await {
-                tracing::error!(error = %e, "EPG startup background sync failed");
-            }
-        });
-    } else {
-        tracing::info!("EPG guide is fresh (last synced < 24h ago). Skipping startup sync.");
-    }
-
-    Ok(())
-}
-
-async fn run_epg_sync_startup_background(app: AppHandle) -> Result<()> {
-    use tauri::Manager;
-    let client = app.state::<XtreamClient>();
-    let db_conn = app.state::<DbConn>();
-
-    if !client.has_credentials() {
-        tracing::warn!("Credentials missing on startup, skipping EPG sync");
-        return Ok(());
-    }
     let _ = app.emit("sync://started", SyncStartedPayload { data_type: "epg".to_string() });
 
-    match sync_epg_internal(app.clone(), 1, &client).await {
+    let client = XtreamClient::new(profile.server_url, profile.username, profile.password);
+    match sync_epg_internal(app.clone(), profile.id, &client).await {
         Ok(count) => {
-            tracing::info!(count, "EPG startup background sync completed successfully");
+            tracing::info!(profile_id = profile.id, count, "EPG startup background sync completed successfully");
         }
         Err(e) => {
-            let err_msg = format!("Failed to sync EPG: {}", e);
-            let _ = record_error(&db_conn, 1, "epg", &err_msg);
+            let err_msg = format!("Failed to sync EPG for profile {}: {}", profile.id, e);
+            let _ = record_error(&db_conn, profile.id, "epg", &err_msg);
             let _ = app.emit("sync://error", SyncErrorPayload {
                 data_type: "epg".to_string(),
                 message: err_msg,
             });
             return Err(e);
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn run_startup_tasks(app: AppHandle) -> Result<()> {
+    let db_conn = app.state::<DbConn>();
+
+    let profiles = {
+        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        crate::db::profile::get_all(&conn)?
+    };
+
+    for profile in profiles {
+        // 1. Cleanup old entries (ended > 48h ago)
+        {
+            let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+            let forty_eight_hours_ago = Utc::now() - chrono::Duration::hours(48);
+            let before_timestamp = forty_eight_hours_ago.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+            let deleted = crate::db::epg::cleanup_old_entries(&conn, profile.id, &before_timestamp)?;
+            tracing::info!(profile_id = profile.id, deleted_count = deleted, "EPG startup cleanup complete (removed items older than 48h)");
+        }
+
+        // 2. Check EPG Sync (24-hour limit on startup)
+        let needs_epg_sync = {
+            let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+            match get_last_sync_time(&conn, profile.id, "epg")? {
+                Some(last_time) => {
+                    let diff = Utc::now() - last_time;
+                    diff.num_hours() >= 24
+                }
+                None => true,
+            }
+        };
+
+        if needs_epg_sync {
+            tracing::info!(profile_id = profile.id, "EPG sync is needed on startup. Starting background sync...");
+            let app_clone = app.clone();
+            let profile_clone = crate::db::profile::Profile {
+                id: profile.id,
+                name: profile.name.clone(),
+                server_url: profile.server_url.clone(),
+                username: profile.username.clone(),
+                password: profile.password.clone(),
+                epg_mode: profile.epg_mode.clone(),
+                created_at: profile.created_at.clone(),
+            };
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = run_epg_sync_startup_background_for_profile(app_clone, profile_clone).await {
+                    tracing::error!(profile_id = profile.id, error = %e, "EPG startup background sync failed");
+                }
+            });
+        } else {
+            tracing::info!(profile_id = profile.id, "EPG guide is fresh (last synced < 24h ago). Skipping startup sync.");
         }
     }
 

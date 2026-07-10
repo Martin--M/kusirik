@@ -9,6 +9,7 @@ export interface Profile {
 }
 
 export interface SaveProfilePayload {
+  id?: number
   name: string
   server_url: string
   username: string

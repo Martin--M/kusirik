@@ -35,7 +35,6 @@ pub fn get_vod_streams(
 #[tauri::command]
 pub async fn get_vod_info(
     state: State<'_, DbConn>,
-    client: State<'_, XtreamClient>,
     profile_id: Option<i64>,
     stream_id: i64,
 ) -> Result<serde_json::Value, String> {
@@ -64,6 +63,14 @@ pub async fn get_vod_info(
     }
 
     // 3. Fetch on-demand from Xtream API
+    let client = {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        let p = crate::db::profile::get(&conn, p_id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Profile not found".to_string())?;
+        XtreamClient::new(p.server_url, p.username, p.password)
+    };
+
     let info_val = crate::api::vod::fetch_vod_info(&client, stream_id).await.map_err(|e| e.to_string())?;
 
     // 4. Cache in database

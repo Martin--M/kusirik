@@ -13,21 +13,61 @@ pub struct Profile {
     pub created_at: String,
 }
 
-pub fn insert(conn: &Connection, profile: &Profile) -> Result<()> {
-    conn.execute(
-        "INSERT INTO profiles (id, name, server_url, username, password, epg_mode, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        rusqlite::params![
-            profile.id,
-            profile.name,
-            profile.server_url,
-            profile.username,
-            profile.password,
-            profile.epg_mode,
-            profile.created_at
-        ],
+pub fn insert(conn: &Connection, profile: &Profile) -> Result<i64> {
+    if profile.id > 0 {
+        conn.execute(
+            "INSERT OR REPLACE INTO profiles (id, name, server_url, username, password, epg_mode, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            rusqlite::params![
+                profile.id,
+                &profile.name,
+                &profile.server_url,
+                &profile.username,
+                &profile.password,
+                &profile.epg_mode,
+                &profile.created_at
+            ],
+        )?;
+        Ok(profile.id)
+    } else {
+        conn.execute(
+            "INSERT INTO profiles (name, server_url, username, password, epg_mode, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![
+                &profile.name,
+                &profile.server_url,
+                &profile.username,
+                &profile.password,
+                &profile.epg_mode,
+                &profile.created_at
+            ],
+        )?;
+        Ok(conn.last_insert_rowid())
+    }
+}
+
+pub fn get_all(conn: &Connection) -> Result<Vec<Profile>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, server_url, username, password, epg_mode, created_at
+         FROM profiles ORDER BY id ASC",
     )?;
-    Ok(())
+    let profile_iter = stmt.query_map([], |row| {
+        Ok(Profile {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            server_url: row.get(2)?,
+            username: row.get(3)?,
+            password: row.get(4)?,
+            epg_mode: row.get(5)?,
+            created_at: row.get(6)?,
+        })
+    })?;
+    
+    let mut list = Vec::new();
+    for p in profile_iter {
+        list.push(p?);
+    }
+    Ok(list)
 }
 
 pub fn get(conn: &Connection, id: i64) -> Result<Option<Profile>> {

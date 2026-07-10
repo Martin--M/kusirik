@@ -23,6 +23,7 @@ pub async fn test_connection(
 
 #[derive(serde::Deserialize)]
 pub struct SaveProfilePayload {
+    pub id: Option<i64>,
     pub name: String,
     pub server_url: String,
     pub username: String,
@@ -33,7 +34,6 @@ pub struct SaveProfilePayload {
 #[tauri::command]
 pub async fn save_profile(
     state: State<'_, DbConn>,
-    client: State<'_, XtreamClient>,
     payload: SaveProfilePayload,
 ) -> Result<serde_json::Value, String> {
     let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
@@ -43,7 +43,7 @@ pub async fn save_profile(
     let created_at = Utc::now().to_rfc3339();
 
     let profile = Profile {
-        id: 1,
+        id: payload.id.unwrap_or(0),
         name: payload.name.clone(),
         server_url: payload.server_url.clone(),
         username: payload.username.clone(),
@@ -53,26 +53,12 @@ pub async fn save_profile(
     };
 
     // Save profile metadata
-    let _ = crate::db::profile::delete(conn, 1); // clear existing if any
-    crate::db::profile::insert(conn, &profile).map_err(|e| e.to_string())?;
+    let saved_id = crate::db::profile::insert(conn, &profile).map_err(|e| e.to_string())?;
 
-    // Save settings
-    crate::db::settings::set(conn, "server_url", &payload.server_url).map_err(|e| e.to_string())?;
-    crate::db::settings::set(conn, "username", &payload.username).map_err(|e| e.to_string())?;
-    if let Some(ref pass) = payload.password {
-        crate::db::settings::set(conn, "password", pass).map_err(|e| e.to_string())?;
-    }
-    crate::db::settings::set(conn, "epg_mode", &epg_mode).map_err(|e| e.to_string())?;
 
-    // Update managed client config
-    client.update_credentials(
-        payload.server_url.clone(),
-        payload.username.clone(),
-        payload.password.clone().unwrap_or_default(),
-    );
 
     Ok(json!({
-        "id": 1,
+        "id": saved_id,
         "name": payload.name,
         "server_url": payload.server_url,
         "username": payload.username,
@@ -80,6 +66,28 @@ pub async fn save_profile(
         "epg_mode": epg_mode,
         "created_at": created_at,
     }))
+}
+
+#[tauri::command]
+pub fn get_profiles(state: State<'_, DbConn>) -> Result<Vec<serde_json::Value>, String> {
+    let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
+    let conn = &*conn_guard;
+
+    match crate::db::profile::get_all(conn) {
+        Ok(profiles) => {
+            let mapped = profiles.into_iter().map(|p| json!({
+                "id": p.id,
+                "name": p.name,
+                "server_url": p.server_url,
+                "username": p.username,
+                "password": p.password,
+                "epg_mode": p.epg_mode,
+                "created_at": p.created_at,
+            })).collect();
+            Ok(mapped)
+        }
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 #[tauri::command]
@@ -108,20 +116,36 @@ pub fn get_profile(
 #[tauri::command]
 pub fn delete_profile(
     state: State<'_, DbConn>,
-    client: State<'_, XtreamClient>,
     id: i64,
 ) -> Result<(), String> {
     let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
     let conn = &*conn_guard;
 
-    crate::db::profile::delete(conn, id).map_err(|e| e.to_string())?;
-    // Clear credentials settings
-    let _ = crate::db::settings::set(conn, "server_url", "");
-    let _ = crate::db::settings::set(conn, "username", "");
-    let _ = crate::db::settings::set(conn, "password", "");
 
-    // Clear managed client config
-    client.update_credentials("".to_string(), "".to_string(), "".to_string());
+
+    // Cascade delete related profile data
+    let tables = [
+        "live_categories",
+        "live_streams",
+        "vod_categories",
+        "vod_streams",
+        "vod_info",
+        "series_categories",
+        "series",
+        "series_info",
+        "epg_entries",
+        "playback_history",
+        "sync_log",
+    ];
+    for table in tables {
+        let query = format!("DELETE FROM {} WHERE profile_id = ?1", table);
+        let _ = conn.execute(&query, rusqlite::params![id]);
+    }
+
+    // Delete profile metadata
+    crate::db::profile::delete(conn, id).map_err(|e| e.to_string())?;
+
+
 
     Ok(())
 }

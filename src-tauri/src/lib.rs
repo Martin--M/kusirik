@@ -24,18 +24,6 @@ pub fn run() {
             // Open Rust DB connection (runs migrations)
             let db_conn = db::open(&db_path)?;
             
-            // Read settings from DB to initialize XtreamClient
-            let (url, username, password) = {
-                let conn = db_conn.0.lock().map_err(|e| anyhow::anyhow!("DB lock error: {}", e))?;
-                let url = db::settings::get(&conn, "server_url")?.unwrap_or_default();
-                let username = db::settings::get(&conn, "username")?.unwrap_or_default();
-                let password = db::settings::get(&conn, "password")?.unwrap_or_default();
-                (url, username, password)
-            };
-
-            let client = api::XtreamClient::new(url, username, password);
-            app.manage(client);
-            
             // Manage state for Rust commands
             app.manage(db_conn);
 
@@ -74,6 +62,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::profile::save_profile,
+            commands::profile::get_profiles,
             commands::profile::get_profile,
             commands::profile::delete_profile,
             commands::profile::test_connection,
