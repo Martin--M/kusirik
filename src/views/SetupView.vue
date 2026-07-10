@@ -170,6 +170,10 @@ function initForm() {
     const editId = Number(route.query.id)
     const existing = profileStore.profiles.find(p => p.id === editId)
     if (existing) {
+      if (existing.profile_type === 'public_iptv') {
+        router.push('/settings')
+        return
+      }
       serverUrl.value = existing.server_url
       username.value = existing.username
       password.value = existing.password || ''

@@ -58,7 +58,12 @@
       "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce profil ? Cela supprimera le profil de configuration et videra tous ses flux mis en cache de la base de données.",
       "deleting": "Suppression du profil...",
       "deleteSuccess": "Profil supprimé avec succès",
-      "deleteFailed": "Échec de la suppression du profil : {error}"
+      "deleteFailed": "Échec de la suppression du profil : {error}",
+      "addingPublic": "Ajout du profil IPTV public gratuit...",
+      "addedPublic": "Profil IPTV public gratuit ajouté. Synchronisation des données...",
+      "addPublicFailed": "Échec de l'ajout du profil IPTV public gratuit : {error}",
+      "addPublic": "Activer les chaînes IPTV publiques gratuites",
+      "removePublic": "Désactiver les chaînes IPTV publiques gratuites"
     },
     "stats": {
       "title": "Statistiques de la base de données",
@@ -130,6 +135,8 @@
   },
   "media": {
     "liveTag": "DIRECT",
+    "allProfiles": "Tous les profils",
+    "mirror": "Source",
     "allChannels": "Toutes les chaînes",
     "uncategorized": "Sans catégorie",
     "allMovies": "Tous les films",

@@ -43,6 +43,9 @@ export const activateProfile = (id: number) =>
 export const testConnection = (payload: any) =>
   invoke<any>('test_connection', payload)
 
+export const addPublicIptvProfile = () =>
+  invoke<Profile>('add_public_iptv_profile')
+
 // ─── Sync ────────────────────────────────────────────────────────────────────
 
 export const triggerSync = (profileId: number, dataType: DataType, force?: boolean) =>
@@ -63,6 +66,9 @@ export const getLiveCategories = (profileId?: number | null) =>
 
 export const getLiveStreams = (profileId?: number | null, categoryId?: string, offset = 0, limit = 100) =>
   invoke<LiveStreamDto[]>('get_live_streams', { profileId, categoryId, offset, limit })
+
+export const getStreamMirrors = (profileId: number, name: string) =>
+  invoke<LiveStream[]>('get_stream_mirrors', { profileId, name })
 
 // ─── VOD ─────────────────────────────────────────────────────────────────────
 

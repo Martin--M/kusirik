@@ -12,7 +12,8 @@ import {
   triggerSync,
   getLiveCategories,
   getVodCategories,
-  getSeriesCategories
+  getSeriesCategories,
+  addPublicIptvProfile
 } from '@/lib/tauri-commands'
 import CustomSelect from '@/components/ui/CustomSelect.vue'
 import type { DataType } from '@/types/sync'
@@ -131,6 +132,50 @@ async function handleDeleteProfile(profileId: number) {
   }
 }
 
+const publicProfile = computed(() => {
+  return profileStore.profiles.find(p => p.profile_type === 'public_iptv')
+})
+
+const isTogglingPublicProfile = ref(false)
+
+async function handleTogglePublicProfile() {
+  if (isTogglingPublicProfile.value) return
+  isTogglingPublicProfile.value = true
+
+  const existing = publicProfile.value
+  if (existing) {
+    const confirmed = confirm(t('settings.profile.deleteConfirm'))
+    if (!confirmed) {
+      isTogglingPublicProfile.value = false
+      return
+    }
+    try {
+      toastStore.showToast(t('settings.profile.deleting'), 'success')
+      await deleteProfile(existing.id)
+      await profileStore.loadProfiles()
+      syncStore.reset()
+      toastStore.showToast(t('settings.profile.deleteSuccess'), 'success')
+      if (profileStore.profiles.length === 0) {
+        router.push('/setup')
+      }
+    } catch (err) {
+      toastStore.showToast(t('settings.profile.deleteFailed', { error: String(err) }), 'error')
+    }
+  } else {
+    try {
+      toastStore.showToast(t('settings.profile.addingPublic'), 'success')
+      const profile = await addPublicIptvProfile()
+      await profileStore.loadProfiles()
+      toastStore.showToast(t('settings.profile.addedPublic'), 'success')
+      await triggerSync(profile.id, 'live_streams', true)
+      await triggerSync(profile.id, 'epg', true)
+    } catch (err) {
+      toastStore.showToast(t('settings.profile.addPublicFailed', { error: String(err) }), 'error')
+    }
+  }
+  isTogglingPublicProfile.value = false
+}
+
 function getTypeName(type: DataType): string {
   return t(`settings.stats.types.${type}`)
 }
@@ -210,7 +255,15 @@ onMounted(async () => {
               </div>
             </div>
           </div>
-          <div class="card-actions" style="margin-top: var(--spacing-4); display: flex; justify-content: flex-end;">
+          <div class="card-actions" style="margin-top: var(--spacing-4); display: flex; justify-content: flex-end; gap: var(--spacing-2);">
+            <button 
+              class="btn" 
+              :class="publicProfile ? 'btn-danger' : 'btn-primary'" 
+              :disabled="isTogglingPublicProfile"
+              @click="handleTogglePublicProfile"
+            >
+              {{ publicProfile ? $t('settings.profile.removePublic') : $t('settings.profile.addPublic') }}
+            </button>
             <router-link to="/setup?add=true" class="btn btn-primary" style="text-decoration: none;">
               + {{ $t('settings.profile.addProfile') || 'Add Profile' }}
             </router-link>

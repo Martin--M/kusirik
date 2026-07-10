@@ -58,7 +58,12 @@
       "deleteConfirm": "Are you sure you want to delete this profile? This will remove the profile configuration and clear all its cached streams from the database.",
       "deleting": "Deleting profile...",
       "deleteSuccess": "Profile deleted successfully",
-      "deleteFailed": "Failed to delete profile: {error}"
+      "deleteFailed": "Failed to delete profile: {error}",
+      "addingPublic": "Adding Free Public IPTV profile...",
+      "addedPublic": "Free Public IPTV profile added. Syncing data...",
+      "addPublicFailed": "Failed to add Free Public IPTV profile: {error}",
+      "addPublic": "Enable Free Public IPTV Channels",
+      "removePublic": "Disable Free Public IPTV Channels"
     },
     "stats": {
       "title": "Database Statistics",
@@ -130,6 +135,8 @@
   },
   "media": {
     "liveTag": "LIVE",
+    "allProfiles": "All Profiles",
+    "mirror": "Source",
     "allChannels": "All Channels",
     "uncategorized": "Uncategorized",
     "allMovies": "All Movies",
