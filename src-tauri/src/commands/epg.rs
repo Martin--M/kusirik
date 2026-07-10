@@ -188,18 +188,78 @@ pub async fn get_epg_guide(
     profile_id: i64,
     from: String,
     to: String,
+    offset: Option<u32>,
+    limit: Option<u32>,
 ) -> Result<Vec<GuideChannel>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
 
-    // 1. Fetch EPG entries in the timeframe
+    let limit_val = limit.unwrap_or(50);
+    let offset_val = offset.unwrap_or(0);
+
+    // 1. Fetch channels that have active EPG listings in the timeline window (paginated)
+    let mut channel_stmt = conn.prepare_cached(
+        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration
+         FROM live_streams
+         WHERE profile_id = ?1 
+           AND epg_channel_id IS NOT NULL 
+           AND epg_channel_id != ''
+           AND EXISTS (
+               SELECT 1 FROM epg_entries ee 
+               WHERE ee.profile_id = live_streams.profile_id 
+                 AND ee.channel_id = live_streams.epg_channel_id 
+                 AND ee.start < ?2 
+                 AND ee.stop > ?3
+           )
+         ORDER BY name ASC
+         LIMIT ?4 OFFSET ?5"
+    ).map_err(|e| e.to_string())?;
+
+    let channel_rows = channel_stmt.query_map(rusqlite::params![profile_id, &to, &from, limit_val, offset_val], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, Option<String>>(1)?,
+            row.get::<_, Option<String>>(2)?,
+            row.get::<_, Option<String>>(3)?,
+            row.get::<_, i64>(5)?,
+            row.get::<_, i64>(6)?,
+        ))
+    }).map_err(|e| e.to_string())?;
+
+    let mut channels = Vec::new();
+    let mut channel_ids = Vec::new();
+    for row in channel_rows {
+        let (stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration) = row.map_err(|e| e.to_string())?;
+        if let Some(ref ch_id) = epg_channel_id {
+            channel_ids.push(ch_id.clone());
+        }
+        channels.push(GuideChannel {
+            stream_id,
+            name,
+            stream_icon,
+            epg_channel_id,
+            tv_archive,
+            tv_archive_duration,
+            epg_entries: Vec::new(),
+        });
+    }
+
+    if channel_ids.is_empty() {
+        return Ok(channels);
+    }
+
+    // 2. Fetch EPG entries in the timeframe matching ONLY the paginated channel IDs
+    let channel_ids_json = serde_json::to_string(&channel_ids).map_err(|e| e.to_string())?;
     let mut epg_stmt = conn.prepare_cached(
         "SELECT profile_id, channel_id, start, stop, title, description, tz_offset 
          FROM epg_entries 
-         WHERE profile_id = ?1 AND start < ?2 AND stop > ?3
+         WHERE profile_id = ?1 
+           AND start < ?2 
+           AND stop > ?3
+           AND channel_id IN (SELECT value FROM json_each(?4))
          ORDER BY start ASC"
     ).map_err(|e| e.to_string())?;
 
-    let epg_rows = epg_stmt.query_map(rusqlite::params![profile_id, &to, &from], |row| {
+    let epg_rows = epg_stmt.query_map(rusqlite::params![profile_id, &to, &from, channel_ids_json], |row| {
         Ok(EpgEntry {
             profile_id: row.get(0)?,
             channel_id: row.get(1)?,
@@ -217,52 +277,10 @@ pub async fn get_epg_guide(
         entries_by_channel.entry(entry.channel_id.clone()).or_default().push(entry);
     }
 
-    // 2. Fetch channels that have active EPG listings in the timeline window
-    let mut channel_stmt = conn.prepare_cached(
-        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration
-         FROM live_streams
-         WHERE profile_id = ?1 
-           AND epg_channel_id IS NOT NULL 
-           AND epg_channel_id != ''
-           AND EXISTS (
-               SELECT 1 FROM epg_entries ee 
-               WHERE ee.profile_id = live_streams.profile_id 
-                 AND ee.channel_id = live_streams.epg_channel_id 
-                 AND ee.start < ?2 
-                 AND ee.stop > ?3
-           )
-         ORDER BY name ASC"
-    ).map_err(|e| e.to_string())?;
-
-    let channel_rows = channel_stmt.query_map(rusqlite::params![profile_id, &to, &from], |row| {
-        Ok((
-            row.get::<_, i64>(0)?,
-            row.get::<_, Option<String>>(1)?,
-            row.get::<_, Option<String>>(2)?,
-            row.get::<_, Option<String>>(3)?,
-            row.get::<_, i64>(5)?,
-            row.get::<_, i64>(6)?,
-        ))
-    }).map_err(|e| e.to_string())?;
-
-    let mut channels = Vec::new();
-    for row in channel_rows {
-        let (stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration) = row.map_err(|e| e.to_string())?;
-        let epg_entries = if let Some(ref ch_id) = epg_channel_id {
-            entries_by_channel.remove(ch_id).unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-
-        channels.push(GuideChannel {
-            stream_id,
-            name,
-            stream_icon,
-            epg_channel_id,
-            tv_archive,
-            tv_archive_duration,
-            epg_entries,
-        });
+    for ch in &mut channels {
+        if let Some(ref ch_id) = ch.epg_channel_id {
+            ch.epg_entries = entries_by_channel.remove(ch_id).unwrap_or_default();
+        }
     }
 
     Ok(channels)

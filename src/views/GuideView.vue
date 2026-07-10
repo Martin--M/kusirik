@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
+import { useInfiniteQuery } from '@tanstack/vue-query'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { getEpgGuide, getSyncStatus } from '@/lib/tauri-commands'
 import { usePlayer } from '@/composables/usePlayer'
@@ -61,6 +61,7 @@ async function handleToggleFavorite(channel: any) {
 
 // Setup time window parameters
 const pxPerMinute = 4
+const PAGE_SIZE = 500
 
 const now = ref(new Date())
 const baseTime = ref(new Date())
@@ -143,19 +144,39 @@ onUnmounted(() => {
 })
 
 // Query EPG Guide data via tauri command
-const { data: channels, isLoading, error } = useQuery({
+const {
+  data: infiniteData,
+  fetchNextPage,
+  hasNextPage,
+  isFetchingNextPage,
+  isLoading,
+  error
+} = useInfiniteQuery({
   queryKey: ['epg_guide', queryStartTime, queryEndTime, () => profileStore.profile?.id],
-  queryFn: async () => {
+  queryFn: async ({ pageParam = 0 }) => {
     const fromStr = queryStartTime.value.toISOString()
     const toStr = queryEndTime.value.toISOString()
     const profileId = profileStore.profile?.id
     if (profileId === undefined) {
       throw new Error('Cannot query EPG Guide: No active profile is loaded.')
     }
-    return await getEpgGuide(profileId, fromStr, toStr)
+    return await getEpgGuide(profileId, fromStr, toStr, pageParam, PAGE_SIZE)
+  },
+  initialPageParam: 0,
+  getNextPageParam: (lastPage, allPages) => {
+    if (!lastPage || lastPage.length < PAGE_SIZE) {
+      return undefined
+    }
+    return allPages.length * PAGE_SIZE
   },
   refetchInterval: 300000 // 5 minutes refresh
 })
+
+const channels = computed(() => {
+  if (!infiniteData.value) return []
+  return infiniteData.value.pages.flat()
+})
+
 
 function deduplicateEpgEntries(entries: EpgEntry[]): EpgEntry[] {
   if (!entries || entries.length === 0) return []
@@ -342,6 +363,13 @@ const rowVirtualizer = useVirtualizer(
     overscan: 10,
   }))
 )
+
+// Watch for data changes and load the next page in the background automatically
+watch(() => infiniteData.value, () => {
+  if (hasNextPage.value && !isFetchingNextPage.value) {
+    fetchNextPage()
+  }
+})
 function shouldShowEndTime(startStr: string, stopStr: string): boolean {
   try {
     const start = new Date(startStr).getTime()
