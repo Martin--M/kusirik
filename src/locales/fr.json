@@ -47,11 +47,12 @@
       "title": "Profil de connexion",
       "serverUrl": "URL du serveur",
       "username": "Nom d'utilisateur",
-      "disconnect": "Déconnecter le profil",
-      "disconnectConfirm": "Êtes-vous sûr de vouloir vous déconnecter ? Cela supprimera votre profil de configuration et videra tous les flux mis en cache dans la base de données locale.",
-      "disconnecting": "Déconnexion du profil...",
-      "disconnectSuccess": "Profil déconnecté avec succès",
-      "disconnectFailed": "Échec de la déconnexion du profil : {error}"
+      "addProfile": "Ajouter un profil",
+      "delete": "Supprimer le profil",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce profil ? Cela supprimera le profil de configuration et videra tous ses flux mis en cache de la base de données.",
+      "deleting": "Suppression du profil...",
+      "deleteSuccess": "Profil supprimé avec succès",
+      "deleteFailed": "Échec de la suppression du profil : {error}"
     },
     "stats": {
       "title": "Statistiques de la base de données",

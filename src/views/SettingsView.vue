@@ -114,20 +114,20 @@ async function handleSyncAll() {
 }
 
 async function handleDeleteProfile(profileId: number) {
-  const confirmed = confirm(t('settings.profile.disconnectConfirm'))
+  const confirmed = confirm(t('settings.profile.deleteConfirm'))
   if (!confirmed) return
 
   try {
-    toastStore.showToast(t('settings.profile.disconnecting'), 'success')
+    toastStore.showToast(t('settings.profile.deleting'), 'success')
     await deleteProfile(profileId)
     await profileStore.loadProfiles()
     syncStore.reset()
-    toastStore.showToast(t('settings.profile.disconnectSuccess'), 'success')
+    toastStore.showToast(t('settings.profile.deleteSuccess'), 'success')
     if (profileStore.profiles.length === 0) {
       router.push('/setup')
     }
   } catch (err) {
-    toastStore.showToast(t('settings.profile.disconnectFailed', { error: String(err) }), 'error')
+    toastStore.showToast(t('settings.profile.deleteFailed', { error: String(err) }), 'error')
   }
 }
 
@@ -201,7 +201,7 @@ onMounted(async () => {
                 <span class="profile-url" style="font-size: 0.8rem; color: var(--color-text-muted);">{{ p.server_url }} ({{ p.username }})</span>
               </div>
               <button class="btn btn-danger" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem;" @click="handleDeleteProfile(p.id!)">
-                {{ $t('settings.profile.disconnect') }}
+                {{ $t('settings.profile.delete') }}
               </button>
             </div>
           </div>
