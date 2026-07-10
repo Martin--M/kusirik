@@ -106,7 +106,7 @@ router.beforeEach(async (to) => {
     }
   }
 
-  if (to.meta.requiresNoProfile && hasProfile && isSyncComplete) {
+  if (to.meta.requiresNoProfile && hasProfile && isSyncComplete && !to.query.add && !to.query.id) {
     return { name: 'live' }
   }
 })

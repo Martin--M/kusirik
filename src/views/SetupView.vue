@@ -88,27 +88,44 @@ async function handleTest() {
   }
 }
 
+async function saveProfileData() {
+  const existingName = route.query.id
+    ? (profileStore.profiles.find(p => p.id === Number(route.query.id))?.name || 'IPTV Provider')
+    : 'IPTV Provider'
+
+  const profile = await saveProfile({
+    id: route.query.id ? Number(route.query.id) : undefined,
+    name: existingName,
+    server_url: serverUrl.value,
+    username: username.value,
+    password: password.value,
+    epg_mode: 'xmltv',
+  })
+
+  profileStore.setProfile(profile)
+  return profile
+}
+
 async function handleSave() {
   isSaving.value = true
   saveError.value = null
 
   try {
-    const existingName = route.query.id
-      ? (profileStore.profiles.find(p => p.id === Number(route.query.id))?.name || 'IPTV Provider')
-      : 'IPTV Provider'
+    await saveProfileData()
+    isSaving.value = false
+    router.push('/settings')
+  } catch (err) {
+    saveError.value = String(err)
+    isSaving.value = false
+  }
+}
 
-    const profile = await saveProfile({
-      id: route.query.id ? Number(route.query.id) : undefined,
-      name: existingName,
-      server_url: serverUrl.value,
-      username: username.value,
-      password: password.value,
-      epg_mode: 'xmltv',
-    })
+async function handleSaveAndSync() {
+  isSaving.value = true
+  saveError.value = null
 
-    profileStore.setProfile(profile)
-
-    // Trigger sequential sync
+  try {
+    const profile = await saveProfileData()
     syncStore.reset()
     isSyncing.value = true
     syncError.value = null
@@ -120,7 +137,35 @@ async function handleSave() {
   }
 }
 
+async function handleResync() {
+  const confirmed = confirm(t('setup.resyncConfirm'))
+  if (!confirmed) return
+
+  isSaving.value = true
+  saveError.value = null
+
+  try {
+    const profile = await saveProfileData()
+    syncStore.reset()
+    isSyncing.value = true
+    syncError.value = null
+    await triggerSync(profile.id, 'live_streams', true)
+    isSaving.value = false
+  } catch (err) {
+    saveError.value = String(err)
+    isSaving.value = false
+  }
+}
+
 onMounted(async () => {
+  initForm()
+})
+
+watch(() => route.fullPath, () => {
+  initForm()
+})
+
+function initForm() {
   if (route.query.id) {
     const editId = Number(route.query.id)
     const existing = profileStore.profiles.find(p => p.id === editId)
@@ -130,15 +175,26 @@ onMounted(async () => {
       password.value = existing.password || ''
       testSuccess.value = true
     }
-  } else if (profileStore.hasProfile && !route.query.add) {
-    router.push('/')
+  } else {
+    serverUrl.value = ''
+    username.value = ''
+    password.value = ''
+    testSuccess.value = false
+    if (route.name === 'setup' && profileStore.hasProfile && !route.query.add) {
+      router.push('/')
+    }
   }
-})
+}
 </script>
 
 <template>
   <div class="setup-container">
     <div class="glass-card">
+      <div v-if="profileStore.hasProfile" class="back-nav" style="margin-bottom: var(--spacing-4);">
+        <button type="button" class="btn btn-secondary btn-back" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.85rem;" @click="router.push('/settings')">
+          ← {{ $t('setup.syncScreen.back') || 'Back' }}
+        </button>
+      </div>
       <div class="header">
         <IconLogo class="setup-logo-svg" />
         <h1 class="glow-title">{{ route.query.id ? $t('setup.editTitle') : 'kusirik' }}</h1>
@@ -146,7 +202,7 @@ onMounted(async () => {
       </div>
 
       <!-- Main setup form -->
-      <form v-if="!isSyncing" @submit.prevent="handleSave" class="setup-form">
+      <form v-if="!isSyncing" @submit.prevent class="setup-form">
         <div class="form-group">
           <label for="server-url">{{ $t('setup.serverUrl') }}</label>
           <input
@@ -207,7 +263,7 @@ onMounted(async () => {
         </div>
 
         <!-- Actions -->
-        <div class="actions">
+        <div class="actions" style="display: flex; gap: var(--spacing-3); flex-wrap: wrap; justify-content: flex-end; width: 100%;">
           <button
             type="button"
             @click="handleTest"
@@ -218,14 +274,39 @@ onMounted(async () => {
             {{ isTesting ? $t('setup.testing') : $t('setup.testConnection') }}
           </button>
 
-          <button
-            type="submit"
-            class="btn btn-primary"
-            :disabled="isTesting || isSaving || !testSuccess"
-          >
-            <span v-if="isSaving" class="spinner"></span>
-            {{ isSaving ? $t('setup.saving') : $t('setup.saveAndSync') }}
-          </button>
+          <template v-if="route.query.id">
+            <button
+              type="button"
+              @click="handleSave"
+              class="btn btn-success"
+              :disabled="isTesting || isSaving || !testSuccess"
+            >
+              <span v-if="isSaving" class="spinner"></span>
+              {{ $t('setup.saveOnly') }}
+            </button>
+
+            <button
+              type="button"
+              @click="handleResync"
+              class="btn btn-primary"
+              :disabled="isTesting || isSaving || !testSuccess"
+            >
+              <span v-if="isSaving" class="spinner"></span>
+              {{ $t('setup.resync') }}
+            </button>
+          </template>
+
+          <template v-else>
+            <button
+              type="button"
+              @click="handleSaveAndSync"
+              class="btn btn-primary"
+              :disabled="isTesting || isSaving || !testSuccess"
+            >
+              <span v-if="isSaving" class="spinner"></span>
+              {{ $t('setup.saveAndSync') }}
+            </button>
+          </template>
         </div>
       </form>
 
