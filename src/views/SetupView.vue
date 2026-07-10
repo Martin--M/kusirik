@@ -93,8 +93,13 @@ async function handleSave() {
   saveError.value = null
 
   try {
+    const existingName = route.query.id
+      ? (profileStore.profiles.find(p => p.id === Number(route.query.id))?.name || 'IPTV Provider')
+      : 'IPTV Provider'
+
     const profile = await saveProfile({
-      name: 'IPTV Provider',
+      id: route.query.id ? Number(route.query.id) : undefined,
+      name: existingName,
       server_url: serverUrl.value,
       username: username.value,
       password: password.value,
@@ -116,7 +121,16 @@ async function handleSave() {
 }
 
 onMounted(async () => {
-  if (profileStore.hasProfile && !route.query.add) {
+  if (route.query.id) {
+    const editId = Number(route.query.id)
+    const existing = profileStore.profiles.find(p => p.id === editId)
+    if (existing) {
+      serverUrl.value = existing.server_url
+      username.value = existing.username
+      password.value = existing.password || ''
+      testSuccess.value = true
+    }
+  } else if (profileStore.hasProfile && !route.query.add) {
     router.push('/')
   }
 })
@@ -127,8 +141,8 @@ onMounted(async () => {
     <div class="glass-card">
       <div class="header">
         <IconLogo class="setup-logo-svg" />
-        <h1 class="glow-title">kusirik</h1>
-        <p class="subtitle">{{ $t('setup.subtitle') }}</p>
+        <h1 class="glow-title">{{ route.query.id ? $t('setup.editTitle') : 'kusirik' }}</h1>
+        <p class="subtitle">{{ route.query.id ? $t('setup.editSubtitle') : $t('setup.subtitle') }}</p>
       </div>
 
       <!-- Main setup form -->

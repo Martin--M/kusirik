@@ -15,6 +15,8 @@
   "setup": {
     "title": "Kusirik - IPTV Engine",
     "subtitle": "Kusirik - IPTV Engine",
+    "editTitle": "Edit Profile",
+    "editSubtitle": "Update your IPTV connection parameters",
     "serverUrl": "Server URL",
     "username": "Username",
     "password": "Password",
@@ -48,6 +50,7 @@
       "serverUrl": "Server URL",
       "username": "Username",
       "addProfile": "Add Profile",
+      "edit": "Edit",
       "delete": "Delete Profile",
       "deleteConfirm": "Are you sure you want to delete this profile? This will remove the profile configuration and clear all its cached streams from the database.",
       "deleting": "Deleting profile...",

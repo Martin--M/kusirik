@@ -200,9 +200,14 @@ onMounted(async () => {
                 <span class="profile-name" style="font-weight: 700; color: var(--color-text);">{{ p.name || 'IPTV Profile' }}</span>
                 <span class="profile-url" style="font-size: 0.8rem; color: var(--color-text-muted);">{{ p.server_url }} ({{ p.username }})</span>
               </div>
-              <button class="btn btn-danger" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem;" @click="handleDeleteProfile(p.id!)">
-                {{ $t('settings.profile.delete') }}
-              </button>
+              <div class="profile-actions" style="display: flex; gap: var(--spacing-2);">
+                <router-link :to="`/setup?id=${p.id}`" class="btn" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--color-border); color: var(--color-text); text-decoration: none;">
+                  {{ $t('settings.profile.edit') }}
+                </router-link>
+                <button class="btn btn-danger" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem;" @click="handleDeleteProfile(p.id!)">
+                  {{ $t('settings.profile.delete') }}
+                </button>
+              </div>
             </div>
           </div>
           <div class="card-actions" style="margin-top: var(--spacing-4); display: flex; justify-content: flex-end;">
