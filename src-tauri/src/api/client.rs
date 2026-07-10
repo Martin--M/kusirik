@@ -210,6 +210,12 @@ pub struct ClientRegistry {
     pub clients: Mutex<HashMap<i64, Arc<XtreamClient>>>,
 }
 
+impl Default for ClientRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ClientRegistry {
     pub fn new() -> Self {
         Self {

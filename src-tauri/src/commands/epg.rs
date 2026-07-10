@@ -73,6 +73,19 @@ pub async fn get_epg_for_channel(
         None => return Ok(vec![]),
     };
 
+    // Check if the profile is public IPTV (which doesn't support on-demand Xtream short_epg)
+    let is_public = {
+        let conn = db_conn.0.lock().map_err(|e| e.to_string())?;
+        let p = crate::db::profile::get(&conn, profile_id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Profile not found".to_string())?;
+        p.profile_type == "public_iptv"
+    };
+
+    if is_public {
+        return Ok(vec![]);
+    }
+
     // Fetch EPG listings on demand
     let registry = app.state::<crate::api::ClientRegistry>();
     let client = {

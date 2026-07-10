@@ -8,14 +8,21 @@ pub fn resolve_stream_url(
     profile_id: Option<i64>,
 ) -> Result<String, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    let password = match profile_id {
-        Some(pid) => match crate::db::profile::get(&conn, pid) {
-            Ok(Some(p)) => p.password,
-            _ => return Err("Profile not found".to_string()),
-        },
-        None => return Err("Profile ID is required".to_string()),
-    };
-    Ok(url.replace("***", &password))
+    let pid = profile_id.ok_or_else(|| "Profile ID is required".to_string())?;
+    let p = crate::db::profile::get(&conn, pid)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Profile not found".to_string())?;
+
+    if p.profile_type == "public_iptv" {
+        if let Some(sid) = url.split('/').next_back().and_then(|s| s.split('.').next()).and_then(|s| s.parse::<i64>().ok()) {
+            let mut stmt = conn.prepare("SELECT url FROM live_streams WHERE profile_id = ?1 AND stream_id = ?2").map_err(|e| e.to_string())?;
+            let db_url: Option<String> = stmt.query_row(rusqlite::params![pid, sid], |row| row.get(0)).map_err(|e| e.to_string())?;
+            return db_url.ok_or_else(|| "Public IPTV stream URL not found".to_string());
+        }
+        return Err("Invalid stream URL format".to_string());
+    }
+
+    Ok(url.replace("***", &p.password))
 }
 
 #[tauri::command]
@@ -35,14 +42,23 @@ pub fn launch_player(
     #[cfg(not(target_os = "android"))]
     {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
-        let password = match profile_id {
-            Some(pid) => match crate::db::profile::get(&conn, pid) {
-                Ok(Some(p)) => p.password,
-                _ => return Err("Profile not found".to_string()),
-            },
-            None => return Err("Profile ID is required".to_string()),
+        let pid = profile_id.ok_or_else(|| "Profile ID is required".to_string())?;
+        let p = crate::db::profile::get(&conn, pid)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Profile not found".to_string())?;
+
+        let final_url = if p.profile_type == "public_iptv" {
+            if let Some(sid) = url.split('/').next_back().and_then(|s| s.split('.').next()).and_then(|s| s.parse::<i64>().ok()) {
+                let mut stmt = conn.prepare("SELECT url FROM live_streams WHERE profile_id = ?1 AND stream_id = ?2").map_err(|e| e.to_string())?;
+                let db_url: Option<String> = stmt.query_row(rusqlite::params![pid, sid], |row| row.get(0)).map_err(|e| e.to_string())?;
+                db_url.ok_or_else(|| "Public IPTV stream URL not found".to_string())?
+            } else {
+                return Err("Invalid stream URL format".to_string());
+            }
+        } else {
+            url.replace("***", &p.password)
         };
-        let final_url = url.replace("***", &password);
+
         use std::process::Command;
 
         let player_path = crate::db::settings::get(&conn, "player_windows")
@@ -190,17 +206,25 @@ pub async fn validate_stream_url(
     url: String,
     profile_id: Option<i64>,
 ) -> Result<bool, String> {
-    let password = {
+    let final_url = {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
-        match profile_id {
-            Some(pid) => match crate::db::profile::get(&conn, pid) {
-                Ok(Some(p)) => p.password,
-                _ => return Err("Profile not found".to_string()),
-            },
-            None => return Err("Profile ID is required".to_string()),
+        let pid = profile_id.ok_or_else(|| "Profile ID is required".to_string())?;
+        let p = crate::db::profile::get(&conn, pid)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Profile not found".to_string())?;
+
+        if p.profile_type == "public_iptv" {
+            if let Some(sid) = url.split('/').next_back().and_then(|s| s.split('.').next()).and_then(|s| s.parse::<i64>().ok()) {
+                let mut stmt = conn.prepare("SELECT url FROM live_streams WHERE profile_id = ?1 AND stream_id = ?2").map_err(|e| e.to_string())?;
+                let db_url: Option<String> = stmt.query_row(rusqlite::params![pid, sid], |row| row.get(0)).map_err(|e| e.to_string())?;
+                db_url.ok_or_else(|| "Public IPTV stream URL not found".to_string())?
+            } else {
+                return Err("Invalid stream URL format".to_string());
+            }
+        } else {
+            url.replace("***", &p.password)
         }
     };
-    let final_url = url.replace("***", &password);
 
     let client = reqwest::Client::builder()
         .connect_timeout(std::time::Duration::from_secs(6))

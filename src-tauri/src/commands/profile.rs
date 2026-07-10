@@ -29,6 +29,7 @@ pub struct SaveProfilePayload {
     pub username: String,
     pub password: Option<String>,
     pub epg_mode: Option<String>,
+    pub profile_type: Option<String>,
 }
 
 #[tauri::command]
@@ -43,6 +44,7 @@ pub async fn save_profile(
 
     let epg_mode = payload.epg_mode.unwrap_or_else(|| "xmltv".to_string());
     let created_at = Utc::now().to_rfc3339();
+    let profile_type = payload.profile_type.unwrap_or_else(|| "xtream".to_string());
 
     let profile = Profile {
         id: payload.id.unwrap_or(0),
@@ -52,6 +54,7 @@ pub async fn save_profile(
         password: payload.password.clone().unwrap_or_default(),
         epg_mode: epg_mode.clone(),
         created_at: created_at.clone(),
+        profile_type: profile_type.clone(),
     };
 
     // Save profile metadata
@@ -61,8 +64,6 @@ pub async fn save_profile(
     let registry = app.state::<crate::api::ClientRegistry>();
     registry.update(saved_id, payload.server_url.clone(), payload.username.clone(), payload.password.clone().unwrap_or_default());
 
-
-
     Ok(json!({
         "id": saved_id,
         "name": payload.name,
@@ -71,6 +72,55 @@ pub async fn save_profile(
         "password": payload.password.clone().unwrap_or_default(),
         "epg_mode": epg_mode,
         "created_at": created_at,
+        "profile_type": profile_type,
+    }))
+}
+
+#[tauri::command]
+pub async fn add_public_iptv_profile(
+    _app: tauri::AppHandle,
+    state: State<'_, DbConn>,
+) -> Result<serde_json::Value, String> {
+    let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
+    let conn = &*conn_guard;
+
+    let existing = crate::db::profile::get_all(conn).map_err(|e| e.to_string())?;
+    if let Some(p) = existing.iter().find(|p| p.profile_type == "public_iptv") {
+        return Ok(json!({
+            "id": p.id,
+            "name": p.name,
+            "server_url": p.server_url,
+            "username": p.username,
+            "password": p.password,
+            "epg_mode": p.epg_mode,
+            "created_at": p.created_at,
+            "profile_type": p.profile_type,
+        }));
+    }
+
+    let created_at = Utc::now().to_rfc3339();
+    let profile = Profile {
+        id: 0,
+        name: "Public IPTV".to_string(),
+        server_url: "https://iptv-org.github.io/api".to_string(),
+        username: "public".to_string(),
+        password: "".to_string(),
+        epg_mode: "xmltv".to_string(),
+        created_at: created_at.clone(),
+        profile_type: "public_iptv".to_string(),
+    };
+
+    let saved_id = crate::db::profile::insert(conn, &profile).map_err(|e| e.to_string())?;
+
+    Ok(json!({
+        "id": saved_id,
+        "name": profile.name,
+        "server_url": profile.server_url,
+        "username": profile.username,
+        "password": profile.password,
+        "epg_mode": profile.epg_mode,
+        "created_at": created_at,
+        "profile_type": profile.profile_type,
     }))
 }
 
@@ -89,6 +139,7 @@ pub fn get_profiles(state: State<'_, DbConn>) -> Result<Vec<serde_json::Value>, 
                 "password": p.password,
                 "epg_mode": p.epg_mode,
                 "created_at": p.created_at,
+                "profile_type": p.profile_type,
             })).collect();
             Ok(mapped)
         }
@@ -113,6 +164,7 @@ pub fn get_profile(
             "password": p.password,
             "epg_mode": p.epg_mode,
             "created_at": p.created_at,
+            "profile_type": p.profile_type,
         }))),
         Ok(None) => Ok(None),
         Err(e) => Err(e.to_string()),
