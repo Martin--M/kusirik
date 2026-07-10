@@ -190,6 +190,15 @@ async function copyUrl(stream: any, type: 'live' | 'movie') {
       return
     }
 
+    if (type === 'live' && profile.profile_type === 'public_iptv') {
+      const { resolveStreamUrl, copyToSystemClipboard } = await import('@/lib/tauri-commands')
+      const tempUrl = `https://public/live/${stream.stream_id}.ts`
+      const url = await resolveStreamUrl(tempUrl, profile.id)
+      await copyToSystemClipboard(url)
+      toastStore.showToast(t('media.urlCopied'), 'success')
+      return
+    }
+
     const password = profile.password
     if (!password) {
       toastStore.showToast(t('setup.saveFailed', { error: 'Credentials' }), 'error')

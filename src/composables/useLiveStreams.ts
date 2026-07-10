@@ -28,7 +28,7 @@ export function useLiveStreams(
     ],
     queryFn: async () => {
       const pid = profileId !== undefined ? toValue(profileId) : undefined
-      const res = await getLiveStreams(pid, toValue(categoryId), 0, 10000)
+      const res = await getLiveStreams(pid, toValue(categoryId), 0, 20000)
       res.forEach(Object.freeze)
       return Object.freeze(res)
     },

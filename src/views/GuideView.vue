@@ -454,6 +454,16 @@ async function copyUrl() {
   try {
     const profile = profileStore.profiles.find(p => p.id === selectedChannel.value.profile_id)
     if (!profile) return
+
+    if (profile.profile_type === 'public_iptv') {
+      const { resolveStreamUrl, copyToSystemClipboard } = await import('@/lib/tauri-commands')
+      const tempUrl = `https://public/live/${selectedChannel.value.stream_id}.ts`
+      const url = await resolveStreamUrl(tempUrl, profile.id)
+      await copyToSystemClipboard(url)
+      toastStore.showToast(t('media.urlCopied'), 'success')
+      return
+    }
+
     const password = profile.password
     if (!password) return
 

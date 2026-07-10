@@ -6,8 +6,9 @@ import LiveChannelList from '@/components/live/LiveChannelList.vue'
 import CategorySidebar from '@/components/ui/CategorySidebar.vue'
 import FilterHeader from '@/components/ui/FilterHeader.vue'
 import LiveDetailPanel from '@/components/live/LiveDetailPanel.vue'
+import CustomSelect from '@/components/ui/CustomSelect.vue'
 import type { LiveStream, LiveCategory } from '@/types/stream'
-import { copyToSystemClipboard } from '@/lib/tauri-commands'
+import { copyToSystemClipboard, resolveStreamUrl } from '@/lib/tauri-commands'
 import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useToastStore } from '@/stores/toast.store'
@@ -63,16 +64,38 @@ const settingsStore = useSettingsStore()
 const toastStore = useToastStore()
 const { t } = useI18n()
 
+const selectedProfileId = ref<string>('all')
+
+const profileOptions = computed(() => {
+  const opts: Record<string, string> = {
+    'all': t('media.allProfiles')
+  }
+  for (const p of profileStore.profiles) {
+    opts[String(p.id)] = p.name
+  }
+  return opts
+})
+
+const streamsQueryProfileId = computed(() => {
+  if (selectedProfileId.value === 'all') return undefined
+  return Number(selectedProfileId.value)
+})
+
+watch(selectedProfileId, () => {
+  selectedCategoryId.value = 'all'
+  selectedStream.value = null
+})
+
 const { data: categoriesData, isLoading: isLoadingCategories } = useLiveCategories(
-  computed(() => profileStore.filterProfileId)
+  streamsQueryProfileId
 )
 
 // Computed categories list including "All" and "Uncategorized"
 const categories = computed<LiveCategory[]>(() => {
-  const currentProfileId = profileStore.profiles[0]?.id
-  if (currentProfileId === undefined) {
-    return []
-  }
+  const currentProfileId = streamsQueryProfileId.value !== undefined
+    ? streamsQueryProfileId.value
+    : (profileStore.profiles[0]?.id || 1)
+
   const list: LiveCategory[] = [
     { profile_id: currentProfileId, category_id: 'all', category_name: t('media.allChannels') },
     { profile_id: currentProfileId, category_id: '0', category_name: t('media.uncategorized') }
@@ -95,7 +118,7 @@ const streamsQueryId = computed(() => {
 
 const { data: rawStreams, isLoading: isLoadingStreams } = useLiveStreams(
   streamsQueryId,
-  computed(() => profileStore.filterProfileId)
+  streamsQueryProfileId
 )
 
 // Reset selection when changing categories or toggle filters
@@ -172,6 +195,14 @@ async function copyUrl(stream: LiveStream) {
       return
     }
 
+    if (profile.profile_type === 'public_iptv') {
+      const tempUrl = `https://public/live/${stream.stream_id}.ts`
+      const url = await resolveStreamUrl(tempUrl, profile.id)
+      await copyToSystemClipboard(url)
+      toastStore.showToast(t('media.urlCopied'), 'success')
+      return
+    }
+
     const password = profile.password
     if (!password) {
       toastStore.showToast(t('setup.saveFailed', { error: 'Credentials' }), 'error')
@@ -227,6 +258,11 @@ async function copyUrl(stream: LiveStream) {
           v-model:sort-order="sortOrder"
           :search-placeholder="$t('media.searchChannels')"
         >
+          <CustomSelect
+            v-model="selectedProfileId"
+            :options="profileOptions"
+            style="width: 180px; flex-shrink: 0;"
+          />
           <label class="custom-checkbox">
             <input type="checkbox" v-model="showCatchupOnly" class="checkbox-input" />
             <span class="checkbox-box">

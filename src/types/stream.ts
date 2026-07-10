@@ -16,6 +16,7 @@ export interface LiveStream {
   added: string | null
   is_favorite?: number
   current_title?: string | null
+  url?: string | null
 }
 
 export type SortOrder = 'asc' | 'desc'

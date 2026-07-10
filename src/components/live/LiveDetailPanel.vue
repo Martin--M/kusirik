@@ -8,7 +8,8 @@ import IconLive from '@/components/icons/IconLive.vue'
 import { useEpg } from '@/composables/useEpg'
 import { useProfileStore } from '@/stores/profile.store'
 import { useToastStore } from '@/stores/toast.store'
-import { copyToSystemClipboard } from '@/lib/tauri-commands'
+import { copyToSystemClipboard, getStreamMirrors } from '@/lib/tauri-commands'
+import CustomSelect from '@/components/ui/CustomSelect.vue'
 import { usePlayer } from '@/composables/usePlayer'
 import { buildCatchupUrl } from '@/lib/url-builder'
 import { useI18n } from '@/composables/useI18n'
@@ -91,9 +92,43 @@ const pastPrograms = computed(() => {
 const isCatchupValid = ref(false)
 let lastCheckStreamId: number | null = null
 
-watch(() => props.stream, () => {
+const mirrors = ref<LiveStream[]>([])
+const selectedMirrorId = ref<string>('')
+
+const mirrorOptions = computed(() => {
+  const opts: Record<string, string> = {}
+  mirrors.value.forEach((m, idx) => {
+    let label = `${t('media.mirror') || 'Source'} ${idx + 1}`
+    if (m.url) {
+      try {
+        const u = new URL(m.url)
+        label += ` (${u.hostname})`
+      } catch (e) {
+        // ignore
+      }
+    }
+    opts[String(m.stream_id)] = label
+  })
+  return opts
+})
+
+watch(() => props.stream, async (newStream) => {
   isCatchupValid.value = false
   lastCheckStreamId = null
+  mirrors.value = []
+  selectedMirrorId.value = ''
+  if (newStream && newStream.profile_id) {
+    try {
+      const list = await getStreamMirrors(newStream.profile_id, newStream.name || '')
+      mirrors.value = list
+      if (list.length > 0) {
+        const matched = list.find(m => m.stream_id === newStream.stream_id)
+        selectedMirrorId.value = matched ? String(matched.stream_id) : String(list[0].stream_id)
+      }
+    } catch (e) {
+      console.error('Failed to load mirrors:', e)
+    }
+  }
 })
 
 watch(pastPrograms, async (newPastPrograms) => {
@@ -218,6 +253,30 @@ function formatEpgTime(dateStr: string): string {
     return ''
   }
 }
+
+function handlePlay() {
+  if (!props.stream) return
+  if (selectedMirrorId.value) {
+    const mirror = mirrors.value.find(m => m.stream_id === Number(selectedMirrorId.value))
+    if (mirror) {
+      emit('play', mirror)
+      return
+    }
+  }
+  emit('play', props.stream)
+}
+
+function handleCopy() {
+  if (!props.stream) return
+  if (selectedMirrorId.value) {
+    const mirror = mirrors.value.find(m => m.stream_id === Number(selectedMirrorId.value))
+    if (mirror) {
+      emit('copy', mirror)
+      return
+    }
+  }
+  emit('copy', props.stream)
+}
 </script>
 
 <template>
@@ -231,8 +290,8 @@ function formatEpgTime(dateStr: string): string {
     :show-actions="showActions"
     :play-disabled="playDisabled"
     @close="emit('close')"
-    @play="emit('play', stream!)"
-    @copy="emit('copy', stream!)"
+    @play="handlePlay"
+    @copy="handleCopy"
   >
     <template #header-meta>
       <div class="live-header-meta-row">
@@ -260,6 +319,18 @@ function formatEpgTime(dateStr: string): string {
 
     <!-- Custom layout slot if parent view overrides details layout (e.g. GuideView) -->
     <slot>
+      <!-- Source/Mirror Selector (Premium mirror toggle) -->
+      <div v-if="mirrors.length > 1" class="mirror-selector-section" style="margin-bottom: var(--spacing-6); padding: var(--spacing-4); background: rgba(255, 255, 255, 0.02); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--color-text-muted); margin-bottom: var(--spacing-2);">
+          {{ $t('media.mirror') || 'Source' }}
+        </label>
+        <CustomSelect
+          v-model="selectedMirrorId"
+          :options="mirrorOptions"
+          style="width: 100%;"
+        />
+      </div>
+
       <!-- Program guide elements inside detail layout -->
       <div class="epg-box">
         <div v-if="isLoadingEpg" class="epg-loading">

@@ -29,3 +29,13 @@ pub fn get_live_streams(
         limit,
     ).map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub fn get_stream_mirrors(
+    state: State<'_, DbConn>,
+    profile_id: i64,
+    name: String,
+) -> Result<Vec<crate::api::live::LiveStreamApi>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    crate::db::live::query_mirrors(&conn, profile_id, &name).map_err(|e| e.to_string())
+}
