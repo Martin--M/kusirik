@@ -8,7 +8,7 @@ import IconLive from '@/components/icons/IconLive.vue'
 import { useEpg } from '@/composables/useEpg'
 import { useProfileStore } from '@/stores/profile.store'
 import { useToastStore } from '@/stores/toast.store'
-import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
+import { copyToSystemClipboard } from '@/lib/tauri-commands'
 import { usePlayer } from '@/composables/usePlayer'
 import { buildCatchupUrl } from '@/lib/url-builder'
 import { useI18n } from '@/composables/useI18n'
@@ -114,7 +114,7 @@ watch(pastPrograms, async (newPastPrograms) => {
     const profile = profileStore.profile
     if (!profile) return
 
-    const password = await getSetting('password')
+    const password = profile.password
     if (!password) return
 
     const targetProgram = newPastPrograms[0]
@@ -163,7 +163,7 @@ async function copyCatchupUrl(item: any) {
       return
     }
 
-    const password = await getSetting('password')
+    const password = profile.password
     if (!password) {
       toastStore.showToast(t('setup.saveFailed', { error: 'Credentials' }), 'error')
       return

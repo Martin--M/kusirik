@@ -6,7 +6,7 @@ import { usePlayer } from '@/composables/usePlayer'
 import { useToastStore } from '@/stores/toast.store'
 import { useProfileStore } from '@/stores/profile.store'
 import { useI18n } from '@/composables/useI18n'
-import { getSetting } from '@/lib/tauri-commands'
+
 
 import ChannelRow from '@/components/live/ChannelRow.vue'
 import MovieCard from '@/components/movies/MovieCard.vue'
@@ -99,7 +99,7 @@ async function copyUrl(stream: any, type: 'live' | 'movie') {
       return
     }
 
-    const password = await getSetting('password')
+    const password = profile.password
     if (!password) {
       toastStore.showToast(t('setup.saveFailed', { error: 'Credentials' }), 'error')
       return

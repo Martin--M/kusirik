@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useVirtualizer } from '@tanstack/vue-virtual'
-import { getEpgGuide, getSetting, getSyncStatus } from '@/lib/tauri-commands'
+import { getEpgGuide, getSyncStatus } from '@/lib/tauri-commands'
 import { usePlayer } from '@/composables/usePlayer'
 import { useI18n } from '@/composables/useI18n'
 import { useToastStore } from '@/stores/toast.store'
@@ -429,7 +429,7 @@ async function copyUrl() {
   try {
     const profile = profileStore.profile
     if (!profile) return
-    const password = await getSetting('password')
+    const password = profile.password
     if (!password) return
 
     let url = ''
@@ -478,7 +478,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
     const profile = profileStore.profile
     if (!profile) return
 
-    const password = await getSetting('password')
+    const password = profile.password
     if (!password) return
 
     const startDateTime = formatUtcForCatchup(newProgram.start, newProgram.tz_offset)

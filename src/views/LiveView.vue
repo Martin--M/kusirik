@@ -7,7 +7,7 @@ import CategorySidebar from '@/components/ui/CategorySidebar.vue'
 import FilterHeader from '@/components/ui/FilterHeader.vue'
 import LiveDetailPanel from '@/components/live/LiveDetailPanel.vue'
 import type { LiveStream, LiveCategory } from '@/types/stream'
-import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
+import { copyToSystemClipboard } from '@/lib/tauri-commands'
 import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useToastStore } from '@/stores/toast.store'
@@ -172,7 +172,7 @@ async function copyUrl(stream: LiveStream) {
       return
     }
 
-    const password = await getSetting('password')
+    const password = profile.password
     if (!password) {
       toastStore.showToast(t('setup.saveFailed', { error: 'Credentials' }), 'error')
       return

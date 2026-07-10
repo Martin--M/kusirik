@@ -3,6 +3,7 @@ export interface Profile {
   name: string
   server_url: string
   username: string
+  password?: string
   epg_mode: 'xmltv' | 'short_epg'
   created_at: string
 }

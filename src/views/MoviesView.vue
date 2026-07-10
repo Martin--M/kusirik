@@ -10,7 +10,7 @@ import type { VodStream, VodCategory } from '@/types/vod'
 import { useProfileStore } from '@/stores/profile.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useI18n } from '@/composables/useI18n'
-import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
+import { copyToSystemClipboard } from '@/lib/tauri-commands'
 import { buildMovieUrl } from '@/lib/url-builder'
 import { useToggleFavorite } from '@/composables/useFavorites'
 
@@ -169,7 +169,7 @@ async function copyUrl(movie: VodStream) {
       return
     }
 
-    const password = await getSetting('password')
+    const password = profile.password
     if (!password) {
       toastStore.showToast(t('setup.saveFailed', { error: 'Credentials' }), 'error')
       return

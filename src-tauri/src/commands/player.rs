@@ -8,17 +8,12 @@ pub fn resolve_stream_url(
     profile_id: Option<i64>,
 ) -> Result<String, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    let password = if let Some(pid) = profile_id {
-        match crate::db::profile::get(&conn, pid) {
+    let password = match profile_id {
+        Some(pid) => match crate::db::profile::get(&conn, pid) {
             Ok(Some(p)) => p.password,
-            _ => crate::db::settings::get(&conn, "password")
-                .map_err(|e| e.to_string())?
-                .unwrap_or_default(),
-        }
-    } else {
-        crate::db::settings::get(&conn, "password")
-            .map_err(|e| e.to_string())?
-            .unwrap_or_default()
+            _ => return Err("Profile not found".to_string()),
+        },
+        None => return Err("Profile ID is required".to_string()),
     };
     Ok(url.replace("***", &password))
 }
@@ -40,17 +35,12 @@ pub fn launch_player(
     #[cfg(not(target_os = "android"))]
     {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
-        let password = if let Some(pid) = profile_id {
-            match crate::db::profile::get(&conn, pid) {
+        let password = match profile_id {
+            Some(pid) => match crate::db::profile::get(&conn, pid) {
                 Ok(Some(p)) => p.password,
-                _ => crate::db::settings::get(&conn, "password")
-                    .map_err(|e| e.to_string())?
-                    .unwrap_or_default(),
-            }
-        } else {
-            crate::db::settings::get(&conn, "password")
-                .map_err(|e| e.to_string())?
-                .unwrap_or_default()
+                _ => return Err("Profile not found".to_string()),
+            },
+            None => return Err("Profile ID is required".to_string()),
         };
         let final_url = url.replace("***", &password);
         use std::process::Command;
@@ -202,17 +192,12 @@ pub async fn validate_stream_url(
 ) -> Result<bool, String> {
     let password = {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
-        if let Some(pid) = profile_id {
-            match crate::db::profile::get(&conn, pid) {
+        match profile_id {
+            Some(pid) => match crate::db::profile::get(&conn, pid) {
                 Ok(Some(p)) => p.password,
-                _ => crate::db::settings::get(&conn, "password")
-                    .map_err(|e| e.to_string())?
-                    .unwrap_or_default(),
-            }
-        } else {
-            crate::db::settings::get(&conn, "password")
-                .map_err(|e| e.to_string())?
-                .unwrap_or_default()
+                _ => return Err("Profile not found".to_string()),
+            },
+            None => return Err("Profile ID is required".to_string()),
         }
     };
     let final_url = url.replace("***", &password);

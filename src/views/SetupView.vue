@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { testConnection, saveProfile, triggerSync, getSyncStatus, getSetting } from '@/lib/tauri-commands'
+import { testConnection, saveProfile, triggerSync, getSyncStatus } from '@/lib/tauri-commands'
 import { useProfileStore } from '@/stores/profile.store'
 import { useSyncStore } from '@/stores/sync.store'
 import { useI18n } from '@/composables/useI18n'
@@ -121,12 +121,8 @@ onMounted(async () => {
     serverUrl.value = profileStore.profile.server_url
     username.value = profileStore.profile.username
     testSuccess.value = true
-    try {
-      const pass = await getSetting('password')
-      if (pass) password.value = pass
-    } catch (e) {
-      console.error("Failed to load saved password:", e)
-    }
+    const pass = profileStore.profile.password
+    if (pass) password.value = pass
 
     try {
       const profileId = profileStore.profile?.id

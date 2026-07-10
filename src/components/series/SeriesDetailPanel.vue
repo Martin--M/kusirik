@@ -11,7 +11,7 @@ import { usePlayer } from '@/composables/usePlayer'
 import { useProfileStore } from '@/stores/profile.store'
 import { useToastStore } from '@/stores/toast.store'
 import { useI18n } from '@/composables/useI18n'
-import { getSetting, copyToSystemClipboard } from '@/lib/tauri-commands'
+import { copyToSystemClipboard } from '@/lib/tauri-commands'
 import { buildEpisodeUrl } from '@/lib/url-builder'
 import type { Series } from '@/types/series'
 
@@ -84,7 +84,7 @@ async function copyEpisodeUrl(episode: any) {
       return
     }
 
-    const password = await getSetting('password')
+    const password = profile.password
     if (!password) {
       toastStore.showToast(t('setup.saveFailed', { error: 'Credentials' }), 'error')
       return
