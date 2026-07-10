@@ -1,22 +1,22 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Profile } from '@/types/profile'
-import { getProfile } from '@/lib/tauri-commands'
-
+import { getProfiles } from '@/lib/tauri-commands'
 
 export const useProfileStore = defineStore('profile', () => {
-  const profile = ref<Profile | null>(null)
+  const profiles = ref<Profile[]>([])
   const filterProfileId = ref<number | null | undefined>(undefined)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
-  const hasProfile = computed(() => profile.value !== null)
+  const hasProfile = computed(() => profiles.value.length > 0)
+  const profile = computed(() => profiles.value[0] || null)
 
-  async function loadProfile(id = 1) {
+  async function loadProfiles() {
     isLoading.value = true
     error.value = null
     try {
-      profile.value = await getProfile(id)
+      profiles.value = await getProfiles()
     } catch (e) {
       error.value = String(e)
     } finally {
@@ -24,22 +24,33 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
-  function setProfile(p: Profile) {
-    profile.value = p
+  function clearProfiles() {
+    profiles.value = []
   }
 
   function clearProfile() {
-    profile.value = null
+    clearProfiles()
+  }
+
+  function setProfile(p: Profile) {
+    const idx = profiles.value.findIndex(item => item.id === p.id)
+    if (idx !== -1) {
+      profiles.value[idx] = p
+    } else {
+      profiles.value.push(p)
+    }
   }
 
   return {
+    profiles,
     profile,
     filterProfileId,
     isLoading,
     error,
     hasProfile,
-    loadProfile,
-    setProfile,
-    clearProfile
+    loadProfiles,
+    clearProfiles,
+    clearProfile,
+    setProfile
   }
 })

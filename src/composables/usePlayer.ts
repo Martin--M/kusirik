@@ -1,6 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
-import { launchPlayer, resolveStreamUrl, launchAndroidIntent, recordPlaybackHistory, getProfile } from '@/lib/tauri-commands'
+import { launchPlayer, resolveStreamUrl, launchAndroidIntent, recordPlaybackHistory } from '@/lib/tauri-commands'
 import { buildLiveUrl, buildMovieUrl, buildEpisodeUrl, buildCatchupUrl } from '@/lib/url-builder'
 import { useProfileStore } from '@/stores/profile.store'
 import { useSettingsStore } from '@/stores/settings.store'
@@ -13,20 +13,25 @@ export function usePlayer() {
   const toastStore = useToastStore()
   const queryClient = useQueryClient()
 
-  const canPlay = computed(() => profileStore.hasProfile)
+  const canPlay = computed(() => profileStore.profiles.length > 0)
 
   const isAndroid = computed(() => {
     return checkIsAndroid()
   })
 
+  function getProfileById(profileId?: number) {
+    if (profileId) {
+      return profileStore.profiles.find(p => p.id === profileId)
+    }
+    return profileStore.profiles[0]
+  }
+
   async function startPlayback(url: string, profileId?: number) {
     try {
       if (isAndroid.value) {
-        // Android requires resolving the final URL with the actual password and launching it via Intent
         const finalUrl = await resolveStreamUrl(url, profileId)
         await launchAndroidIntent(finalUrl)
       } else {
-        // Desktop handles resolution and process spawning inside launch_player
         await launchPlayer(url, profileId)
       }
     } catch (e: any) {
@@ -36,14 +41,7 @@ export function usePlayer() {
   }
 
   async function playLive(streamId: MaybeRefOrGetter<number>, profileId?: number) {
-    let profile = profileStore.profile
-    if (profileId && profileId !== profile?.id) {
-      try {
-        profile = await getProfile(profileId)
-      } catch (e) {
-        console.error('Failed to get profile for live playback:', e)
-      }
-    }
+    const profile = getProfileById(profileId)
     if (!profile) return
     const id = toValue(streamId)
     const url = buildLiveUrl(
@@ -71,14 +69,7 @@ export function usePlayer() {
     containerExtension: MaybeRefOrGetter<string>,
     profileId?: number
   ) {
-    let profile = profileStore.profile
-    if (profileId && profileId !== profile?.id) {
-      try {
-        profile = await getProfile(profileId)
-      } catch (e) {
-        console.error('Failed to get profile for movie playback:', e)
-      }
-    }
+    const profile = getProfileById(profileId)
     if (!profile) return
     const id = toValue(streamId)
     const url = buildMovieUrl(
@@ -107,14 +98,7 @@ export function usePlayer() {
     seriesId?: number,
     profileId?: number
   ) {
-    let profile = profileStore.profile
-    if (profileId && profileId !== profile?.id) {
-      try {
-        profile = await getProfile(profileId)
-      } catch (e) {
-        console.error('Failed to get profile for episode playback:', e)
-      }
-    }
+    const profile = getProfileById(profileId)
     if (!profile) return
     const id = toValue(streamId)
     const url = buildEpisodeUrl(
@@ -143,14 +127,7 @@ export function usePlayer() {
     durationMinutes: number,
     profileId?: number
   ) {
-    let profile = profileStore.profile
-    if (profileId && profileId !== profile?.id) {
-      try {
-        profile = await getProfile(profileId)
-      } catch (e) {
-        console.error('Failed to get profile for catchup playback:', e)
-      }
-    }
+    const profile = getProfileById(profileId)
     if (!profile) return
     const id = toValue(streamId)
     const url = buildCatchupUrl(

@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { testConnection, saveProfile, triggerSync, getSyncStatus } from '@/lib/tauri-commands'
+import { useRouter, useRoute } from 'vue-router'
+import { testConnection, saveProfile, triggerSync } from '@/lib/tauri-commands'
 import { useProfileStore } from '@/stores/profile.store'
 import { useSyncStore } from '@/stores/sync.store'
 import { useI18n } from '@/composables/useI18n'
-import type { DataType } from '@/types/sync'
 import IconEye from '../components/icons/IconEye.vue'
 import IconEyeOff from '../components/icons/IconEyeOff.vue'
 import IconLogo from '../components/icons/IconLogo.vue'
-
 const router = useRouter()
+const route = useRoute()
 const profileStore = useProfileStore()
 const syncStore = useSyncStore()
 const { t } = useI18n()
@@ -117,54 +116,8 @@ async function handleSave() {
 }
 
 onMounted(async () => {
-  if (profileStore.hasProfile && profileStore.profile) {
-    serverUrl.value = profileStore.profile.server_url
-    username.value = profileStore.profile.username
-    testSuccess.value = true
-    const pass = profileStore.profile.password
-    if (pass) password.value = pass
-
-    try {
-      const profileId = profileStore.profile?.id
-      if (profileId === undefined) {
-        throw new Error('Cannot query sync status on mount: profile ID is undefined.')
-      }
-      const statuses = await getSyncStatus(profileId)
-      const live = statuses.find((s) => s.data_type === 'live_streams')
-      const vod = statuses.find((s) => s.data_type === 'vod_streams')
-      const series = statuses.find((s) => s.data_type === 'series')
-
-      const isSyncComplete = !!(
-        live?.fetched_at &&
-        vod?.fetched_at &&
-        series?.fetched_at
-      )
-
-      if (isSyncComplete) {
-        // Populate all statuses since sync completed successfully
-        for (const s of statuses) {
-          if (s.fetched_at && s.item_count !== null) {
-            syncStore.onDone(s.data_type as DataType, s.item_count, s.fetched_at)
-          } else if (s.last_error) {
-            syncStore.onError(s.data_type as DataType, s.last_error)
-          }
-        }
-      } else {
-        // Sync is incomplete, so only populate successful ones to avoid triggering the error watcher
-        for (const s of statuses) {
-          if (s.fetched_at && s.item_count !== null) {
-            syncStore.onDone(s.data_type as DataType, s.item_count, s.fetched_at)
-          }
-        }
-
-        // Auto-trigger sync to resume/retry
-        isSyncing.value = true
-        syncError.value = null
-        await triggerSync(profileId, 'live_streams')
-      }
-    } catch (e) {
-      console.error("Failed to check sync status on mount:", e)
-    }
+  if (profileStore.hasProfile && !route.query.add) {
+    router.push('/')
   }
 })
 </script>

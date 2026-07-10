@@ -17,7 +17,6 @@ import {
 import CustomSelect from '@/components/ui/CustomSelect.vue'
 import type { DataType } from '@/types/sync'
 import IconProfile from '@/components/icons/IconProfile.vue'
-import IconLogOut from '@/components/icons/IconLogOut.vue'
 import IconStats from '@/components/icons/IconStats.vue'
 import IconLive from '@/components/icons/IconLive.vue'
 import IconMovies from '@/components/icons/IconMovies.vue'
@@ -106,31 +105,27 @@ async function handleSyncAll() {
 
   toastStore.showToast(t('settings.sync.starting'), 'success')
   try {
-    const profileId = profileStore.profile?.id
-    if (profileId === undefined) {
-      throw new Error('Cannot sync: profile ID is undefined.')
+    for (const p of profileStore.profiles) {
+      await triggerSync(p.id, 'live_streams', true)
     }
-    await triggerSync(profileId, 'live_streams', true)
   } catch (err) {
     toastStore.showToast(t('settings.sync.failed', { error: String(err) }), 'error')
   }
 }
 
-async function handleDisconnect() {
+async function handleDeleteProfile(profileId: number) {
   const confirmed = confirm(t('settings.profile.disconnectConfirm'))
   if (!confirmed) return
 
   try {
     toastStore.showToast(t('settings.profile.disconnecting'), 'success')
-    const profileId = profileStore.profile?.id
-    if (profileId === undefined) {
-      throw new Error('Cannot disconnect: profile ID is undefined.')
-    }
     await deleteProfile(profileId)
-    profileStore.clearProfile()
+    await profileStore.loadProfiles()
     syncStore.reset()
     toastStore.showToast(t('settings.profile.disconnectSuccess'), 'success')
-    router.push('/setup')
+    if (profileStore.profiles.length === 0) {
+      router.push('/setup')
+    }
   } catch (err) {
     toastStore.showToast(t('settings.profile.disconnectFailed', { error: String(err) }), 'error')
   }
@@ -142,18 +137,22 @@ function getTypeName(type: DataType): string {
 
 async function loadCounts() {
   try {
-    const profileId = profileStore.profile?.id
-    if (profileId === undefined) {
-      throw new Error('Cannot load counts: profile ID is undefined.')
+    let totalLive = 0
+    let totalVod = 0
+    let totalSeries = 0
+    for (const p of profileStore.profiles) {
+      const [liveCats, vodCats, seriesCats] = await Promise.all([
+        getLiveCategories(p.id).catch(() => []),
+        getVodCategories(p.id).catch(() => []),
+        getSeriesCategories(p.id).catch(() => [])
+      ])
+      totalLive += liveCats.length
+      totalVod += vodCats.length
+      totalSeries += seriesCats.length
     }
-    const [liveCats, vodCats, seriesCats] = await Promise.all([
-      getLiveCategories(profileId).catch(() => []),
-      getVodCategories(profileId).catch(() => []),
-      getSeriesCategories(profileId).catch(() => [])
-    ])
-    liveCatCount.value = liveCats.length
-    vodCatCount.value = vodCats.length
-    seriesCatCount.value = seriesCats.length
+    liveCatCount.value = totalLive
+    vodCatCount.value = totalVod
+    seriesCatCount.value = totalSeries
   } catch (e) {
     console.error("Failed to load category counts:", e)
   }
@@ -166,16 +165,14 @@ onMounted(async () => {
   playerAndroidInput.value = settingsStore.playerAndroid
 
   try {
-    const profileId = profileStore.profile?.id
-    if (profileId === undefined) {
-      throw new Error('Cannot get sync status: profile ID is undefined.')
-    }
-    const statuses = await getSyncStatus(profileId)
-    for (const s of statuses) {
-      if (s.fetched_at && s.item_count !== null) {
-        syncStore.onDone(s.data_type as DataType, s.item_count, s.fetched_at)
-      } else if (s.last_error) {
-        syncStore.onError(s.data_type as DataType, s.last_error)
+    for (const p of profileStore.profiles) {
+      const statuses = await getSyncStatus(p.id)
+      for (const s of statuses) {
+        if (s.fetched_at && s.item_count !== null) {
+          syncStore.onDone(s.data_type as DataType, s.item_count, s.fetched_at)
+        } else if (s.last_error) {
+          syncStore.onError(s.data_type as DataType, s.last_error)
+        }
       }
     }
   } catch (e) {
@@ -197,19 +194,21 @@ onMounted(async () => {
           <h3>{{ $t('settings.profile.title') }}</h3>
         </div>
         <div class="card-content">
-          <div class="info-group">
-            <label>{{ $t('settings.profile.serverUrl') }}</label>
-            <div class="info-value">{{ profileStore.profile?.server_url || 'N/A' }}</div>
+          <div class="profile-list" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+            <div v-for="p in profileStore.profiles" :key="p.id" class="profile-item" style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-3) var(--spacing-4); background: rgba(255, 255, 255, 0.02); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+              <div class="profile-details" style="display: flex; flex-direction: column; gap: 2px;">
+                <span class="profile-name" style="font-weight: 700; color: var(--color-text);">{{ p.name || 'IPTV Profile' }}</span>
+                <span class="profile-url" style="font-size: 0.8rem; color: var(--color-text-muted);">{{ p.server_url }} ({{ p.username }})</span>
+              </div>
+              <button class="btn btn-danger" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem;" @click="handleDeleteProfile(p.id!)">
+                {{ $t('settings.profile.disconnect') }}
+              </button>
+            </div>
           </div>
-          <div class="info-group">
-            <label>{{ $t('settings.profile.username') }}</label>
-            <div class="info-value">{{ profileStore.profile?.username || 'N/A' }}</div>
-          </div>
-          <div class="card-actions">
-            <button class="btn btn-danger" @click="handleDisconnect">
-              <IconLogOut class="btn-icon" />
-              {{ $t('settings.profile.disconnect') }}
-            </button>
+          <div class="card-actions" style="margin-top: var(--spacing-4); display: flex; justify-content: flex-end;">
+            <router-link to="/setup?add=true" class="btn btn-primary" style="text-decoration: none;">
+              + {{ $t('settings.profile.addProfile') || 'Add Profile' }}
+            </router-link>
           </div>
         </div>
       </div>

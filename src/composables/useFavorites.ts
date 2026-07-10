@@ -15,9 +15,9 @@ export function useToggleFavorite() {
   const profileStore = useProfileStore()
 
   const toggle = async (mediaType: 'live' | 'vod' | 'series', streamId: number, profileId?: number) => {
-    const targetProfileId = profileId ?? profileStore.profile?.id
+    const targetProfileId = profileId ?? profileStore.profiles[0]?.id
     if (targetProfileId === undefined) {
-      throw new Error('Cannot toggle favorite: No active profile is loaded.')
+      throw new Error('Cannot toggle favorite: No profile is loaded.')
     }
     const isFav = await toggleFavorite(targetProfileId, mediaType, streamId)
     

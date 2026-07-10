@@ -69,7 +69,7 @@ const { data: categoriesData, isLoading: isLoadingCategories } = useLiveCategori
 
 // Computed categories list including "All" and "Uncategorized"
 const categories = computed<LiveCategory[]>(() => {
-  const currentProfileId = profileStore.profile?.id
+  const currentProfileId = profileStore.profiles[0]?.id
   if (currentProfileId === undefined) {
     return []
   }
@@ -166,7 +166,7 @@ function closeDetails() {
 
 async function copyUrl(stream: LiveStream) {
   try {
-    const profile = profileStore.profile
+    const profile = profileStore.profiles.find(p => p.id === stream.profile_id)
     if (!profile) {
       toastStore.showToast(t('settings.profile.disconnectFailed', { error: 'No profile' }), 'error')
       return

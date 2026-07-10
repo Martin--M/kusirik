@@ -71,9 +71,9 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const profileStore = useProfileStore()
 
-  // Load profile on first navigation if not yet loaded
-  if (profileStore.profile === null && !profileStore.isLoading) {
-    await profileStore.loadProfile()
+  // Load profiles on first navigation if not yet loaded
+  if (profileStore.profiles.length === 0 && !profileStore.isLoading) {
+    await profileStore.loadProfiles()
   }
 
   const hasProfile = profileStore.hasProfile
@@ -81,22 +81,19 @@ router.beforeEach(async (to) => {
   let isSyncComplete = false
   if (hasProfile) {
     try {
-      const profileId = profileStore.profile?.id
-      if (profileId === undefined) {
-        throw new Error('Cannot get sync status: profile ID is undefined.')
-      }
-      const statusList = await getSyncStatus(profileId)
-      const live = statusList.find((s) => s.data_type === 'live_streams')
-      const vod = statusList.find((s) => s.data_type === 'vod_streams')
-      const series = statusList.find((s) => s.data_type === 'series')
+      for (const profile of profileStore.profiles) {
+        const statusList = await getSyncStatus(profile.id)
+        const live = statusList.find((s) => s.data_type === 'live_streams')
+        const vod = statusList.find((s) => s.data_type === 'vod_streams')
+        const series = statusList.find((s) => s.data_type === 'series')
 
-      isSyncComplete = !!(
-        live?.fetched_at &&
-        vod?.fetched_at &&
-        series?.fetched_at
-      )
+        if (live?.fetched_at && vod?.fetched_at && series?.fetched_at) {
+          isSyncComplete = true
+          break
+        }
+      }
     } catch (e) {
-      console.error("Failed to check sync status in navigation guard:", e)
+      console.error('Failed to get sync status:', e)
     }
   }
 
