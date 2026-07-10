@@ -11,13 +11,14 @@ pub struct Profile {
     pub password: String,
     pub epg_mode: String,
     pub created_at: String,
+    pub profile_type: String,
 }
 
 pub fn insert(conn: &Connection, profile: &Profile) -> Result<i64> {
     if profile.id > 0 {
         conn.execute(
-            "INSERT OR REPLACE INTO profiles (id, name, server_url, username, password, epg_mode, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT OR REPLACE INTO profiles (id, name, server_url, username, password, epg_mode, created_at, profile_type)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             rusqlite::params![
                 profile.id,
                 &profile.name,
@@ -25,21 +26,23 @@ pub fn insert(conn: &Connection, profile: &Profile) -> Result<i64> {
                 &profile.username,
                 &profile.password,
                 &profile.epg_mode,
-                &profile.created_at
+                &profile.created_at,
+                &profile.profile_type
             ],
         )?;
         Ok(profile.id)
     } else {
         conn.execute(
-            "INSERT INTO profiles (name, server_url, username, password, epg_mode, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO profiles (name, server_url, username, password, epg_mode, created_at, profile_type)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             rusqlite::params![
                 &profile.name,
                 &profile.server_url,
                 &profile.username,
                 &profile.password,
                 &profile.epg_mode,
-                &profile.created_at
+                &profile.created_at,
+                &profile.profile_type
             ],
         )?;
         Ok(conn.last_insert_rowid())
@@ -48,7 +51,7 @@ pub fn insert(conn: &Connection, profile: &Profile) -> Result<i64> {
 
 pub fn get_all(conn: &Connection) -> Result<Vec<Profile>> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, server_url, username, password, epg_mode, created_at
+        "SELECT id, name, server_url, username, password, epg_mode, created_at, profile_type
          FROM profiles ORDER BY id ASC",
     )?;
     let profile_iter = stmt.query_map([], |row| {
@@ -60,6 +63,7 @@ pub fn get_all(conn: &Connection) -> Result<Vec<Profile>> {
             password: row.get(4)?,
             epg_mode: row.get(5)?,
             created_at: row.get(6)?,
+            profile_type: row.get(7)?,
         })
     })?;
     
@@ -72,7 +76,7 @@ pub fn get_all(conn: &Connection) -> Result<Vec<Profile>> {
 
 pub fn get(conn: &Connection, id: i64) -> Result<Option<Profile>> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, server_url, username, password, epg_mode, created_at
+        "SELECT id, name, server_url, username, password, epg_mode, created_at, profile_type
          FROM profiles WHERE id = ?1",
      )?;
      let mut rows = stmt.query(rusqlite::params![id])?;
@@ -85,6 +89,7 @@ pub fn get(conn: &Connection, id: i64) -> Result<Option<Profile>> {
              password: row.get(4)?,
              epg_mode: row.get(5)?,
              created_at: row.get(6)?,
+             profile_type: row.get(7)?,
          }))
      } else {
          Ok(None)

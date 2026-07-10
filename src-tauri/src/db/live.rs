@@ -75,7 +75,7 @@ pub fn query_streams(
         Some(cat) => (Some(cat), false),
     };
 
-    let sql = "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id,
+    let sql = "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, max(is_favorite) as is_favorite, profile_id,
                       (SELECT title FROM epg_entries
                        WHERE epg_entries.profile_id = live_streams.profile_id
                          AND epg_entries.channel_id = live_streams.epg_channel_id
@@ -87,6 +87,7 @@ pub fn query_streams(
                    (?3 = 1 AND (category_id = '0' OR category_id = '' OR category_id IS NULL)) OR
                    (category_id = ?2)
                  )
+               GROUP BY profile_id, name
                ORDER BY name ASC
                LIMIT ?4 OFFSET ?5";
 
@@ -104,6 +105,7 @@ pub fn query_streams(
                 added: row.get(7)?,
                 is_favorite: row.get(8)?,
                 profile_id: Some(row.get(9)?),
+                url: None,
             },
             current_title: row.get(10)?,
         })
@@ -155,14 +157,51 @@ pub fn search_streams(
                 added: row.get(7)?,
                 is_favorite: row.get(8)?,
                 profile_id: Some(row.get(9)?),
+                url: None,
             },
             current_title: row.get(10)?,
         })
     })?;
+
     let mut res = Vec::new();
     for r in rows {
         res.push(r?);
     }
     Ok(res)
+}
+
+pub fn query_mirrors(
+    conn: &Connection,
+    profile_id: i64,
+    name: &str,
+) -> Result<Vec<LiveStreamApi>> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id, url
+         FROM live_streams
+         WHERE profile_id = ?1 AND name = ?2
+         ORDER BY stream_id ASC"
+    )?;
+
+    let rows = stmt.query_map(rusqlite::params![profile_id, name], |row| {
+        Ok(LiveStreamApi {
+            stream_id: row.get(0)?,
+            name: row.get(1)?,
+            stream_icon: row.get(2)?,
+            epg_channel_id: row.get(3)?,
+            category_id: row.get(4)?,
+            tv_archive: row.get(5)?,
+            tv_archive_duration: row.get(6)?,
+            added: row.get(7)?,
+            is_favorite: row.get(8)?,
+            profile_id: Some(row.get(9)?),
+            url: row.get(10)?,
+        })
+    })?;
+
+    let mut list = Vec::new();
+    for row in rows {
+        list.push(row?);
+    }
+    Ok(list)
 }
 

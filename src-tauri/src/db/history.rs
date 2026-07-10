@@ -64,6 +64,7 @@ pub fn query_history(conn: &Connection, profile_id: Option<i64>) -> Result<Searc
                 added: row.get(7)?,
                 is_favorite: row.get(8)?,
                 profile_id: Some(row.get(9)?),
+                url: None,
             },
             current_title: None,
         })
