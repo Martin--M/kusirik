@@ -179,13 +179,14 @@ pub struct GuideChannel {
     pub epg_channel_id: Option<String>,
     pub tv_archive: i64,
     pub tv_archive_duration: i64,
+    pub profile_id: i64,
     pub epg_entries: Vec<crate::db::epg::EpgEntry>,
 }
 
 #[tauri::command]
 pub async fn get_epg_guide(
     state: State<'_, DbConn>,
-    profile_id: i64,
+    profile_id: Option<i64>,
     from: String,
     to: String,
     offset: Option<u32>,
@@ -198,9 +199,9 @@ pub async fn get_epg_guide(
 
     // 1. Fetch channels that have active EPG listings in the timeline window (paginated)
     let mut channel_stmt = conn.prepare_cached(
-        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration
+        "SELECT stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, profile_id
          FROM live_streams
-         WHERE profile_id = ?1 
+         WHERE (?1 IS NULL OR profile_id = ?1)
            AND epg_channel_id IS NOT NULL 
            AND epg_channel_id != ''
            AND EXISTS (
@@ -220,6 +221,7 @@ pub async fn get_epg_guide(
             row.get::<_, Option<String>>(1)?,
             row.get::<_, Option<String>>(2)?,
             row.get::<_, Option<String>>(3)?,
+            row.get::<_, i64>(4)?,
             row.get::<_, i64>(5)?,
             row.get::<_, i64>(6)?,
         ))
@@ -228,7 +230,7 @@ pub async fn get_epg_guide(
     let mut channels = Vec::new();
     let mut channel_ids = Vec::new();
     for row in channel_rows {
-        let (stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration) = row.map_err(|e| e.to_string())?;
+        let (stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, p_id) = row.map_err(|e| e.to_string())?;
         if let Some(ref ch_id) = epg_channel_id {
             channel_ids.push(ch_id.clone());
         }
@@ -239,6 +241,7 @@ pub async fn get_epg_guide(
             epg_channel_id,
             tv_archive,
             tv_archive_duration,
+            profile_id: p_id,
             epg_entries: Vec::new(),
         });
     }
@@ -252,7 +255,7 @@ pub async fn get_epg_guide(
     let mut epg_stmt = conn.prepare_cached(
         "SELECT profile_id, channel_id, start, stop, title, description, tz_offset 
          FROM epg_entries 
-         WHERE profile_id = ?1 
+         WHERE (?1 IS NULL OR profile_id = ?1)
            AND start < ?2 
            AND stop > ?3
            AND channel_id IN (SELECT value FROM json_each(?4))

@@ -16,5 +16,6 @@ export interface GuideChannel {
   epg_channel_id: string | null
   tv_archive: number
   tv_archive_duration: number
+  profile_id: number
   epg_entries: EpgEntry[]
 }

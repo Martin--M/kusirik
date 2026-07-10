@@ -99,13 +99,12 @@ onMounted(async () => {
   // Capture initial fetched_at
   try {
     const profileId = profileStore.profile?.id
-    if (profileId === undefined) {
-      throw new Error('Cannot get sync status: No active profile is loaded.')
-    }
-    const statuses = await getSyncStatus(profileId)
-    const epgStatus = statuses.find(s => s.data_type === 'epg')
-    if (epgStatus) {
-      lastEpgFetchedAt.value = epgStatus.fetched_at
+    if (profileId !== undefined) {
+      const statuses = await getSyncStatus(profileId)
+      const epgStatus = statuses.find(s => s.data_type === 'epg')
+      if (epgStatus) {
+        lastEpgFetchedAt.value = epgStatus.fetched_at
+      }
     }
   } catch (err) {
     console.error('Failed to get EPG sync status on mount', err)
@@ -117,15 +116,14 @@ onMounted(async () => {
     // Check if new EPG dataset has been fetched
     try {
       const profileId = profileStore.profile?.id
-      if (profileId === undefined) {
-        throw new Error('Cannot check sync status: No active profile is loaded.')
-      }
-      const statuses = await getSyncStatus(profileId)
-      const epgStatus = statuses.find(s => s.data_type === 'epg')
-      if (epgStatus && epgStatus.fetched_at !== lastEpgFetchedAt.value) {
-        lastEpgFetchedAt.value = epgStatus.fetched_at
-        // Re-center window and re-query
-        baseTime.value = new Date()
+      if (profileId !== undefined) {
+        const statuses = await getSyncStatus(profileId)
+        const epgStatus = statuses.find(s => s.data_type === 'epg')
+        if (epgStatus && epgStatus.fetched_at !== lastEpgFetchedAt.value) {
+          lastEpgFetchedAt.value = epgStatus.fetched_at
+          // Re-center window and re-query
+          baseTime.value = new Date()
+        }
       }
     } catch (err) {
       console.error('Failed to check sync status in timer', err)
@@ -152,15 +150,14 @@ const {
   isLoading,
   error
 } = useInfiniteQuery({
-  queryKey: ['epg_guide', queryStartTime, queryEndTime, () => profileStore.profile?.id],
+  queryKey: ['epg_guide', queryStartTime, queryEndTime, () => profileStore.profiles.map(p => p.id)],
   queryFn: async ({ pageParam = 0 }) => {
     const fromStr = queryStartTime.value.toISOString()
     const toStr = queryEndTime.value.toISOString()
-    const profileId = profileStore.profile?.id
-    if (profileId === undefined) {
-      throw new Error('Cannot query EPG Guide: No active profile is loaded.')
+    if (profileStore.profiles.length === 0) {
+      throw new Error('Cannot query EPG Guide: No profiles are configured.')
     }
-    return await getEpgGuide(profileId, fromStr, toStr, pageParam, PAGE_SIZE)
+    return await getEpgGuide(undefined, fromStr, toStr, pageParam, PAGE_SIZE)
   },
   initialPageParam: 0,
   getNextPageParam: (lastPage, allPages) => {
@@ -455,7 +452,7 @@ function handlePlay() {
 async function copyUrl() {
   if (!selectedChannel.value || !selectedProgram.value) return
   try {
-    const profile = profileStore.profile
+    const profile = profileStore.profiles.find(p => p.id === selectedChannel.value.profile_id)
     if (!profile) return
     const password = profile.password
     if (!password) return
@@ -503,7 +500,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
   lastCheckStreamId = streamId
 
   try {
-    const profile = profileStore.profile
+    const profile = profileStore.profiles.find(p => p.id === newChannel.profile_id)
     if (!profile) return
 
     const password = profile.password
@@ -524,7 +521,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
     )
 
     const { validateStreamUrl } = await import('@/lib/tauri-commands')
-    const valid = await validateStreamUrl(url)
+    const valid = await validateStreamUrl(url, newChannel.profile_id)
 
     if (lastCheckStreamId === streamId) {
       isCatchupValid.value = valid
