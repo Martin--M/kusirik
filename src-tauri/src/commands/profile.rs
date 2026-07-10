@@ -33,9 +33,11 @@ pub struct SaveProfilePayload {
 
 #[tauri::command]
 pub async fn save_profile(
+    app: tauri::AppHandle,
     state: State<'_, DbConn>,
     payload: SaveProfilePayload,
 ) -> Result<serde_json::Value, String> {
+    use tauri::Manager;
     let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
     let conn = &*conn_guard;
 
@@ -54,6 +56,10 @@ pub async fn save_profile(
 
     // Save profile metadata
     let saved_id = crate::db::profile::insert(conn, &profile).map_err(|e| e.to_string())?;
+
+    // Update client cache in registry
+    let registry = app.state::<crate::api::ClientRegistry>();
+    registry.update(saved_id, payload.server_url.clone(), payload.username.clone(), payload.password.clone().unwrap_or_default());
 
 
 
@@ -115,9 +121,11 @@ pub fn get_profile(
 
 #[tauri::command]
 pub fn delete_profile(
+    app: tauri::AppHandle,
     state: State<'_, DbConn>,
     id: i64,
 ) -> Result<(), String> {
+    use tauri::Manager;
     let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
     let conn = &*conn_guard;
 
@@ -145,7 +153,9 @@ pub fn delete_profile(
     // Delete profile metadata
     crate::db::profile::delete(conn, id).map_err(|e| e.to_string())?;
 
-
+    // Remove from client registry
+    let registry = app.state::<crate::api::ClientRegistry>();
+    registry.remove(id);
 
     Ok(())
 }

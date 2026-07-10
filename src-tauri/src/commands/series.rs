@@ -2,7 +2,6 @@ use tauri::State;
 use crate::db::DbConn;
 use crate::api::series::SeriesApi;
 use crate::api::common::CategoryApi;
-use crate::api::XtreamClient;
 use chrono::Utc;
 
 #[tauri::command]
@@ -34,10 +33,12 @@ pub fn get_series(
 
 #[tauri::command]
 pub async fn get_series_info(
+    app: tauri::AppHandle,
     state: State<'_, DbConn>,
     profile_id: Option<i64>,
     series_id: i64,
 ) -> Result<serde_json::Value, String> {
+    use tauri::Manager;
     // 1. Resolve profile_id if not provided
     let p_id = {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
@@ -63,12 +64,10 @@ pub async fn get_series_info(
     }
 
     // 3. Fetch on-demand from Xtream API
+    let registry = app.state::<crate::api::ClientRegistry>();
     let client = {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
-        let p = crate::db::profile::get(&conn, p_id)
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| "Profile not found".to_string())?;
-        XtreamClient::new(p.server_url, p.username, p.password)
+        registry.get_or_create(p_id, &conn)?
     };
 
     let info_val = crate::api::series::fetch_series_info(&client, series_id).await.map_err(|e| e.to_string())?;

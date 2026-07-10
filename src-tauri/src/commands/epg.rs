@@ -10,12 +10,14 @@ static LAST_FETCH_TIMES: OnceLock<Mutex<EpgFetchCache>> = OnceLock::new();
 
 #[tauri::command]
 pub async fn get_epg_for_channel(
+    app: tauri::AppHandle,
     state: State<'_, DbConn>,
     profile_id: i64,
     channel_id: String,
     from: String,
     to: String,
 ) -> Result<Vec<EpgEntry>, String> {
+    use tauri::Manager;
     // 1. Query the local database first
     let db_conn = state;
     let list = {
@@ -72,12 +74,10 @@ pub async fn get_epg_for_channel(
     };
 
     // Fetch EPG listings on demand
+    let registry = app.state::<crate::api::ClientRegistry>();
     let client = {
         let conn = db_conn.0.lock().map_err(|e| e.to_string())?;
-        let p = crate::db::profile::get(&conn, profile_id)
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| "Profile not found".to_string())?;
-        crate::api::XtreamClient::new(p.server_url, p.username, p.password)
+        registry.get_or_create(profile_id, &conn)?
     };
 
     let listings_res = crate::api::epg::fetch_short_epg(&client, stream_id).await;

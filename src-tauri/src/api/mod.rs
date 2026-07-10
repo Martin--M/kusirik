@@ -6,4 +6,4 @@ pub mod series;
 pub mod common;
 pub mod epg;
 
-pub use client::XtreamClient;
+pub use client::{XtreamClient, ClientRegistry};

@@ -52,14 +52,13 @@ pub async fn run_sync_all(app: AppHandle, profile_id: i64, force: bool) -> Resul
 }
 
 async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
+    use tauri::Manager;
     let db_conn = app.state::<DbConn>();
-    let profile = {
+    let registry = app.state::<crate::api::ClientRegistry>();
+    let client = {
         let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-        crate::db::profile::get(&conn, profile_id)?
-            .ok_or_else(|| anyhow!("Profile not found"))?
+        registry.get_or_create(profile_id, &conn).map_err(|e| anyhow!(e))?
     };
-
-    let client = XtreamClient::new(profile.server_url, profile.username, profile.password);
 
     // 2. Perform sequential syncs
     let data_types = vec!["live_streams", "vod_streams", "series", "epg"];
@@ -530,10 +529,15 @@ fn parse_xmltv_date_to_utc_and_offset(s: &str) -> Option<(String, String)> {
 }
 
 async fn run_epg_sync_startup_background_for_profile(app: AppHandle, profile: crate::db::profile::Profile) -> Result<()> {
+    use tauri::Manager;
     let db_conn = app.state::<DbConn>();
+    let registry = app.state::<crate::api::ClientRegistry>();
     let _ = app.emit("sync://started", SyncStartedPayload { data_type: "epg".to_string() });
 
-    let client = XtreamClient::new(profile.server_url, profile.username, profile.password);
+    let client = {
+        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        registry.get_or_create(profile.id, &conn).map_err(|e| anyhow!(e))?
+    };
     match sync_epg_internal(app.clone(), profile.id, &client).await {
         Ok(count) => {
             tracing::info!(profile_id = profile.id, count, "EPG startup background sync completed successfully");

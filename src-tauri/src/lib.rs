@@ -26,6 +26,7 @@ pub fn run() {
             
             // Manage state for Rust commands
             app.manage(db_conn);
+            app.manage(api::ClientRegistry::new());
 
             #[cfg(target_os = "android")]
             let intent_handle = {

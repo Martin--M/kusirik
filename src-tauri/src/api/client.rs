@@ -203,6 +203,54 @@ where
     }
 }
 
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+pub struct ClientRegistry {
+    pub clients: Mutex<HashMap<i64, Arc<XtreamClient>>>,
+}
+
+impl ClientRegistry {
+    pub fn new() -> Self {
+        Self {
+            clients: Mutex::new(HashMap::new()),
+        }
+    }
+
+    pub fn get_or_create(&self, profile_id: i64, conn: &rusqlite::Connection) -> Result<Arc<XtreamClient>, String> {
+        let mut map = self.clients.lock().map_err(|e| e.to_string())?;
+        if let Some(client) = map.get(&profile_id) {
+            return Ok(Arc::clone(client));
+        }
+
+        // Load profile from DB
+        let p = crate::db::profile::get(conn, profile_id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Profile not found".to_string())?;
+
+        let client = Arc::new(XtreamClient::new(p.server_url, p.username, p.password));
+        map.insert(profile_id, Arc::clone(&client));
+        Ok(client)
+    }
+
+    pub fn update(&self, profile_id: i64, server_url: String, username: String, password: String) {
+        if let Ok(mut map) = self.clients.lock() {
+            if let Some(client) = map.get(&profile_id) {
+                client.update_credentials(server_url, username, password);
+            } else {
+                let client = Arc::new(XtreamClient::new(server_url, username, password));
+                map.insert(profile_id, client);
+            }
+        }
+    }
+
+    pub fn remove(&self, profile_id: i64) {
+        if let Ok(mut map) = self.clients.lock() {
+            map.remove(&profile_id);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
