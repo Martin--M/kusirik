@@ -24,10 +24,17 @@ pub fn upsert_streams(conn: &mut Connection, profile_id: i64, streams: &[VodStre
     let tx = conn.transaction()?;
     {
         let mut stmt = tx.prepare_cached(
-            "INSERT OR REPLACE INTO vod_streams (
+            "INSERT INTO vod_streams (
                 profile_id, stream_id, name, stream_icon, category_id,
                 rating, container_extension, added
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            ON CONFLICT(profile_id, stream_id) DO UPDATE SET
+                name = excluded.name,
+                stream_icon = excluded.stream_icon,
+                category_id = excluded.category_id,
+                rating = excluded.rating,
+                container_extension = excluded.container_extension,
+                added = excluded.added",
         )?;
 
         for stream in streams {

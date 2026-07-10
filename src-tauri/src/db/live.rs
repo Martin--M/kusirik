@@ -24,10 +24,18 @@ pub fn upsert_streams(conn: &mut Connection, profile_id: i64, streams: &[LiveStr
     let tx = conn.transaction()?;
     {
         let mut stmt = tx.prepare_cached(
-            "INSERT OR REPLACE INTO live_streams (
+            "INSERT INTO live_streams (
                 profile_id, stream_id, name, stream_icon, epg_channel_id,
                 category_id, tv_archive, tv_archive_duration, added
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+            ON CONFLICT(profile_id, stream_id) DO UPDATE SET
+                name = excluded.name,
+                stream_icon = excluded.stream_icon,
+                epg_channel_id = excluded.epg_channel_id,
+                category_id = excluded.category_id,
+                tv_archive = excluded.tv_archive,
+                tv_archive_duration = excluded.tv_archive_duration,
+                added = excluded.added",
         )?;
 
         for stream in streams {

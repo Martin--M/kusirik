@@ -24,10 +24,21 @@ pub fn upsert_series(conn: &mut Connection, profile_id: i64, series_list: &[Seri
     let tx = conn.transaction()?;
     {
         let mut stmt = tx.prepare_cached(
-            "INSERT OR REPLACE INTO series (
+            "INSERT INTO series (
                 profile_id, series_id, name, cover, category_id, rating,
                 plot, cast_, director, genre, release_date, last_modified
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+            ON CONFLICT(profile_id, series_id) DO UPDATE SET
+                name = excluded.name,
+                cover = excluded.cover,
+                category_id = excluded.category_id,
+                rating = excluded.rating,
+                plot = excluded.plot,
+                cast_ = excluded.cast_,
+                director = excluded.director,
+                genre = excluded.genre,
+                release_date = excluded.release_date,
+                last_modified = excluded.last_modified",
         )?;
 
         for series in series_list {
