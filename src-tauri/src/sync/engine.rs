@@ -22,6 +22,7 @@ struct IptvChannel {
     id: String,
     name: String,
     categories: Option<Vec<String>>,
+    country: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -592,8 +593,8 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
         let mut stmt = tx.prepare_cached(
             "INSERT INTO live_streams (
                 profile_id, stream_id, name, stream_icon, epg_channel_id,
-                category_id, tv_archive, tv_archive_duration, added, url
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                category_id, tv_archive, tv_archive_duration, added, url, languages, countries
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
             ON CONFLICT(profile_id, stream_id) DO UPDATE SET
                 name = excluded.name,
                 stream_icon = excluded.stream_icon,
@@ -602,18 +603,21 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
                 tv_archive = excluded.tv_archive,
                 tv_archive_duration = excluded.tv_archive_duration,
                 added = excluded.added,
-                url = excluded.url",
+                url = excluded.url,
+                languages = excluded.languages,
+                countries = excluded.countries",
         )?;
 
         for stream in &streams {
             let stream_id = hash_str_to_i64(&stream.url);
             let ch_id = stream.channel.clone().unwrap_or_default();
             
-            let (name, category_id) = if let Some(ch) = channel_map.get(&ch_id) {
+            let (name, category_id, countries) = if let Some(ch) = channel_map.get(&ch_id) {
                 let cat_id = ch.categories.as_ref().and_then(|c| c.first().cloned()).unwrap_or_else(|| "0".to_string());
-                (ch.name.clone(), cat_id)
+                let countrs = ch.country.clone();
+                (ch.name.clone(), cat_id, countrs)
             } else {
-                (stream.title.clone(), "0".to_string())
+                (stream.title.clone(), "0".to_string(), None)
             };
 
             let logo = logo_map.get(&ch_id).cloned();
@@ -629,6 +633,8 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
                 0,
                 "",
                 stream.url,
+                None::<String>,
+                countries,
             ])?;
         }
     }
