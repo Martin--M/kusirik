@@ -9,6 +9,7 @@ import { useToastStore } from '@/stores/toast.store'
 import CachedImage from '@/components/ui/CachedImage.vue'
 import LiveDetailPanel from '@/components/live/LiveDetailPanel.vue'
 import IconCheck from '@/components/icons/IconCheck.vue'
+import CustomSelect from '@/components/ui/CustomSelect.vue'
 import { buildLiveUrl, buildCatchupUrl } from '@/lib/url-builder'
 import {
   formatUtcForCatchup,
@@ -67,6 +68,27 @@ const now = ref(new Date())
 const baseTime = ref(new Date())
 
 const showCatchupOnly = ref(false)
+
+const selectedProfileId = ref<string>('all')
+
+const profileOptions = computed(() => {
+  const opts: Record<string, string> = {
+    'all': t('media.allProfiles')
+  }
+  for (const p of profileStore.profiles) {
+    opts[String(p.id)] = p.name
+  }
+  return opts
+})
+
+const streamsQueryProfileId = computed(() => {
+  if (selectedProfileId.value === 'all') return undefined
+  return Number(selectedProfileId.value)
+})
+
+watch(selectedProfileId, () => {
+  closeDetails()
+})
 
 const queryStartTime = computed(() => new Date(baseTime.value.getTime() - 24 * 3600 * 1000))
 const queryEndTime = computed(() => new Date(baseTime.value.getTime() + 20 * 3600 * 1000))
@@ -150,14 +172,14 @@ const {
   isLoading,
   error
 } = useInfiniteQuery({
-  queryKey: ['epg_guide', queryStartTime, queryEndTime, () => profileStore.profiles.map(p => p.id)],
+  queryKey: ['epg_guide', queryStartTime, queryEndTime, () => profileStore.profiles.map(p => p.id), streamsQueryProfileId],
   queryFn: async ({ pageParam = 0 }) => {
     const fromStr = queryStartTime.value.toISOString()
     const toStr = queryEndTime.value.toISOString()
     if (profileStore.profiles.length === 0) {
       throw new Error('Cannot query EPG Guide: No profiles are configured.')
     }
-    return await getEpgGuide(undefined, fromStr, toStr, pageParam, PAGE_SIZE)
+    return await getEpgGuide(streamsQueryProfileId.value, fromStr, toStr, pageParam, PAGE_SIZE)
   },
   initialPageParam: 0,
   getNextPageParam: (lastPage, allPages) => {
@@ -555,6 +577,11 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
         <h2 class="page-title">{{ $t('sidebar.guide') }}</h2>
       </div>
       <div class="header-right-actions">
+        <CustomSelect
+          v-model="selectedProfileId"
+          :options="profileOptions"
+          style="width: 180px; flex-shrink: 0;"
+        />
         <label class="custom-checkbox">
           <input type="checkbox" v-model="showCatchupOnly" class="checkbox-input" />
           <span class="checkbox-box">
