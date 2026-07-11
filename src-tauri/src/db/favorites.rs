@@ -48,7 +48,7 @@ pub fn toggle_favorite(
 pub fn query_favorites(conn: &Connection, profile_id: Option<i64>) -> Result<SearchResults> {
     // 1. Live streams
     let mut live_stmt = conn.prepare(
-        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id
+        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id, languages, countries
          FROM live_streams
          WHERE (?1 IS NULL OR profile_id = ?1) AND is_favorite = 1
          ORDER BY name ASC",
@@ -66,6 +66,8 @@ pub fn query_favorites(conn: &Connection, profile_id: Option<i64>) -> Result<Sea
                 added: row.get(7)?,
                 is_favorite: row.get(8)?,
                 profile_id: Some(row.get(9)?),
+                languages: row.get(10)?,
+                countries: row.get(11)?,
                 url: None,
             },
             current_title: None,

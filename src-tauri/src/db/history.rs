@@ -45,7 +45,7 @@ pub fn clear_history(conn: &Connection, profile_id: i64) -> Result<()> {
 pub fn query_history(conn: &Connection, profile_id: Option<i64>) -> Result<SearchResults> {
     // 1. Live streams (join with playback_history)
     let mut live_stmt = conn.prepare(
-        "SELECT s.stream_id, s.name, s.stream_icon, s.epg_channel_id, s.category_id, s.tv_archive, s.tv_archive_duration, s.added, s.is_favorite, s.profile_id
+        "SELECT s.stream_id, s.name, s.stream_icon, s.epg_channel_id, s.category_id, s.tv_archive, s.tv_archive_duration, s.added, s.is_favorite, s.profile_id, s.languages, s.countries
          FROM playback_history h
          JOIN live_streams s ON h.profile_id = s.profile_id AND h.stream_id = s.stream_id
          WHERE (?1 IS NULL OR h.profile_id = ?1) AND h.media_type = 'live'
@@ -64,6 +64,8 @@ pub fn query_history(conn: &Connection, profile_id: Option<i64>) -> Result<Searc
                 added: row.get(7)?,
                 is_favorite: row.get(8)?,
                 profile_id: Some(row.get(9)?),
+                languages: row.get(10)?,
+                countries: row.get(11)?,
                 url: None,
             },
             current_title: None,

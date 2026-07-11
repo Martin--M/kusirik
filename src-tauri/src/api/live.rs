@@ -23,6 +23,10 @@ pub struct LiveStreamApi {
     pub profile_id: Option<i64>,
     #[serde(default)]
     pub url: Option<String>,
+    #[serde(default)]
+    pub languages: Option<String>,
+    #[serde(default)]
+    pub countries: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
