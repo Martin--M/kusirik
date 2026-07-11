@@ -224,6 +224,7 @@ pub async fn get_epg_guide(
                  AND ee.start < ?2 
                  AND ee.stop > ?3
            )
+         GROUP BY profile_id, name
          ORDER BY name ASC
          LIMIT ?4 OFFSET ?5"
     ).map_err(|e| e.to_string())?;
