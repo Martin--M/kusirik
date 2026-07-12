@@ -580,6 +580,17 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
 
 async fn sync_public_iptv_epg(app: AppHandle, profile_id: i64) -> Result<usize> {
     let db_conn = app.state::<DbConn>().inner().clone();
+
+    // Prune old EPG entries for public IPTV profile (keeping only starting from -24h to align with source data and optimize inserts)
+    {
+        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        let prune_cutoff = (Utc::now() - chrono::Duration::hours(24)).to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+        match crate::db::epg::cleanup_old_entries(&conn, profile_id, &prune_cutoff) {
+            Ok(count) => tracing::info!(count, profile_id, cutoff = %prune_cutoff, "Pruned old EPG entries for public IPTV profile"),
+            Err(e) => tracing::error!(error = ?e, "Failed to prune old EPG entries"),
+        }
+    }
+
     emit_progress(&app, profile_id, "epg", "downloading");
 
     let epg_urls = vec![
