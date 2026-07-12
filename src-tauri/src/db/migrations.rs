@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 
 /// Current schema version. Bump this when adding a new migration.
-const CURRENT_VERSION: u32 = 8;
+const CURRENT_VERSION: u32 = 9;
 
 pub fn run(conn: &Connection) -> Result<()> {
     let current_version: u32 = conn
@@ -55,11 +55,23 @@ pub fn run(conn: &Connection) -> Result<()> {
         migration_v8(conn).context("Migration v8 failed")?;
     }
 
+    if current_version < 9 {
+        migration_v9(conn).context("Migration v9 failed")?;
+    }
+
     // Update schema version
     conn.execute_batch(&format!("PRAGMA user_version = {CURRENT_VERSION}"))
         .context("Failed to update user_version")?;
 
     tracing::info!("Migrations complete (schema v{CURRENT_VERSION})");
+    Ok(())
+}
+
+fn migration_v9(conn: &Connection) -> Result<()> {
+    tracing::info!("Applying migration v9 — compound query index on epg_entries");
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_epg_query ON epg_entries(profile_id, start, stop, channel_id);"
+    ).context("Failed to add index for migration v9")?;
     Ok(())
 }
 
