@@ -71,6 +71,9 @@ const showCatchupOnly = ref(false)
 
 const selectedProfileId = ref<string>('all')
 
+const selectedLanguage = ref<string>('all')
+const selectedCountry = ref<string>('all')
+
 const profileOptions = computed(() => {
   const opts: Record<string, string> = {
     'all': t('media.allProfiles')
@@ -81,12 +84,69 @@ const profileOptions = computed(() => {
   return opts
 })
 
+const languageOptions = computed(() => {
+  const opts: Record<string, string> = {
+    'all': t('media.allLanguages')
+  }
+  const langs = new Set<string>()
+  const list = channels.value || []
+  for (const c of list) {
+    if (c.languages) {
+      c.languages.split(',').forEach(l => {
+        const cleaned = l.trim()
+        if (cleaned) {
+          langs.add(cleaned.toUpperCase())
+        }
+      })
+    }
+  }
+  Array.from(langs).sort().forEach(l => {
+    opts[l] = l
+  })
+  return opts
+})
+
+import { getCountryName } from '@/lib/countries'
+
+const countryOptions = computed(() => {
+  const opts: Record<string, string> = {
+    'all': t('media.allCountries')
+  }
+  const countries = new Set<string>()
+  const list = channels.value || []
+  for (const c of list) {
+    if (c.countries) {
+      c.countries.split(',').forEach(cntry => {
+        const cleaned = cntry.trim()
+        if (cleaned) {
+          countries.add(cleaned.toUpperCase())
+        }
+      })
+    }
+  }
+  const mapped = Array.from(countries).map(c => ({
+    code: c,
+    name: getCountryName(c)
+  }))
+  mapped.sort((a, b) => a.name.localeCompare(b.name))
+  mapped.forEach(item => {
+    opts[item.code] = item.name
+  })
+  return opts
+})
+
 const streamsQueryProfileId = computed(() => {
   if (selectedProfileId.value === 'all') return undefined
   return Number(selectedProfileId.value)
 })
 
 watch(selectedProfileId, () => {
+  closeDetails()
+  selectedLanguage.value = 'all'
+  selectedCountry.value = 'all'
+})
+
+watch([selectedLanguage, selectedCountry], () => {
   closeDetails()
 })
 
@@ -292,6 +352,18 @@ const filteredChannels = computed(() => {
   
   if (showCatchupOnly.value) {
     list = list.filter(channel => channel.tv_archive === 1)
+  }
+
+  // Apply language filter
+  if (selectedLanguage.value !== 'all') {
+    const lang = selectedLanguage.value.toLowerCase()
+    list = list.filter(c => c.languages?.toLowerCase().split(',').map(l => l.trim()).includes(lang))
+  }
+
+  // Apply country filter
+  if (selectedCountry.value !== 'all') {
+    const country = selectedCountry.value.toLowerCase()
+    list = list.filter(c => c.countries?.toLowerCase().split(',').map(cntry => cntry.trim()).includes(country))
   }
 
   // Filter EPG entries to only include those overlapping the current render window
@@ -581,6 +653,16 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
           v-model="selectedProfileId"
           :options="profileOptions"
           style="width: 180px; flex-shrink: 0;"
+        />
+        <CustomSelect
+          v-model="selectedLanguage"
+          :options="languageOptions"
+          style="width: 160px; flex-shrink: 0;"
+        />
+        <CustomSelect
+          v-model="selectedCountry"
+          :options="countryOptions"
+          style="width: 160px; flex-shrink: 0;"
         />
         <label class="custom-checkbox">
           <input type="checkbox" v-model="showCatchupOnly" class="checkbox-input" />

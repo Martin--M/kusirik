@@ -66,6 +66,9 @@ const { t } = useI18n()
 
 const selectedProfileId = ref<string>('all')
 
+const selectedLanguage = ref<string>('all')
+const selectedCountry = ref<string>('all')
+
 const profileOptions = computed(() => {
   const opts: Record<string, string> = {
     'all': t('media.allProfiles')
@@ -76,6 +79,59 @@ const profileOptions = computed(() => {
   return opts
 })
 
+const languageOptions = computed(() => {
+  const opts: Record<string, string> = {
+    'all': t('media.allLanguages')
+  }
+  const langs = new Set<string>()
+  const list = rawStreams.value || []
+  for (const s of list) {
+    const streamObj = s && 'stream' in s ? s.stream : s
+    if (streamObj.languages) {
+      streamObj.languages.split(',').forEach(l => {
+        const cleaned = l.trim()
+        if (cleaned) {
+          langs.add(cleaned.toUpperCase())
+        }
+      })
+    }
+  }
+  Array.from(langs).sort().forEach(l => {
+    opts[l] = l
+  })
+  return opts
+})
+
+import { getCountryName } from '@/lib/countries'
+
+const countryOptions = computed(() => {
+  const opts: Record<string, string> = {
+    'all': t('media.allCountries')
+  }
+  const countries = new Set<string>()
+  const list = rawStreams.value || []
+  for (const s of list) {
+    const streamObj = s && 'stream' in s ? s.stream : s
+    if (streamObj.countries) {
+      streamObj.countries.split(',').forEach(c => {
+        const cleaned = c.trim()
+        if (cleaned) {
+          countries.add(cleaned.toUpperCase())
+        }
+      })
+    }
+  }
+  const mapped = Array.from(countries).map(c => ({
+    code: c,
+    name: getCountryName(c)
+  }))
+  mapped.sort((a, b) => a.name.localeCompare(b.name))
+  mapped.forEach(item => {
+    opts[item.code] = item.name
+  })
+  return opts
+})
+
 const streamsQueryProfileId = computed(() => {
   if (selectedProfileId.value === 'all') return undefined
   return Number(selectedProfileId.value)
@@ -83,6 +139,12 @@ const streamsQueryProfileId = computed(() => {
 
 watch(selectedProfileId, () => {
   selectedCategoryId.value = 'all'
+  selectedStream.value = null
+  selectedLanguage.value = 'all'
+  selectedCountry.value = 'all'
+})
+
+watch([selectedLanguage, selectedCountry], () => {
   selectedStream.value = null
 })
 
@@ -148,6 +210,18 @@ const filteredStreams = computed(() => {
   // Apply catch-up filter
   if (showCatchupOnly.value) {
     filtered = filtered.filter((s) => s.tv_archive === 1)
+  }
+
+  // Apply language filter
+  if (selectedLanguage.value !== 'all') {
+    const lang = selectedLanguage.value.toLowerCase()
+    filtered = filtered.filter(s => s.languages?.toLowerCase().split(',').map(l => l.trim()).includes(lang))
+  }
+
+  // Apply country filter
+  if (selectedCountry.value !== 'all') {
+    const country = selectedCountry.value.toLowerCase()
+    filtered = filtered.filter(s => s.countries?.toLowerCase().split(',').map(c => c.trim()).includes(country))
   }
 
   // Apply search query
@@ -262,6 +336,16 @@ async function copyUrl(stream: LiveStream) {
             v-model="selectedProfileId"
             :options="profileOptions"
             style="width: 180px; flex-shrink: 0;"
+          />
+          <CustomSelect
+            v-model="selectedLanguage"
+            :options="languageOptions"
+            style="width: 160px; flex-shrink: 0;"
+          />
+          <CustomSelect
+            v-model="selectedCountry"
+            :options="countryOptions"
+            style="width: 160px; flex-shrink: 0;"
           />
           <label class="custom-checkbox">
             <input type="checkbox" v-model="showCatchupOnly" class="checkbox-input" />
