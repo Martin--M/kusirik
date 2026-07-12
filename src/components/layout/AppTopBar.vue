@@ -42,15 +42,21 @@ const title = computed(() => {
 })
 
 const isAnySyncing = computed(() => {
-  return Object.values(syncStore.statuses).some((s) => s.is_syncing)
+  return Object.values(syncStore.statuses).some((profileStatuses) =>
+    Object.values(profileStatuses).some((s) => s.is_syncing)
+  )
 })
 
 const currentSyncStatus = computed(() => {
-  const active = Object.values(syncStore.statuses).find((s) => s.is_syncing)
-  if (!active) return ''
-  const typeKey = `settings.stats.types.${active.data_type}`
-  const name = t(typeKey)
-  return t('setup.syncScreen.syncing') + ` (${name})...`
+  for (const profileStatuses of Object.values(syncStore.statuses)) {
+    const active = Object.values(profileStatuses).find((s) => s.is_syncing)
+    if (active) {
+      const typeKey = `settings.stats.types.${active.data_type}`
+      const name = t(typeKey)
+      return t('setup.syncScreen.syncing') + ` (${name})...`
+    }
+  }
+  return ''
 })
 </script>
 

@@ -29,15 +29,34 @@ const saveError = ref<string | null>(null)
 const isSyncing = ref(false)
 const syncError = ref<string | null>(null)
 
-const liveStatus = computed(() => syncStore.statuses.live_streams)
-const vodStatus = computed(() => syncStore.statuses.vod_streams)
-const seriesStatus = computed(() => syncStore.statuses.series)
+const activeProfileId = ref<number | undefined>(
+  route.query.id ? Number(route.query.id) : undefined
+)
+
+const liveStatus = computed(() => {
+  const id = activeProfileId.value
+  if (id === undefined) return { is_syncing: false, fetched_at: null, last_error: null, item_count: null, data_type: 'live_streams', status: null }
+  syncStore.ensureProfile(id)
+  return syncStore.statuses[id]?.live_streams
+})
+const vodStatus = computed(() => {
+  const id = activeProfileId.value
+  if (id === undefined) return { is_syncing: false, fetched_at: null, last_error: null, item_count: null, data_type: 'vod_streams', status: null }
+  syncStore.ensureProfile(id)
+  return syncStore.statuses[id]?.vod_streams
+})
+const seriesStatus = computed(() => {
+  const id = activeProfileId.value
+  if (id === undefined) return { is_syncing: false, fetched_at: null, last_error: null, item_count: null, data_type: 'series', status: null }
+  syncStore.ensureProfile(id)
+  return syncStore.statuses[id]?.series
+})
 
 const syncDone = computed(() => {
   return (
-    liveStatus.value.fetched_at !== null &&
-    vodStatus.value.fetched_at !== null &&
-    seriesStatus.value.fetched_at !== null
+    liveStatus.value?.fetched_at !== null &&
+    vodStatus.value?.fetched_at !== null &&
+    seriesStatus.value?.fetched_at !== null
   )
 })
 
@@ -102,6 +121,7 @@ async function saveProfileData() {
     epg_mode: 'xmltv',
   })
 
+  activeProfileId.value = profile.id
   profileStore.setProfile(profile)
   return profile
 }
