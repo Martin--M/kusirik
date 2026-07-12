@@ -18,7 +18,6 @@ import {
 import CustomSelect from '@/components/ui/CustomSelect.vue'
 import type { DataType } from '@/types/sync'
 import IconProfile from '@/components/icons/IconProfile.vue'
-import IconStats from '@/components/icons/IconStats.vue'
 import IconLive from '@/components/icons/IconLive.vue'
 import IconMovies from '@/components/icons/IconMovies.vue'
 import IconSeries from '@/components/icons/IconSeries.vue'
@@ -35,10 +34,6 @@ const settingsStore = useSettingsStore()
 const syncStore = useSyncStore()
 const toastStore = useToastStore()
 const { t, formatTime } = useI18n()
-
-const liveCatCount = ref<number | null>(null)
-const vodCatCount = ref<number | null>(null)
-const seriesCatCount = ref<number | null>(null)
 
 const isAndroid = ref(false)
 const dataTypes: DataType[] = ['live_streams', 'vod_streams', 'series', 'epg']
@@ -94,25 +89,17 @@ async function savePlayerAndroid() {
   }
 }
 
-const isGlobalSyncing = computed(() => {
-  return Object.values(syncStore.statuses).some((s) => s.is_syncing)
-})
+const profileStats = ref<Record<number, { liveCats: number; vodCats: number; seriesCats: number }>>({})
 
-async function handleSyncAll() {
-  if (isGlobalSyncing.value) return
-  
-  const confirmed = confirm(t('settings.sync.confirm'))
-  if (!confirmed) return
-
-  toastStore.showToast(t('settings.sync.starting'), 'success')
+async function handleSyncProfile(profileId: number) {
   try {
-    for (const p of profileStore.profiles) {
-      await triggerSync(p.id, 'live_streams', true)
-    }
+    toastStore.showToast(t('settings.sync.starting'), 'success')
+    await triggerSync(profileId, 'live_streams', true)
   } catch (err) {
     toastStore.showToast(t('settings.sync.failed', { error: String(err) }), 'error')
   }
 }
+
 
 async function handleDeleteProfile(profileId: number) {
   const confirmed = confirm(t('settings.profile.deleteConfirm'))
@@ -181,22 +168,18 @@ function getTypeName(type: DataType): string {
 
 async function loadCounts() {
   try {
-    let totalLive = 0
-    let totalVod = 0
-    let totalSeries = 0
     for (const p of profileStore.profiles) {
       const [liveCats, vodCats, seriesCats] = await Promise.all([
         getLiveCategories(p.id).catch(() => []),
         getVodCategories(p.id).catch(() => []),
         getSeriesCategories(p.id).catch(() => [])
       ])
-      totalLive += liveCats.length
-      totalVod += vodCats.length
-      totalSeries += seriesCats.length
+      profileStats.value[p.id] = {
+        liveCats: liveCats.length,
+        vodCats: vodCats.length,
+        seriesCats: seriesCats.length
+      }
     }
-    liveCatCount.value = totalLive
-    vodCatCount.value = totalVod
-    seriesCatCount.value = totalSeries
   } catch (e) {
     console.error("Failed to load category counts:", e)
   }
@@ -213,9 +196,9 @@ onMounted(async () => {
       const statuses = await getSyncStatus(p.id)
       for (const s of statuses) {
         if (s.fetched_at && s.item_count !== null) {
-          syncStore.onDone(s.data_type as DataType, s.item_count, s.fetched_at)
+          syncStore.onDone(p.id, s.data_type as DataType, s.item_count, s.fetched_at)
         } else if (s.last_error) {
-          syncStore.onError(s.data_type as DataType, s.last_error)
+          syncStore.onError(p.id, s.data_type as DataType, s.last_error)
         }
       }
     }
@@ -232,25 +215,84 @@ onMounted(async () => {
   <div class="settings-view-container">
     <div class="settings-grid">
       <!-- Connection Profile Card -->
-      <div class="settings-card profile-card">
+      <div class="settings-card profile-card" style="grid-column: 1 / -1;">
         <div class="card-header">
           <IconProfile class="card-icon" />
           <h3>{{ $t('settings.profile.title') }}</h3>
         </div>
         <div class="card-content">
-          <div class="profile-list" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
-            <div v-for="p in profileStore.profiles" :key="p.id" class="profile-item" style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-3) var(--spacing-4); background: rgba(255, 255, 255, 0.02); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-              <div class="profile-details" style="display: flex; flex-direction: column; gap: 2px;">
-                <span class="profile-name" style="font-weight: 700; color: var(--color-text);">{{ p.name || 'IPTV Profile' }}</span>
-                <span class="profile-url" style="font-size: 0.8rem; color: var(--color-text-muted);">{{ p.server_url }} ({{ p.username }})</span>
+          <div class="profile-list" style="display: flex; flex-direction: column; gap: var(--spacing-6);">
+            <div v-for="p in profileStore.profiles" :key="p.id" class="profile-item-card" style="padding: var(--spacing-5); background: rgba(255, 255, 255, 0.02); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: var(--spacing-4);">
+              <!-- Top Header Row of Profile -->
+              <div class="profile-item-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: var(--spacing-4); flex-wrap: wrap;">
+                <div class="profile-details" style="display: flex; flex-direction: column; gap: var(--spacing-1);">
+                  <span class="profile-name" style="font-weight: 700; font-size: 1.1rem; color: var(--color-text);">{{ p.name || 'IPTV Profile' }}</span>
+                  <span class="profile-url" style="font-size: 0.8rem; color: var(--color-text-muted);">{{ p.server_url }} ({{ p.username || 'public' }})</span>
+                </div>
+                <div class="profile-actions" style="display: flex; gap: var(--spacing-2); flex-wrap: wrap;">
+                  <button 
+                    class="btn btn-primary" 
+                    style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem; display: flex; align-items: center; gap: 6px;"
+                    :disabled="Object.values(syncStore.statuses[p.id!] || {}).some(s => s.is_syncing)"
+                    @click="handleSyncProfile(p.id!)"
+                  >
+                    <span v-if="Object.values(syncStore.statuses[p.id!] || {}).some(s => s.is_syncing)" class="spinner mini"></span>
+                    <IconSync style="width: 14px; height: 14px;" />
+                    {{ $t('settings.sync.refresh') }}
+                  </button>
+                  <router-link :to="`/setup?id=${p.id}`" class="btn" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--color-border); color: var(--color-text); text-decoration: none;">
+                    {{ $t('settings.profile.edit') }}
+                  </router-link>
+                  <button class="btn btn-danger" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem;" @click="handleDeleteProfile(p.id!)">
+                    {{ $t('settings.profile.delete') }}
+                  </button>
+                </div>
               </div>
-              <div class="profile-actions" style="display: flex; gap: var(--spacing-2);">
-                <router-link :to="`/setup?id=${p.id}`" class="btn" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--color-border); color: var(--color-text); text-decoration: none;">
-                  {{ $t('settings.profile.edit') }}
-                </router-link>
-                <button class="btn btn-danger" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem;" @click="handleDeleteProfile(p.id!)">
-                  {{ $t('settings.profile.delete') }}
-                </button>
+
+              <!-- Profile Stats & Sync Info Row -->
+              <div class="profile-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-3); border-top: 1px solid var(--color-border); padding-top: var(--spacing-4);">
+                <div v-for="type in dataTypes" :key="type" class="profile-stat-item" style="padding: var(--spacing-3); background: rgba(255, 255, 255, 0.01); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: var(--spacing-2);">
+                  <div class="stat-header" style="display: flex; align-items: center; gap: var(--spacing-2); font-size: 0.85rem; font-weight: 700; color: var(--color-text);">
+                    <IconLive v-if="type === 'live_streams'" class="stats-svg" style="width: 16px; height: 16px;" />
+                    <IconMovies v-else-if="type === 'vod_streams'" class="stats-svg" style="width: 16px; height: 16px;" />
+                    <IconSeries v-else-if="type === 'series'" class="stats-svg" style="width: 16px; height: 16px;" />
+                    <IconCalendar v-else-if="type === 'epg'" class="stats-svg" style="width: 16px; height: 16px;" />
+                    <span>{{ getTypeName(type) }}</span>
+                  </div>
+                  
+                  <div class="stat-counts" style="display: flex; gap: var(--spacing-2); align-items: center;">
+                    <!-- Category count (only for live/vod/series) -->
+                    <span v-if="type !== 'epg'" class="stats-badge" style="font-size: 0.75rem;">
+                      {{ profileStats[p.id!] !== undefined ? $t('settings.stats.categories', { count: profileStats[p.id!][type === 'live_streams' ? 'liveCats' : type === 'vod_streams' ? 'vodCats' : 'seriesCats'] }) : '...' }}
+                    </span>
+                    <!-- Item count -->
+                    <span class="stats-badge primary" style="font-size: 0.75rem;">
+                      {{ syncStore.statuses[p.id!]?.[type]?.item_count !== null ? (type === 'epg' ? $t('settings.stats.entries', { count: syncStore.statuses[p.id!]?.[type]?.item_count ?? 0 }) : type === 'live_streams' ? $t('settings.stats.channels', { count: syncStore.statuses[p.id!]?.[type]?.item_count ?? 0 }) : type === 'vod_streams' ? $t('settings.stats.moviesCount', { count: syncStore.statuses[p.id!]?.[type]?.item_count ?? 0 }) : $t('settings.stats.seriesCount', { count: syncStore.statuses[p.id!]?.[type]?.item_count ?? 0 })) : '0' }}
+                    </span>
+                  </div>
+
+                  <div class="stat-sync-time" style="font-size: 0.7rem; color: var(--color-text-muted); display: flex; flex-direction: column; gap: 2px;">
+                    <span>{{ $t('settings.sync.table.lastSynced') }}:</span>
+                    <span style="font-weight: 500;">{{ formatTime(syncStore.statuses[p.id!]?.[type]?.fetched_at) }}</span>
+                  </div>
+
+                  <!-- Individual Status Indicator -->
+                  <div class="stat-sync-status" style="margin-top: auto; display: flex; align-items: center;">
+                    <span v-if="syncStore.statuses[p.id!]?.[type]?.is_syncing" class="status-indicator syncing" style="font-size: 0.75rem;">
+                      <span class="spinner mini"></span>
+                      {{ syncStore.statuses[p.id!]?.[type]?.status || $t('settings.sync.table.syncing') }}
+                    </span>
+                    <span v-else-if="syncStore.statuses[p.id!]?.[type]?.last_error" class="status-indicator error" style="font-size: 0.75rem;" :title="syncStore.statuses[p.id!]?.[type]?.last_error!">
+                      ⚠️ {{ $t('settings.sync.table.error') }}
+                    </span>
+                    <span v-else-if="syncStore.statuses[p.id!]?.[type]?.fetched_at" class="status-indicator success" style="font-size: 0.75rem;">
+                      ✓ {{ $t('settings.sync.table.ready') }}
+                    </span>
+                    <span v-else class="status-indicator pending" style="font-size: 0.75rem;">
+                      • {{ $t('settings.sync.table.pending') }}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -266,57 +308,6 @@ onMounted(async () => {
             <router-link to="/setup?add=true" class="btn btn-primary" style="text-decoration: none;">
               + {{ $t('settings.profile.addProfile') || 'Add Profile' }}
             </router-link>
-          </div>
-        </div>
-      </div>
-
-      <!-- Database Statistics Card -->
-      <div class="settings-card stats-card">
-        <div class="card-header">
-          <IconStats class="card-icon" />
-          <h3>{{ $t('settings.stats.title') }}</h3>
-        </div>
-        <div class="card-content">
-          <div class="stats-list">
-            <div class="stats-row">
-              <div class="stats-row-header">
-                <IconLive class="stats-svg" />
-                <span class="stats-title">{{ $t('settings.stats.live') }}</span>
-              </div>
-              <div class="stats-row-values">
-                <span class="stats-badge">{{ liveCatCount !== null ? $t('settings.stats.categories', { count: liveCatCount }) : $t('settings.stats.loading') }}</span>
-                <span class="stats-badge primary">{{ $t('settings.stats.channels', { count: syncStore.statuses.live_streams?.item_count ?? 0 }) }}</span>
-              </div>
-            </div>
-            <div class="stats-row">
-              <div class="stats-row-header">
-                <IconMovies class="stats-svg" />
-                <span class="stats-title">{{ $t('settings.stats.movies') }}</span>
-              </div>
-              <div class="stats-row-values">
-                <span class="stats-badge">{{ vodCatCount !== null ? $t('settings.stats.categories', { count: vodCatCount }) : $t('settings.stats.loading') }}</span>
-                <span class="stats-badge primary">{{ $t('settings.stats.moviesCount', { count: syncStore.statuses.vod_streams?.item_count ?? 0 }) }}</span>
-              </div>
-            </div>
-            <div class="stats-row">
-              <div class="stats-row-header">
-                <IconSeries class="stats-svg" />
-                <span class="stats-title">{{ $t('settings.stats.series') }}</span>
-              </div>
-              <div class="stats-row-values">
-                <span class="stats-badge">{{ seriesCatCount !== null ? $t('settings.stats.categories', { count: seriesCatCount }) : $t('settings.stats.loading') }}</span>
-                <span class="stats-badge primary">{{ $t('settings.stats.seriesCount', { count: syncStore.statuses.series?.item_count ?? 0 }) }}</span>
-              </div>
-            </div>
-            <div class="stats-row">
-              <div class="stats-row-header">
-                <IconCalendar class="stats-svg" />
-                <span class="stats-title">{{ $t('settings.stats.epg') }}</span>
-              </div>
-              <div class="stats-row-values">
-                <span class="stats-badge primary">{{ $t('settings.stats.entries', { count: syncStore.statuses.epg?.item_count ?? 0 }) }}</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -441,67 +432,6 @@ onMounted(async () => {
             <span class="subtext">
               {{ $t('settings.player.androidSubtext') }}
             </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Database Sync Logs Card -->
-      <div class="settings-card sync-card">
-        <div class="card-header">
-          <IconSync class="card-icon" />
-          <h3>{{ $t('settings.sync.title') }}</h3>
-        </div>
-        <div class="card-content">
-          <div class="table-container">
-            <table class="sync-table">
-              <thead>
-                <tr>
-                  <th>{{ $t('settings.sync.table.category') }}</th>
-                  <th>{{ $t('settings.sync.table.lastSynced') }}</th>
-                  <th>{{ $t('settings.sync.table.status') }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="type in dataTypes" :key="type">
-                  <td class="type-name-cell">
-                    <div class="type-name-wrapper">
-                      <IconLive v-if="type === 'live_streams'" class="stats-svg" />
-                      <IconMovies v-else-if="type === 'vod_streams'" class="stats-svg" />
-                      <IconSeries v-else-if="type === 'series'" class="stats-svg" />
-                      <IconCalendar v-else-if="type === 'epg'" class="stats-svg" />
-                      <span class="type-label">{{ getTypeName(type) }}</span>
-                    </div>
-                  </td>
-                  <td class="type-time">{{ formatTime(syncStore.statuses[type]?.fetched_at) }}</td>
-                  <td class="type-status">
-                    <span v-if="syncStore.statuses[type]?.is_syncing" class="status-indicator syncing">
-                      <span class="spinner mini"></span>
-                      {{ $t('settings.sync.table.syncing') }}
-                    </span>
-                    <span v-else-if="syncStore.statuses[type]?.last_error" class="status-indicator error" :title="syncStore.statuses[type]?.last_error!">
-                      ⚠️ {{ $t('settings.sync.table.error') }}
-                    </span>
-                    <span v-else-if="syncStore.statuses[type]?.fetched_at" class="status-indicator success">
-                      ✓ {{ $t('settings.sync.table.ready') }}
-                    </span>
-                    <span v-else class="status-indicator pending">
-                      • {{ $t('settings.sync.table.pending') }}
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="sync-actions">
-            <button 
-              class="btn btn-primary btn-sync-all" 
-              :disabled="isGlobalSyncing"
-              @click="handleSyncAll"
-            >
-              <span v-if="isGlobalSyncing" class="spinner button-spinner"></span>
-              {{ isGlobalSyncing ? $t('settings.sync.starting') : $t('settings.sync.refresh') }}
-            </button>
           </div>
         </div>
       </div>
