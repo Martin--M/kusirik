@@ -113,6 +113,8 @@ onBeforeUnmount(() => {
   top: calc(100% + 4px);
   left: 0;
   min-width: 100%;
+  max-height: 250px;
+  overflow-y: auto;
   background-color: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(10px);
   border: 1px solid var(--color-border);
