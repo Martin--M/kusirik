@@ -71,7 +71,6 @@ const showCatchupOnly = ref(false)
 
 const selectedProfileId = ref<string>('all')
 
-const selectedLanguage = ref<string>('all')
 const selectedCountry = ref<string>('all')
 
 const profileOptions = computed(() => {
@@ -84,27 +83,6 @@ const profileOptions = computed(() => {
   return opts
 })
 
-const languageOptions = computed(() => {
-  const opts: Record<string, string> = {
-    'all': t('media.allLanguages')
-  }
-  const langs = new Set<string>()
-  const list = channels.value || []
-  for (const c of list) {
-    if (c.languages) {
-      c.languages.split(',').forEach(l => {
-        const cleaned = l.trim()
-        if (cleaned) {
-          langs.add(cleaned.toUpperCase())
-        }
-      })
-    }
-  }
-  Array.from(langs).sort().forEach(l => {
-    opts[l] = l
-  })
-  return opts
-})
 
 import { getCountryName } from '@/lib/countries'
 
@@ -142,11 +120,10 @@ const streamsQueryProfileId = computed(() => {
 
 watch(selectedProfileId, () => {
   closeDetails()
-  selectedLanguage.value = 'all'
   selectedCountry.value = 'all'
 })
 
-watch([selectedLanguage, selectedCountry], () => {
+watch(selectedCountry, () => {
   closeDetails()
 })
 
@@ -354,11 +331,7 @@ const filteredChannels = computed(() => {
     list = list.filter(channel => channel.tv_archive === 1)
   }
 
-  // Apply language filter
-  if (selectedLanguage.value !== 'all') {
-    const lang = selectedLanguage.value.toLowerCase()
-    list = list.filter(c => c.languages?.toLowerCase().split(',').map(l => l.trim()).includes(lang))
-  }
+
 
   // Apply country filter
   if (selectedCountry.value !== 'all') {
@@ -653,11 +626,6 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
           v-model="selectedProfileId"
           :options="profileOptions"
           style="width: 180px; flex-shrink: 0;"
-        />
-        <CustomSelect
-          v-model="selectedLanguage"
-          :options="languageOptions"
-          style="width: 160px; flex-shrink: 0;"
         />
         <CustomSelect
           v-model="selectedCountry"

@@ -64,10 +64,9 @@ pub fn run(conn: &Connection) -> Result<()> {
 }
 
 fn migration_v8(conn: &Connection) -> Result<()> {
-    tracing::info!("Applying migration v8 — languages and countries in live_streams");
+    tracing::info!("Applying migration v8 — countries in live_streams");
     conn.execute_batch(
-        "ALTER TABLE live_streams ADD COLUMN languages TEXT;
-         ALTER TABLE live_streams ADD COLUMN countries TEXT;"
+        "ALTER TABLE live_streams ADD COLUMN countries TEXT;"
     ).context("Failed to add columns for migration v8")?;
     Ok(())
 }

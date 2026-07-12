@@ -193,7 +193,6 @@ pub struct GuideChannel {
     pub tv_archive: i64,
     pub tv_archive_duration: i64,
     pub profile_id: i64,
-    pub languages: Option<String>,
     pub countries: Option<String>,
     pub epg_entries: Vec<crate::db::epg::EpgEntry>,
 }
@@ -214,7 +213,7 @@ pub async fn get_epg_guide(
 
     // 1. Fetch channels that have active EPG listings in the timeline window (paginated)
     let mut channel_stmt = conn.prepare_cached(
-        "SELECT stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, profile_id, languages, countries
+        "SELECT stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, profile_id, countries
          FROM live_streams
          WHERE (?1 IS NULL OR profile_id = ?1)
            AND epg_channel_id IS NOT NULL 
@@ -241,14 +240,13 @@ pub async fn get_epg_guide(
             row.get::<_, i64>(5)?,
             row.get::<_, i64>(6)?,
             row.get::<_, Option<String>>(7)?,
-            row.get::<_, Option<String>>(8)?,
         ))
     }).map_err(|e| e.to_string())?;
 
     let mut channels = Vec::new();
     let mut channel_ids = Vec::new();
     for row in channel_rows {
-        let (stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, p_id, langs, countries) = row.map_err(|e| e.to_string())?;
+        let (stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, p_id, countries) = row.map_err(|e| e.to_string())?;
         if let Some(ref ch_id) = epg_channel_id {
             channel_ids.push(ch_id.clone());
         }
@@ -260,7 +258,6 @@ pub async fn get_epg_guide(
             tv_archive,
             tv_archive_duration,
             profile_id: p_id,
-            languages: langs,
             countries,
             epg_entries: Vec::new(),
         });

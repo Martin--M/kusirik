@@ -75,7 +75,7 @@ pub fn query_streams(
         Some(cat) => (Some(cat), false),
     };
 
-    let sql = "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, max(is_favorite) as is_favorite, profile_id, languages, countries,
+    let sql = "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, max(is_favorite) as is_favorite, profile_id, countries,
                       (SELECT title FROM epg_entries
                        WHERE epg_entries.profile_id = live_streams.profile_id
                          AND epg_entries.channel_id = live_streams.epg_channel_id
@@ -105,11 +105,10 @@ pub fn query_streams(
                 added: row.get(7)?,
                 is_favorite: row.get(8)?,
                 profile_id: Some(row.get(9)?),
-                languages: row.get(10)?,
-                countries: row.get(11)?,
+                countries: row.get(10)?,
                 url: None,
             },
-            current_title: row.get(12)?,
+            current_title: row.get(11)?,
         })
     })?;
 
@@ -127,7 +126,7 @@ pub fn search_streams(
     limit: u32,
 ) -> Result<Vec<LiveStreamDto>> {
     let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-    let sql = "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id, languages, countries,
+    let sql = "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id, countries,
                       (SELECT title FROM epg_entries
                        WHERE epg_entries.profile_id = live_streams.profile_id
                          AND epg_entries.channel_id = live_streams.epg_channel_id
@@ -159,11 +158,10 @@ pub fn search_streams(
                 added: row.get(7)?,
                 is_favorite: row.get(8)?,
                 profile_id: Some(row.get(9)?),
-                languages: row.get(10)?,
-                countries: row.get(11)?,
+                countries: row.get(10)?,
                 url: None,
             },
-            current_title: row.get(12)?,
+            current_title: row.get(11)?,
         })
     })?;
 
@@ -180,7 +178,7 @@ pub fn query_mirrors(
     name: &str,
 ) -> Result<Vec<LiveStreamApi>> {
     let mut stmt = conn.prepare_cached(
-        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id, url, languages, countries
+        "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id, url, countries
          FROM live_streams
          WHERE profile_id = ?1 AND name = ?2
          ORDER BY stream_id ASC"
@@ -199,8 +197,7 @@ pub fn query_mirrors(
             is_favorite: row.get(8)?,
             profile_id: Some(row.get(9)?),
             url: row.get(10)?,
-            languages: row.get(11)?,
-            countries: row.get(12)?,
+            countries: row.get(11)?,
         })
     })?;
 

@@ -521,8 +521,8 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
         let mut stmt = tx.prepare_cached(
             "INSERT INTO live_streams (
                 profile_id, stream_id, name, stream_icon, epg_channel_id,
-                category_id, tv_archive, tv_archive_duration, added, url, languages, countries
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                category_id, tv_archive, tv_archive_duration, added, url, countries
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
             ON CONFLICT(profile_id, stream_id) DO UPDATE SET
                 name = excluded.name,
                 stream_icon = excluded.stream_icon,
@@ -532,7 +532,6 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
                 tv_archive_duration = excluded.tv_archive_duration,
                 added = excluded.added,
                 url = excluded.url,
-                languages = excluded.languages,
                 countries = excluded.countries",
         )?;
 
@@ -561,7 +560,6 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
                 0,
                 "",
                 stream.url,
-                None::<String>,
                 countries,
             ])?;
         }

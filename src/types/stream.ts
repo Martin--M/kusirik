@@ -17,7 +17,6 @@ export interface LiveStream {
   is_favorite?: number
   current_title?: string | null
   url?: string | null
-  languages?: string | null
   countries?: string | null
 }
 

@@ -17,7 +17,6 @@ export interface GuideChannel {
   tv_archive: number
   tv_archive_duration: number
   profile_id: number
-  languages?: string | null
   countries?: string | null
   epg_entries: EpgEntry[]
 }

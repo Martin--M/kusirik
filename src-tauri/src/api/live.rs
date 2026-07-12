@@ -24,8 +24,6 @@ pub struct LiveStreamApi {
     #[serde(default)]
     pub url: Option<String>,
     #[serde(default)]
-    pub languages: Option<String>,
-    #[serde(default)]
     pub countries: Option<String>,
 }
 

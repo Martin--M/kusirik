@@ -66,7 +66,6 @@ const { t } = useI18n()
 
 const selectedProfileId = ref<string>('all')
 
-const selectedLanguage = ref<string>('all')
 const selectedCountry = ref<string>('all')
 
 const profileOptions = computed(() => {
@@ -79,28 +78,6 @@ const profileOptions = computed(() => {
   return opts
 })
 
-const languageOptions = computed(() => {
-  const opts: Record<string, string> = {
-    'all': t('media.allLanguages')
-  }
-  const langs = new Set<string>()
-  const list = rawStreams.value || []
-  for (const s of list) {
-    const streamObj = s && 'stream' in s ? s.stream : s
-    if (streamObj.languages) {
-      streamObj.languages.split(',').forEach(l => {
-        const cleaned = l.trim()
-        if (cleaned) {
-          langs.add(cleaned.toUpperCase())
-        }
-      })
-    }
-  }
-  Array.from(langs).sort().forEach(l => {
-    opts[l] = l
-  })
-  return opts
-})
 
 import { getCountryName } from '@/lib/countries'
 
@@ -140,11 +117,10 @@ const streamsQueryProfileId = computed(() => {
 watch(selectedProfileId, () => {
   selectedCategoryId.value = 'all'
   selectedStream.value = null
-  selectedLanguage.value = 'all'
   selectedCountry.value = 'all'
 })
 
-watch([selectedLanguage, selectedCountry], () => {
+watch(selectedCountry, () => {
   selectedStream.value = null
 })
 
@@ -212,11 +188,7 @@ const filteredStreams = computed(() => {
     filtered = filtered.filter((s) => s.tv_archive === 1)
   }
 
-  // Apply language filter
-  if (selectedLanguage.value !== 'all') {
-    const lang = selectedLanguage.value.toLowerCase()
-    filtered = filtered.filter(s => s.languages?.toLowerCase().split(',').map(l => l.trim()).includes(lang))
-  }
+
 
   // Apply country filter
   if (selectedCountry.value !== 'all') {
@@ -336,11 +308,6 @@ async function copyUrl(stream: LiveStream) {
             v-model="selectedProfileId"
             :options="profileOptions"
             style="width: 180px; flex-shrink: 0;"
-          />
-          <CustomSelect
-            v-model="selectedLanguage"
-            :options="languageOptions"
-            style="width: 160px; flex-shrink: 0;"
           />
           <CustomSelect
             v-model="selectedCountry"
