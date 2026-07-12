@@ -40,25 +40,61 @@ struct IptvStream {
 
 #[derive(serde::Serialize, Clone)]
 struct SyncProgressPayload {
+    profile_id: i64,
     data_type: String,
     status: String, // "connecting", "downloading", "parsing", "writing", "done", "error"
 }
 
 #[derive(serde::Serialize, Clone)]
 struct SyncStartedPayload {
+    profile_id: i64,
     data_type: String,
 }
 
 #[derive(serde::Serialize, Clone)]
 struct SyncDonePayload {
+    profile_id: i64,
     data_type: String,
     count: usize,
 }
 
 #[derive(serde::Serialize, Clone)]
 struct SyncErrorPayload {
+    profile_id: i64,
     data_type: String,
     message: String,
+}
+
+
+fn emit_started(app: &AppHandle, profile_id: i64, data_type: &str) {
+    let _ = app.emit("sync://started", SyncStartedPayload {
+        profile_id,
+        data_type: data_type.to_string(),
+    });
+}
+
+fn emit_progress(app: &AppHandle, profile_id: i64, data_type: &str, status: &str) {
+    let _ = app.emit("sync://progress", SyncProgressPayload {
+        profile_id,
+        data_type: data_type.to_string(),
+        status: status.to_string(),
+    });
+}
+
+fn emit_done(app: &AppHandle, profile_id: i64, data_type: &str, count: usize) {
+    let _ = app.emit("sync://done", SyncDonePayload {
+        profile_id,
+        data_type: data_type.to_string(),
+        count,
+    });
+}
+
+fn emit_error(app: &AppHandle, profile_id: i64, data_type: &str, message: &str) {
+    let _ = app.emit("sync://error", SyncErrorPayload {
+        profile_id,
+        data_type: data_type.to_string(),
+        message: message.to_string(),
+    });
 }
 
 pub async fn run_sync_all(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
@@ -134,37 +170,20 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
                 }
             };
 
-            let _ = app.emit("sync://started", SyncStartedPayload {
-                data_type: dt.to_string(),
-            });
-            let _ = app.emit("sync://progress", SyncProgressPayload {
-                data_type: dt.to_string(),
-                status: "done".to_string(),
-            });
-            let _ = app.emit("sync://done", SyncDonePayload {
-                data_type: dt.to_string(),
-                count: item_count,
-            });
+            emit_started(&app, profile_id, dt);
+            emit_progress(&app, profile_id, dt, "done");
+            emit_done(&app, profile_id, dt, item_count);
             continue;
         }
 
         tracing::info!(data_type = dt, "Starting sync");
-        let _ = app.emit("sync://started", SyncStartedPayload {
-            data_type: dt.to_string(),
-        });
-
-        let _ = app.emit("sync://progress", SyncProgressPayload {
-            data_type: dt.to_string(),
-            status: "connecting".to_string(),
-        });
+        emit_started(&app, profile_id, dt);
+        emit_progress(&app, profile_id, dt, "connecting");
 
         // Perform fetches based on type
         match dt {
             "live_streams" => {
-                let _ = app.emit("sync://progress", SyncProgressPayload {
-                    data_type: dt.to_string(),
-                    status: "downloading".to_string(),
-                });
+                emit_progress(&app, profile_id, dt, "downloading");
 
                 let categories_res = fetch_with_retry(|| crate::api::live::fetch_categories(&client)).await;
                 let streams_res = fetch_with_retry(|| crate::api::live::fetch_streams(&client)).await;
@@ -174,23 +193,13 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
                     (Err(e), _) | (_, Err(e)) => {
                         let err_msg = format!("Failed to fetch live streams: {}", e);
                         let _ = record_error(&db_conn, profile_id, dt, &err_msg);
-                        let _ = app.emit("sync://error", SyncErrorPayload {
-                            data_type: dt.to_string(),
-                            message: err_msg.clone(),
-                        });
+                        emit_error(&app, profile_id, dt, &err_msg);
                         return Err(anyhow!(err_msg));
                     }
                 };
 
-                let _ = app.emit("sync://progress", SyncProgressPayload {
-                    data_type: dt.to_string(),
-                    status: "parsing".to_string(),
-                });
-
-                let _ = app.emit("sync://progress", SyncProgressPayload {
-                    data_type: dt.to_string(),
-                    status: "writing".to_string(),
-                });
+                emit_progress(&app, profile_id, dt, "parsing");
+                emit_progress(&app, profile_id, dt, "writing");
 
                 {
                     let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
@@ -199,16 +208,10 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
                     update_sync_log(&conn, profile_id, dt, Some(streams.len()), None)?;
                 }
 
-                let _ = app.emit("sync://done", SyncDonePayload {
-                    data_type: dt.to_string(),
-                    count: streams.len(),
-                });
+                emit_done(&app, profile_id, dt, streams.len());
             }
             "vod_streams" => {
-                let _ = app.emit("sync://progress", SyncProgressPayload {
-                    data_type: dt.to_string(),
-                    status: "downloading".to_string(),
-                });
+                emit_progress(&app, profile_id, dt, "downloading");
 
                 let categories_res = fetch_with_retry(|| crate::api::vod::fetch_categories(&client)).await;
                 let streams_res = fetch_with_retry(|| crate::api::vod::fetch_streams(&client)).await;
@@ -218,23 +221,13 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
                     (Err(e), _) | (_, Err(e)) => {
                         let err_msg = format!("Failed to fetch VOD streams: {}", e);
                         let _ = record_error(&db_conn, profile_id, dt, &err_msg);
-                        let _ = app.emit("sync://error", SyncErrorPayload {
-                            data_type: dt.to_string(),
-                            message: err_msg.clone(),
-                        });
+                        emit_error(&app, profile_id, dt, &err_msg);
                         return Err(anyhow!(err_msg));
                     }
                 };
 
-                let _ = app.emit("sync://progress", SyncProgressPayload {
-                    data_type: dt.to_string(),
-                    status: "parsing".to_string(),
-                });
-
-                let _ = app.emit("sync://progress", SyncProgressPayload {
-                    data_type: dt.to_string(),
-                    status: "writing".to_string(),
-                });
+                emit_progress(&app, profile_id, dt, "parsing");
+                emit_progress(&app, profile_id, dt, "writing");
 
                 {
                     let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
@@ -243,16 +236,10 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
                     update_sync_log(&conn, profile_id, dt, Some(streams.len()), None)?;
                 }
 
-                let _ = app.emit("sync://done", SyncDonePayload {
-                    data_type: dt.to_string(),
-                    count: streams.len(),
-                });
+                emit_done(&app, profile_id, dt, streams.len());
             }
             "series" => {
-                let _ = app.emit("sync://progress", SyncProgressPayload {
-                    data_type: dt.to_string(),
-                    status: "downloading".to_string(),
-                });
+                emit_progress(&app, profile_id, dt, "downloading");
 
                 let categories_res = fetch_with_retry(|| crate::api::series::fetch_categories(&client)).await;
                 let series_res = fetch_with_retry(|| crate::api::series::fetch_series(&client)).await;
@@ -262,23 +249,13 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
                     (Err(e), _) | (_, Err(e)) => {
                         let err_msg = format!("Failed to fetch series: {}", e);
                         let _ = record_error(&db_conn, profile_id, dt, &err_msg);
-                        let _ = app.emit("sync://error", SyncErrorPayload {
-                            data_type: dt.to_string(),
-                            message: err_msg.clone(),
-                        });
+                        emit_error(&app, profile_id, dt, &err_msg);
                         return Err(anyhow!(err_msg));
                     }
                 };
 
-                let _ = app.emit("sync://progress", SyncProgressPayload {
-                    data_type: dt.to_string(),
-                    status: "parsing".to_string(),
-                });
-
-                let _ = app.emit("sync://progress", SyncProgressPayload {
-                    data_type: dt.to_string(),
-                    status: "writing".to_string(),
-                });
+                emit_progress(&app, profile_id, dt, "parsing");
+                emit_progress(&app, profile_id, dt, "writing");
 
                 {
                     let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
@@ -287,29 +264,20 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
                     update_sync_log(&conn, profile_id, dt, Some(series_list.len()), None)?;
                 }
 
-                let _ = app.emit("sync://done", SyncDonePayload {
-                    data_type: dt.to_string(),
-                    count: series_list.len(),
-                });
+                emit_done(&app, profile_id, dt, series_list.len());
             }
             "epg" => {
                 if let Err(e) = sync_epg_internal(app.clone(), profile_id, &client).await {
                     let err_msg = format!("Failed to sync EPG: {}", e);
                     let _ = record_error(&db_conn, profile_id, dt, &err_msg);
-                    let _ = app.emit("sync://error", SyncErrorPayload {
-                        data_type: dt.to_string(),
-                        message: err_msg.clone(),
-                    });
+                    emit_error(&app, profile_id, dt, &err_msg);
                     return Err(anyhow!(err_msg));
                 }
             }
             _ => {}
         }
 
-        let _ = app.emit("sync://progress", SyncProgressPayload {
-            data_type: dt.to_string(),
-            status: "done".to_string(),
-        });
+        emit_progress(&app, profile_id, dt, "done");
     }
 
     Ok(())
@@ -386,10 +354,7 @@ async fn sync_epg_internal(app: AppHandle, profile_id: i64, client: &XtreamClien
         return Ok(0);
     }
 
-    let _ = app.emit("sync://progress", SyncProgressPayload {
-        data_type: "epg".to_string(),
-        status: "downloading".to_string(),
-    });
+    emit_progress(&app, profile_id, "epg", "downloading");
 
     let xmltv_url = client.get_url(None).replace("player_api.php", "xmltv.php");
     tracing::info!(url = %xmltv_url, "Fetching XMLTV EPG data");
@@ -407,10 +372,7 @@ async fn sync_epg_internal(app: AppHandle, profile_id: i64, client: &XtreamClien
         return Err(anyhow!("HTTP request failed with status: {}", res.status()));
     }
 
-    let _ = app.emit("sync://progress", SyncProgressPayload {
-        data_type: "epg".to_string(),
-        status: "parsing".to_string(),
-    });
+    emit_progress(&app, profile_id, "epg", "parsing");
 
     let body_bytes = res.bytes().await.context("Failed to read XMLTV body bytes")?;
     let mut count = 0;
@@ -421,10 +383,7 @@ async fn sync_epg_internal(app: AppHandle, profile_id: i64, client: &XtreamClien
         update_sync_log(&conn, profile_id, "epg", Some(count), None)?;
     }
 
-    let _ = app.emit("sync://done", SyncDonePayload {
-        data_type: "epg".to_string(),
-        count,
-    });
+    emit_done(&app, profile_id, "epg", count);
 
     Ok(count)
 }
@@ -474,33 +433,20 @@ async fn do_sync_public_iptv(app: AppHandle, profile_id: i64, force: bool) -> Re
                 }
             };
 
-            let _ = app.emit("sync://started", SyncStartedPayload {
-                data_type: dt.to_string(),
-            });
-            let _ = app.emit("sync://progress", SyncProgressPayload {
-                data_type: dt.to_string(),
-                status: "done".to_string(),
-            });
-            let _ = app.emit("sync://done", SyncDonePayload {
-                data_type: dt.to_string(),
-                count: item_count,
-            });
+            emit_started(&app, profile_id, dt);
+            emit_progress(&app, profile_id, dt, "done");
+            emit_done(&app, profile_id, dt, item_count);
             continue;
         }
 
-        let _ = app.emit("sync://started", SyncStartedPayload {
-            data_type: dt.to_string(),
-        });
+        emit_started(&app, profile_id, dt);
 
         match dt {
             "live_streams" => {
                 if let Err(e) = sync_public_iptv_streams(app.clone(), profile_id).await {
                     let err_msg = format!("Failed to sync public IPTV streams: {}", e);
                     let _ = record_error(&db_conn, profile_id, dt, &err_msg);
-                    let _ = app.emit("sync://error", SyncErrorPayload {
-                        data_type: dt.to_string(),
-                        message: err_msg.clone(),
-                    });
+                    emit_error(&app, profile_id, dt, &err_msg);
                     return Err(anyhow!(err_msg));
                 }
             }
@@ -508,24 +454,15 @@ async fn do_sync_public_iptv(app: AppHandle, profile_id: i64, force: bool) -> Re
                 if let Err(e) = sync_public_iptv_epg(app.clone(), profile_id).await {
                     let err_msg = format!("Failed to sync public IPTV EPG: {}", e);
                     let _ = record_error(&db_conn, profile_id, dt, &err_msg);
-                    let _ = app.emit("sync://error", SyncErrorPayload {
-                        data_type: dt.to_string(),
-                        message: err_msg.clone(),
-                    });
+                    emit_error(&app, profile_id, dt, &err_msg);
                     return Err(anyhow!(err_msg));
                 }
             }
             _ => {
                 let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
                 update_sync_log(&conn, profile_id, dt, Some(0), None)?;
-                let _ = app.emit("sync://progress", SyncProgressPayload {
-                    data_type: dt.to_string(),
-                    status: "done".to_string(),
-                });
-                let _ = app.emit("sync://done", SyncDonePayload {
-                    data_type: dt.to_string(),
-                    count: 0,
-                });
+                emit_progress(&app, profile_id, dt, "done");
+                emit_done(&app, profile_id, dt, 0);
             }
         }
     }
@@ -536,10 +473,7 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
     use tauri::Manager;
     let db_conn = app.state::<DbConn>();
 
-    let _ = app.emit("sync://progress", SyncProgressPayload {
-        data_type: "live_streams".to_string(),
-        status: "downloading".to_string(),
-    });
+    emit_progress(&app, profile_id, "live_streams", "downloading");
 
     let http = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
@@ -552,10 +486,7 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
     let logos: Vec<IptvLogo> = http.get("https://iptv-org.github.io/api/logos.json").send().await?.json().await?;
     let streams: Vec<IptvStream> = http.get("https://iptv-org.github.io/api/streams.json").send().await?.json().await?;
 
-    let _ = app.emit("sync://progress", SyncProgressPayload {
-        data_type: "live_streams".to_string(),
-        status: "parsing".to_string(),
-    });
+    emit_progress(&app, profile_id, "live_streams", "parsing");
 
     let mut channel_map = std::collections::HashMap::new();
     for ch in channels {
@@ -581,10 +512,7 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
     conn.execute("DELETE FROM live_categories WHERE profile_id = ?1", rusqlite::params![profile_id])?;
     crate::db::live::upsert_categories(&mut conn, profile_id, &db_categories)?;
 
-    let _ = app.emit("sync://progress", SyncProgressPayload {
-        data_type: "live_streams".to_string(),
-        status: "writing".to_string(),
-    });
+    emit_progress(&app, profile_id, "live_streams", "writing");
 
     let tx = conn.transaction()?;
     let count = streams.len();
@@ -643,20 +571,14 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
 
     update_sync_log(&conn, profile_id, "live_streams", Some(count), None)?;
 
-    let _ = app.emit("sync://done", SyncDonePayload {
-        data_type: "live_streams".to_string(),
-        count,
-    });
+    emit_done(&app, profile_id, "live_streams", count);
 
     Ok(count)
 }
 
 async fn sync_public_iptv_epg(app: AppHandle, profile_id: i64) -> Result<usize> {
     let db_conn = app.state::<DbConn>();
-    let _ = app.emit("sync://progress", SyncProgressPayload {
-        data_type: "epg".to_string(),
-        status: "downloading".to_string(),
-    });
+    emit_progress(&app, profile_id, "epg", "downloading");
 
     let epg_urls = vec!["https://iptv-epg.org/files/epg-co.xml"];
     let mut total_count = 0;
@@ -675,10 +597,7 @@ async fn sync_public_iptv_epg(app: AppHandle, profile_id: i64) -> Result<usize> 
             continue;
         }
 
-        let _ = app.emit("sync://progress", SyncProgressPayload {
-            data_type: "epg".to_string(),
-            status: "parsing".to_string(),
-        });
+        emit_progress(&app, profile_id, "epg", "parsing");
 
         let body_bytes = res.bytes().await?;
         parse_and_insert_epg_xml(&app, &db_conn, profile_id, &body_bytes, &mut total_count)?;
@@ -689,10 +608,7 @@ async fn sync_public_iptv_epg(app: AppHandle, profile_id: i64) -> Result<usize> 
         update_sync_log(&conn, profile_id, "epg", Some(total_count), None)?;
     }
 
-    let _ = app.emit("sync://done", SyncDonePayload {
-        data_type: "epg".to_string(),
-        count: total_count,
-    });
+    emit_done(&app, profile_id, "epg", total_count);
 
     Ok(total_count)
 }
@@ -788,10 +704,7 @@ fn parse_and_insert_epg_xml(
                                 let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
                                 crate::db::epg::bulk_insert(&mut conn, &entries)?;
                                 entries.clear();
-                                let _ = app.emit("sync://progress", SyncProgressPayload {
-                                    data_type: "epg".to_string(),
-                                    status: format!("writing ({} items)", *accumulated_count),
-                                });
+                                emit_progress(&app, profile_id, "epg", &format!("writing ({} items)", *accumulated_count));
                             }
                         }
                     }
@@ -850,7 +763,7 @@ fn parse_xmltv_date_to_utc_and_offset(s: &str) -> Option<(String, String)> {
 async fn run_epg_sync_startup_background_for_profile(app: AppHandle, profile: crate::db::profile::Profile) -> Result<()> {
     use tauri::Manager;
     let db_conn = app.state::<DbConn>();
-    let _ = app.emit("sync://started", SyncStartedPayload { data_type: "epg".to_string() });
+    emit_started(&app, profile.id, "epg");
 
     if profile.profile_type == "public_iptv" {
         match sync_public_iptv_epg(app.clone(), profile.id).await {
@@ -860,10 +773,7 @@ async fn run_epg_sync_startup_background_for_profile(app: AppHandle, profile: cr
             Err(e) => {
                 let err_msg = format!("Failed to sync EPG for profile {}: {}", profile.id, e);
                 let _ = record_error(&db_conn, profile.id, "epg", &err_msg);
-                let _ = app.emit("sync://error", SyncErrorPayload {
-                    data_type: "epg".to_string(),
-                    message: err_msg,
-                });
+                emit_error(&app, profile.id, "epg", &err_msg);
                 return Err(e);
             }
         }
@@ -882,10 +792,7 @@ async fn run_epg_sync_startup_background_for_profile(app: AppHandle, profile: cr
         Err(e) => {
             let err_msg = format!("Failed to sync EPG for profile {}: {}", profile.id, e);
             let _ = record_error(&db_conn, profile.id, "epg", &err_msg);
-            let _ = app.emit("sync://error", SyncErrorPayload {
-                data_type: "epg".to_string(),
-                message: err_msg,
-            });
+            emit_error(&app, profile.id, "epg", &err_msg);
             return Err(e);
         }
     }
