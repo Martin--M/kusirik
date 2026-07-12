@@ -20,7 +20,7 @@ onMounted(async () => {
 })
 
 const showLayout = computed(() => {
-  return route.meta.requiresProfile === true
+  return route.meta.requiresProfile === true || route.name === 'settings'
 })
 
 const isDesktop = computed(() => {
