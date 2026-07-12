@@ -212,41 +212,85 @@ pub async fn get_epg_guide(
     let offset_val = offset.unwrap_or(0);
 
     // 1. Fetch channels that have active EPG listings in the timeline window (paginated)
-    let mut channel_stmt = conn.prepare_cached(
-        "SELECT stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, profile_id, countries
-         FROM live_streams
-         WHERE (?1 IS NULL OR profile_id = ?1)
-           AND epg_channel_id IS NOT NULL 
-           AND epg_channel_id != ''
-           AND EXISTS (
-               SELECT 1 FROM epg_entries ee 
-               WHERE ee.profile_id = live_streams.profile_id 
-                 AND ee.channel_id = live_streams.epg_channel_id 
-                 AND ee.start < ?2 
-                 AND ee.stop > ?3
-           )
-         GROUP BY profile_id, name
-         ORDER BY name ASC
-         LIMIT ?4 OFFSET ?5"
-    ).map_err(|e| e.to_string())?;
+    let channel_rows = if let Some(p_id) = profile_id {
+        let mut channel_stmt = conn.prepare_cached(
+            "SELECT stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, profile_id, countries
+             FROM live_streams
+             WHERE profile_id = ?1
+               AND epg_channel_id IS NOT NULL 
+               AND epg_channel_id != ''
+               AND EXISTS (
+                   SELECT 1 FROM epg_entries ee 
+                   WHERE ee.profile_id = live_streams.profile_id 
+                     AND ee.channel_id = live_streams.epg_channel_id 
+                     AND ee.start < ?2 
+                     AND ee.stop > ?3
+               )
+             GROUP BY profile_id, name
+             ORDER BY name ASC
+             LIMIT ?4 OFFSET ?5"
+        ).map_err(|e| e.to_string())?;
+        
+        let rows = channel_stmt.query_map(rusqlite::params![p_id, &to, &from, limit_val, offset_val], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, Option<String>>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, i64>(4)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, i64>(6)?,
+                row.get::<_, Option<String>>(7)?,
+            ))
+        }).map_err(|e| e.to_string())?;
 
-    let channel_rows = channel_stmt.query_map(rusqlite::params![profile_id, &to, &from, limit_val, offset_val], |row| {
-        Ok((
-            row.get::<_, i64>(0)?,
-            row.get::<_, Option<String>>(1)?,
-            row.get::<_, Option<String>>(2)?,
-            row.get::<_, Option<String>>(3)?,
-            row.get::<_, i64>(4)?,
-            row.get::<_, i64>(5)?,
-            row.get::<_, i64>(6)?,
-            row.get::<_, Option<String>>(7)?,
-        ))
-    }).map_err(|e| e.to_string())?;
+        let mut res = Vec::new();
+        for r in rows {
+            res.push(r.map_err(|e| e.to_string())?);
+        }
+        res
+    } else {
+        let mut channel_stmt = conn.prepare_cached(
+            "SELECT stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, profile_id, countries
+             FROM live_streams
+             WHERE epg_channel_id IS NOT NULL 
+               AND epg_channel_id != ''
+               AND EXISTS (
+                   SELECT 1 FROM epg_entries ee 
+                   WHERE ee.profile_id = live_streams.profile_id 
+                     AND ee.channel_id = live_streams.epg_channel_id 
+                     AND ee.start < ?1 
+                     AND ee.stop > ?2
+               )
+             GROUP BY profile_id, name
+             ORDER BY name ASC
+             LIMIT ?3 OFFSET ?4"
+        ).map_err(|e| e.to_string())?;
+
+        let rows = channel_stmt.query_map(rusqlite::params![&to, &from, limit_val, offset_val], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, Option<String>>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, i64>(4)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, i64>(6)?,
+                row.get::<_, Option<String>>(7)?,
+            ))
+        }).map_err(|e| e.to_string())?;
+
+        let mut res = Vec::new();
+        for r in rows {
+            res.push(r.map_err(|e| e.to_string())?);
+        }
+        res
+    };
 
     let mut channels = Vec::new();
     let mut channel_ids = Vec::new();
     for row in channel_rows {
-        let (stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, p_id, countries) = row.map_err(|e| e.to_string())?;
+        let (stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, p_id, countries) = row;
         if let Some(ref ch_id) = epg_channel_id {
             channel_ids.push(ch_id.clone());
         }
@@ -269,31 +313,65 @@ pub async fn get_epg_guide(
 
     // 2. Fetch EPG entries in the timeframe matching ONLY the paginated channel IDs
     let channel_ids_json = serde_json::to_string(&channel_ids).map_err(|e| e.to_string())?;
-    let mut epg_stmt = conn.prepare_cached(
-        "SELECT profile_id, channel_id, start, stop, title, description, tz_offset 
-         FROM epg_entries 
-         WHERE (?1 IS NULL OR profile_id = ?1)
-           AND start < ?2 
-           AND stop > ?3
-           AND channel_id IN (SELECT value FROM json_each(?4))
-         ORDER BY start ASC"
-    ).map_err(|e| e.to_string())?;
+    let epg_rows = if let Some(p_id) = profile_id {
+        let mut epg_stmt = conn.prepare_cached(
+            "SELECT profile_id, channel_id, start, stop, title, description, tz_offset 
+             FROM epg_entries 
+             WHERE profile_id = ?1
+               AND start < ?2 
+               AND stop > ?3
+               AND channel_id IN (SELECT value FROM json_each(?4))
+             ORDER BY start ASC"
+        ).map_err(|e| e.to_string())?;
+        
+        let rows = epg_stmt.query_map(rusqlite::params![p_id, &to, &from, channel_ids_json], |row| {
+            Ok(EpgEntry {
+                profile_id: row.get(0)?,
+                channel_id: row.get(1)?,
+                start: row.get(2)?,
+                stop: row.get(3)?,
+                title: row.get(4)?,
+                description: row.get(5)?,
+                tz_offset: row.get(6)?,
+            })
+        }).map_err(|e| e.to_string())?;
 
-    let epg_rows = epg_stmt.query_map(rusqlite::params![profile_id, &to, &from, channel_ids_json], |row| {
-        Ok(EpgEntry {
-            profile_id: row.get(0)?,
-            channel_id: row.get(1)?,
-            start: row.get(2)?,
-            stop: row.get(3)?,
-            title: row.get(4)?,
-            description: row.get(5)?,
-            tz_offset: row.get(6)?,
-        })
-    }).map_err(|e| e.to_string())?;
+        let mut res = Vec::new();
+        for r in rows {
+            res.push(r.map_err(|e| e.to_string())?);
+        }
+        res
+    } else {
+        let mut epg_stmt = conn.prepare_cached(
+            "SELECT profile_id, channel_id, start, stop, title, description, tz_offset 
+             FROM epg_entries 
+             WHERE start < ?1 
+               AND stop > ?2
+               AND channel_id IN (SELECT value FROM json_each(?3))
+             ORDER BY start ASC"
+        ).map_err(|e| e.to_string())?;
+        
+        let rows = epg_stmt.query_map(rusqlite::params![&to, &from, channel_ids_json], |row| {
+            Ok(EpgEntry {
+                profile_id: row.get(0)?,
+                channel_id: row.get(1)?,
+                start: row.get(2)?,
+                stop: row.get(3)?,
+                title: row.get(4)?,
+                description: row.get(5)?,
+                tz_offset: row.get(6)?,
+            })
+        }).map_err(|e| e.to_string())?;
+
+        let mut res = Vec::new();
+        for r in rows {
+            res.push(r.map_err(|e| e.to_string())?);
+        }
+        res
+    };
 
     let mut entries_by_channel: HashMap<String, Vec<EpgEntry>> = HashMap::new();
-    for row in epg_rows {
-        let entry = row.map_err(|e| e.to_string())?;
+    for entry in epg_rows {
         entries_by_channel.entry(entry.channel_id.clone()).or_default().push(entry);
     }
 
