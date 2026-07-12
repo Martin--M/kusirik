@@ -23,7 +23,7 @@ pub fn bulk_insert(conn: &mut Connection, entries: &[EpgEntry]) -> Result<()> {
     let tx = conn.transaction()?;
     {
         let mut stmt = tx.prepare_cached(
-            "INSERT OR REPLACE INTO epg_entries (profile_id, channel_id, start, stop, title, description, tz_offset)
+            "INSERT OR IGNORE INTO epg_entries (profile_id, channel_id, start, stop, title, description, tz_offset)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
         )?;
 
