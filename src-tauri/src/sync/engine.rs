@@ -702,7 +702,7 @@ fn parse_and_insert_epg_xml(
                                 let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
                                 crate::db::epg::bulk_insert(&mut conn, &entries)?;
                                 entries.clear();
-                                emit_progress(&app, profile_id, "epg", &format!("writing ({} items)", *accumulated_count));
+                                emit_progress(app, profile_id, "epg", &format!("writing ({} items)", *accumulated_count));
                             }
                         }
                     }
