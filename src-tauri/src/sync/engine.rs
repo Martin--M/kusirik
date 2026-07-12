@@ -578,7 +578,23 @@ async fn sync_public_iptv_epg(app: AppHandle, profile_id: i64) -> Result<usize> 
     let db_conn = app.state::<DbConn>();
     emit_progress(&app, profile_id, "epg", "downloading");
 
-    let epg_urls = vec!["https://iptv-epg.org/files/epg-co.xml"];
+    let epg_urls = vec![
+        "https://iptv-epg.org/files/epg-co.xml",
+        "https://iptv-epg.org/files/epg-ar.xml",
+        "https://iptv-epg.org/files/epg-be.xml",
+        "https://iptv-epg.org/files/epg-au.xml",
+        "https://iptv-epg.org/files/epg-ca.xml",
+        "https://iptv-epg.org/files/epg-cl.xml",
+        "https://iptv-epg.org/files/epg-fr.xml",
+        "https://iptv-epg.org/files/epg-it.xml",
+        "https://iptv-epg.org/files/epg-mx.xml",
+        "https://iptv-epg.org/files/epg-kr.xml",
+        "https://iptv-epg.org/files/epg-es.xml",
+        "https://iptv-epg.org/files/epg-gb.xml",
+        "https://iptv-epg.org/files/epg-us.xml",
+        "https://iptv-epg.org/files/epg-uy.xml",
+        "https://iptv-epg.org/files/epg-ve.xml",
+    ];
     let mut total_count = 0;
 
     for url in epg_urls {
