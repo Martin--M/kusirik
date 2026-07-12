@@ -10,20 +10,24 @@ export interface SyncStatus {
 }
 
 export interface SyncStartedEvent {
+  profile_id: number
   data_type: DataType
 }
 
 export interface SyncProgressEvent {
+  profile_id: number
   data_type: DataType
   status: string // "connecting", "downloading", "parsing", "writing"
 }
 
 export interface SyncDoneEvent {
+  profile_id: number
   data_type: DataType
   count: number
 }
 
 export interface SyncErrorEvent {
+  profile_id: number
   data_type: DataType
   message: string
 }

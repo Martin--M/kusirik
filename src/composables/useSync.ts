@@ -25,20 +25,20 @@ export function useSync() {
   onMounted(async () => {
     unlisten.push(
       await listen<SyncStartedEvent>('sync://started', ({ payload }) => {
-        syncStore.onStarted(payload.data_type)
+        syncStore.onStarted(payload.profile_id, payload.data_type)
       })
     )
 
     unlisten.push(
       await listen<SyncProgressEvent>('sync://progress', ({ payload }) => {
-        syncStore.onProgress(payload.data_type, payload.status)
+        syncStore.onProgress(payload.profile_id, payload.data_type, payload.status)
       })
     )
 
     unlisten.push(
       await listen<SyncDoneEvent>('sync://done', ({ payload }) => {
         const now = new Date().toISOString()
-        syncStore.onDone(payload.data_type, payload.count, now)
+        syncStore.onDone(payload.profile_id, payload.data_type, payload.count, now)
         // Invalidate TanStack Query cache for this data type so views re-fetch from DB
         queryClient.invalidateQueries({ queryKey: [payload.data_type] })
       })
@@ -46,7 +46,7 @@ export function useSync() {
 
     unlisten.push(
       await listen<SyncErrorEvent>('sync://error', ({ payload }) => {
-        syncStore.onError(payload.data_type, payload.message)
+        syncStore.onError(payload.profile_id, payload.data_type, payload.message)
       })
     )
   })

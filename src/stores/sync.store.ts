@@ -16,48 +16,54 @@ function initialStatus(data_type: DataType): SyncStatus {
 }
 
 export const useSyncStore = defineStore('sync', () => {
-  const statuses = ref<Record<DataType, SyncStatus>>(
-    Object.fromEntries(
-      ALL_DATA_TYPES.map((t) => [t, initialStatus(t)])
-    ) as Record<DataType, SyncStatus>
-  )
+  const statuses = ref<Record<number, Record<DataType, SyncStatus>>>({})
 
-  function onStarted(data_type: DataType) {
-    statuses.value[data_type].is_syncing = true
-    statuses.value[data_type].status = 'connecting'
-    statuses.value[data_type].last_error = null
-    statuses.value[data_type].fetched_at = null
+  function ensureProfile(profileId: number) {
+    if (!statuses.value[profileId]) {
+      statuses.value[profileId] = Object.fromEntries(
+        ALL_DATA_TYPES.map((t) => [t, initialStatus(t)])
+      ) as Record<DataType, SyncStatus>
+    }
   }
 
-  function onProgress(data_type: DataType, status: string) {
-    statuses.value[data_type].status = status
+  function onStarted(profileId: number, data_type: DataType) {
+    ensureProfile(profileId)
+    statuses.value[profileId][data_type].is_syncing = true
+    statuses.value[profileId][data_type].status = 'connecting'
+    statuses.value[profileId][data_type].last_error = null
+    statuses.value[profileId][data_type].fetched_at = null
   }
 
-  function onDone(data_type: DataType, count: number, fetched_at: string) {
-    statuses.value[data_type].is_syncing = false
-    statuses.value[data_type].status = null
-    statuses.value[data_type].item_count = count
-    statuses.value[data_type].fetched_at = fetched_at
-    statuses.value[data_type].last_error = null
+  function onProgress(profileId: number, data_type: DataType, status: string) {
+    ensureProfile(profileId)
+    statuses.value[profileId][data_type].status = status
   }
 
-  function onError(data_type: DataType, message: string) {
-    statuses.value[data_type].is_syncing = false
-    statuses.value[data_type].status = null
-    statuses.value[data_type].last_error = message
+  function onDone(profileId: number, data_type: DataType, count: number, fetched_at: string) {
+    ensureProfile(profileId)
+    statuses.value[profileId][data_type].is_syncing = false
+    statuses.value[profileId][data_type].status = null
+    statuses.value[profileId][data_type].item_count = count
+    statuses.value[profileId][data_type].fetched_at = fetched_at
+    statuses.value[profileId][data_type].last_error = null
   }
 
-  function isManualSyncAllowed(data_type: DataType): boolean {
-    const s = statuses.value[data_type]
-    // Manual sync only available if last auto-sync failed (per plan §8.8)
+  function onError(profileId: number, data_type: DataType, message: string) {
+    ensureProfile(profileId)
+    statuses.value[profileId][data_type].is_syncing = false
+    statuses.value[profileId][data_type].status = null
+    statuses.value[profileId][data_type].last_error = message
+  }
+
+  function isManualSyncAllowed(profileId: number, data_type: DataType): boolean {
+    ensureProfile(profileId)
+    const s = statuses.value[profileId][data_type]
     return s.last_error !== null && !s.is_syncing
   }
 
   function reset() {
-    for (const t of ALL_DATA_TYPES) {
-      statuses.value[t] = initialStatus(t)
-    }
+    statuses.value = {}
   }
 
-  return { statuses, onStarted, onProgress, onDone, onError, isManualSyncAllowed, reset }
+  return { statuses, ensureProfile, onStarted, onProgress, onDone, onError, isManualSyncAllowed, reset }
 })
