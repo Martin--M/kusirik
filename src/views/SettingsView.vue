@@ -240,10 +240,10 @@ onMounted(async () => {
                     <IconSync style="width: 14px; height: 14px;" />
                     {{ $t('settings.sync.refresh') }}
                   </button>
-                  <router-link :to="`/setup?id=${p.id}`" class="btn" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--color-border); color: var(--color-text); text-decoration: none;">
+                  <router-link v-if="p.profile_type !== 'public_iptv'" :to="`/setup?id=${p.id}`" class="btn" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--color-border); color: var(--color-text); text-decoration: none;">
                     {{ $t('settings.profile.edit') }}
                   </router-link>
-                  <button class="btn btn-danger" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem;" @click="handleDeleteProfile(p.id!)">
+                  <button v-if="p.profile_type !== 'public_iptv'" class="btn btn-danger" style="padding: var(--spacing-2) var(--spacing-4); font-size: 0.8rem;" @click="handleDeleteProfile(p.id!)">
                     {{ $t('settings.profile.delete') }}
                   </button>
                 </div>
