@@ -28,7 +28,8 @@ pub mod favorites;
 pub mod history;
 
 /// Tauri managed state wrapper around the single rusqlite connection.
-pub struct DbConn(pub Mutex<Connection>);
+#[derive(Clone)]
+pub struct DbConn(pub std::sync::Arc<Mutex<Connection>>);
 
 /// Open (or create) the SQLite database at `db_path`, configure it for
 /// optimal performance, and run any pending migrations.
@@ -46,7 +47,7 @@ pub fn open(db_path: &Path) -> Result<DbConn> {
     configure(&conn).context("Failed to configure SQLite pragmas")?;
     migrations::run(&conn).context("Database migration failed")?;
 
-    Ok(DbConn(Mutex::new(conn)))
+    Ok(DbConn(std::sync::Arc::new(Mutex::new(conn))))
 }
 
 /// Apply WAL mode and performance pragmas.

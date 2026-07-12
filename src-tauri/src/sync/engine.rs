@@ -374,9 +374,13 @@ async fn sync_epg_internal(app: AppHandle, profile_id: i64, client: &XtreamClien
 
     emit_progress(&app, profile_id, "epg", "parsing");
 
-    let body_bytes = res.bytes().await.context("Failed to read XMLTV body bytes")?;
-    let mut count = 0;
-    parse_and_insert_epg_xml(&app, &db_conn, profile_id, &body_bytes, &mut count)?;
+    let body_bytes = res.bytes().await.context("Failed to read XMLTV body bytes")?.to_vec();
+    let count = 0;
+    let app_clone = app.clone();
+    let db_conn_clone = db_conn.inner().clone();
+    let count = tokio::task::spawn_blocking(move || {
+        parse_and_insert_epg_xml(app_clone, db_conn_clone, profile_id, body_bytes, count)
+    }).await??;
 
     {
         let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
@@ -575,7 +579,7 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
 }
 
 async fn sync_public_iptv_epg(app: AppHandle, profile_id: i64) -> Result<usize> {
-    let db_conn = app.state::<DbConn>();
+    let db_conn = app.state::<DbConn>().inner().clone();
     emit_progress(&app, profile_id, "epg", "downloading");
 
     let epg_urls = vec![
@@ -613,8 +617,15 @@ async fn sync_public_iptv_epg(app: AppHandle, profile_id: i64) -> Result<usize> 
 
         emit_progress(&app, profile_id, "epg", "parsing");
 
-        let body_bytes = res.bytes().await?;
-        parse_and_insert_epg_xml(&app, &db_conn, profile_id, &body_bytes, &mut total_count)?;
+        let body_bytes = res.bytes().await?.to_vec();
+        let app_clone = app.clone();
+        let db_conn_clone = db_conn.clone();
+        
+        let count = tokio::task::spawn_blocking(move || {
+            parse_and_insert_epg_xml(app_clone, db_conn_clone, profile_id, body_bytes, total_count)
+        }).await??;
+        
+        total_count = count;
     }
 
     {
@@ -628,13 +639,13 @@ async fn sync_public_iptv_epg(app: AppHandle, profile_id: i64) -> Result<usize> 
 }
 
 fn parse_and_insert_epg_xml(
-    app: &AppHandle,
-    db_conn: &DbConn,
+    app: AppHandle,
+    db_conn: DbConn,
     profile_id: i64,
-    body_bytes: &[u8],
-    accumulated_count: &mut usize,
-) -> Result<()> {
-    let mut reader = Reader::from_reader(std::io::Cursor::new(body_bytes));
+    body_bytes: Vec<u8>,
+    mut accumulated_count: usize,
+) -> Result<usize> {
+    let mut reader = Reader::from_reader(std::io::Cursor::new(&body_bytes));
     reader.config_mut().trim_text(true);
 
     let mut buf = Vec::new();
@@ -712,13 +723,13 @@ fn parse_and_insert_epg_xml(
                     b"programme" => {
                         if let Some(entry) = current_entry.take() {
                             entries.push(entry);
-                            *accumulated_count += 1;
+                            accumulated_count += 1;
 
                             if entries.len() >= 2000 {
                                 let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
                                 crate::db::epg::bulk_insert(&mut conn, &entries)?;
                                 entries.clear();
-                                emit_progress(app, profile_id, "epg", &format!("writing ({} items)", *accumulated_count));
+                                emit_progress(&app, profile_id, "epg", &format!("writing ({} items)", accumulated_count));
                             }
                         }
                     }
@@ -743,7 +754,7 @@ fn parse_and_insert_epg_xml(
         crate::db::epg::bulk_insert(&mut conn, &entries)?;
     }
 
-    Ok(())
+    Ok(accumulated_count)
 }
 
 fn parse_xmltv_date_to_utc_and_offset(s: &str) -> Option<(String, String)> {
