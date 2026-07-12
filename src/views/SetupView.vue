@@ -323,6 +323,13 @@ function initForm() {
           <template v-else>
             <button
               type="button"
+              @click="router.push('/settings')"
+              class="btn btn-secondary"
+            >
+              {{ $t('setup.skip') }}
+            </button>
+            <button
+              type="button"
               @click="handleSaveAndSync"
               class="btn btn-primary"
               :disabled="isTesting || isSaving || !testSuccess"

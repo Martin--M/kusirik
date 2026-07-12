@@ -33,6 +33,7 @@
     "testSuccess": "Connection successful! Server is ready.",
     "testFailed": "Connection failed: {error}",
     "saveFailed": "Failed to save: {error}",
+    "skip": "Skip",
     "syncScreen": {
       "title": "Initializing Cache",
       "desc": "Please wait while we sync categories and listings sequentially.",

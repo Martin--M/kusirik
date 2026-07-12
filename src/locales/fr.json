@@ -33,6 +33,7 @@
     "testSuccess": "Connexion réussie ! Le serveur est prêt.",
     "testFailed": "Échec de la connexion : {error}",
     "saveFailed": "Échec de l'enregistrement : {error}",
+    "skip": "Passer",
     "syncScreen": {
       "title": "Initialisation du cache",
       "desc": "Veuillez patienter pendant la synchronisation séquentielle des catégories et des flux.",
