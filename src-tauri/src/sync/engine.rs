@@ -837,34 +837,42 @@ async fn run_epg_sync_startup_background_for_profile(app: AppHandle, profile: cr
 }
 
 pub async fn run_startup_tasks(app: AppHandle) -> Result<()> {
-    let db_conn = app.state::<DbConn>();
+    let db_conn = app.state::<DbConn>().inner().clone();
 
-    let profiles = {
-        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-        crate::db::profile::get_all(&conn)?
-    };
+    // 1. Get all profiles (blocking DB read, offloaded)
+    let db_conn_clone = db_conn.clone();
+    let profiles = tokio::task::spawn_blocking(move || {
+        let conn = db_conn_clone.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        crate::db::profile::get_all(&conn)
+    }).await??;
 
     for profile in profiles {
-        // 1. Cleanup old entries (ended > 48h ago)
-        {
-            let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        let profile_id = profile.id;
+
+        // 2. Cleanup old entries (ended > 48h ago) - offloaded to spawn_blocking
+        let db_conn_clone = db_conn.clone();
+        tokio::task::spawn_blocking(move || {
+            let conn = db_conn_clone.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
             let forty_eight_hours_ago = Utc::now() - chrono::Duration::hours(48);
             let before_timestamp = forty_eight_hours_ago.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-            let deleted = crate::db::epg::cleanup_old_entries(&conn, profile.id, &before_timestamp)?;
-            tracing::info!(profile_id = profile.id, deleted_count = deleted, "EPG startup cleanup complete (removed items older than 48h)");
-        }
+            let deleted = crate::db::epg::cleanup_old_entries(&conn, profile_id, &before_timestamp)?;
+            tracing::info!(profile_id, deleted_count = deleted, "EPG startup cleanup complete (removed items older than 48h)");
+            Ok::<(), anyhow::Error>(())
+        }).await??;
 
-        // 2. Check EPG Sync (24-hour limit on startup)
-        let needs_epg_sync = {
-            let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-            match get_last_sync_time(&conn, profile.id, "epg")? {
+        // 3. Check EPG Sync (24-hour limit on startup) - offloaded to spawn_blocking
+        let db_conn_clone = db_conn.clone();
+        let needs_epg_sync = tokio::task::spawn_blocking(move || {
+            let conn = db_conn_clone.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+            let needs = match get_last_sync_time(&conn, profile_id, "epg")? {
                 Some(last_time) => {
                     let diff = Utc::now() - last_time;
                     diff.num_hours() >= 24
                 }
                 None => true,
-            }
-        };
+            };
+            Ok::<bool, anyhow::Error>(needs)
+        }).await??;
 
         if needs_epg_sync {
             tracing::info!(profile_id = profile.id, "EPG sync is needed on startup. Starting background sync...");
@@ -879,11 +887,10 @@ pub async fn run_startup_tasks(app: AppHandle) -> Result<()> {
                 created_at: profile.created_at.clone(),
                 profile_type: profile.profile_type.clone(),
             };
-            tauri::async_runtime::spawn(async move {
-                if let Err(e) = run_epg_sync_startup_background_for_profile(app_clone, profile_clone).await {
-                    tracing::error!(profile_id = profile.id, error = %e, "EPG startup background sync failed");
-                }
-            });
+            // Run EPG sync sequentially (awaits completion before moving to next profile)
+            if let Err(e) = run_epg_sync_startup_background_for_profile(app_clone, profile_clone).await {
+                tracing::error!(profile_id = profile.id, error = %e, "EPG startup background sync failed");
+            }
         } else {
             tracing::info!(profile_id = profile.id, "EPG guide is fresh (last synced < 24h ago). Skipping startup sync.");
         }
