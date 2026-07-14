@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useInfiniteQuery } from '@tanstack/vue-query'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { getEpgGuide, getSyncStatus } from '@/lib/tauri-commands'
@@ -127,24 +127,28 @@ watch(selectedCountry, () => {
   closeDetails()
 })
 
-const queryStartTime = computed(() => new Date(baseTime.value.getTime() - 24 * 3600 * 1000))
-const queryEndTime = computed(() => new Date(baseTime.value.getTime() + 20 * 3600 * 1000))
+const isTimeCentered = ref(false)
+const startTimeRef = ref<Date>(new Date())
+const endTimeRef = ref<Date>(new Date())
 
-const startTime = computed(() => {
+function resetTimeRange() {
+  isTimeCentered.value = false
   if (showCatchupOnly.value) {
-    return new Date(baseTime.value.getTime() - 24 * 3600 * 1000)
+    startTimeRef.value = new Date(baseTime.value.getTime() - 24 * 3600 * 1000)
+    endTimeRef.value = new Date(baseTime.value.getTime() + 1 * 3600 * 1000)
   } else {
-    return new Date(baseTime.value.getTime() - 2 * 3600 * 1000)
+    startTimeRef.value = new Date(baseTime.value.getTime() - 1 * 3600 * 1000)
+    endTimeRef.value = new Date(baseTime.value.getTime() + 4 * 3600 * 1000)
   }
-})
+}
 
-const endTime = computed(() => {
-  if (showCatchupOnly.value) {
-    return new Date(baseTime.value.getTime() + 1 * 3600 * 1000)
-  } else {
-    return new Date(baseTime.value.getTime() + 18 * 3600 * 1000)
-  }
-})
+watch([baseTime, showCatchupOnly], resetTimeRange, { immediate: true })
+
+const startTime = computed(() => startTimeRef.value)
+const endTime = computed(() => endTimeRef.value)
+
+const queryStartTime = computed(() => new Date(startTime.value.getTime() - 1 * 3600 * 1000))
+const queryEndTime = computed(() => new Date(endTime.value.getTime() + 1 * 3600 * 1000))
 
 const totalTimelineMinutes = computed(() => {
   return (endTime.value.getTime() - startTime.value.getTime()) / 60000
@@ -410,6 +414,35 @@ function scrollToNow() {
     const channelColumnWidth = 200 // sidebar width
     const targetScroll = currentTimeLeft.value - (containerWidth - channelColumnWidth) / 2
     scrollContainer.value.scrollLeft = Math.max(0, targetScroll)
+    isTimeCentered.value = true
+  }
+}
+
+function handleScroll() {
+  if (!scrollContainer.value || !isTimeCentered.value) return
+  
+  const container = scrollContainer.value
+  const scrollLeft = container.scrollLeft
+  const clientWidth = container.clientWidth
+  const scrollWidth = container.scrollWidth
+  
+  // If the user scrolls close to the right edge (within 200px)
+  if (scrollLeft + clientWidth >= scrollWidth - 200) {
+    endTimeRef.value = new Date(endTimeRef.value.getTime() + 5 * 3600 * 1000)
+  }
+  
+  // If the user scrolls close to the left edge (within 200px)
+  if (scrollLeft <= 200) {
+    const oldScrollWidth = scrollWidth
+    startTimeRef.value = new Date(startTimeRef.value.getTime() - 5 * 3600 * 1000)
+    
+    // Readjust scroll position to prevent view jumping when expanding left
+    nextTick(() => {
+      if (scrollContainer.value) {
+        const addedWidth = scrollContainer.value.scrollWidth - oldScrollWidth
+        scrollContainer.value.scrollLeft += addedWidth
+      }
+    })
   }
 }
 
@@ -666,7 +699,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
     <!-- Main TV Guide Workspace -->
     <div v-else class="guide-main-workspace" :class="{ 'compact-rows': !isDesktop }">
       <!-- Scrollable EPG Timeline Grid -->
-      <div class="guide-scroll-container" ref="scrollContainer">
+      <div class="guide-scroll-container" ref="scrollContainer" @scroll="handleScroll">
         <div class="guide-grid-wrapper" :style="{ width: `${totalTimelineMinutes * pxPerMinute + 200}px`, height: `${rowVirtualizer.getTotalSize() + 36}px` }">
           
           <!-- Sticky Headers Row -->
