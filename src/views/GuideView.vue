@@ -413,6 +413,16 @@ function getPositionWidth(startStr: string, stopStr: string): number {
   return diffMinutes * pxPerMinute
 }
 
+// Clamp EPG entry start to the visible timeline start to prevent rendering behind channel column
+function getRenderStart(startStr: string): string {
+  const start = new Date(startStr).getTime()
+  const timelineStart = startTime.value.getTime()
+  if (start < timelineStart) {
+    return startTime.value.toISOString()
+  }
+  return startStr
+}
+
 // Current time marker position
 const currentTimeLeft = computed(() => {
   const diffMinutes = (now.value.getTime() - startTime.value.getTime()) / 60000
@@ -765,20 +775,21 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
               <div
                 v-for="slot in timeSlots"
                 :key="slot.toISOString()"
+                v-show="getPositionLeft(slot.toISOString()) >= 0"
                 class="time-slot-tick"
                 :style="{ left: `${getPositionLeft(slot.toISOString())}px` }"
               >
                 {{ formatTime(slot) }}
               </div>
               <!-- Red Knob on Timeline Header -->
-              <div class="current-time-indicator" :style="{ left: `${currentTimeLeft}px` }">
+              <div v-show="currentTimeLeft >= 0" class="current-time-indicator" :style="{ left: `${currentTimeLeft}px` }">
                 <div class="indicator-knob"></div>
               </div>
             </div>
           </div>
 
           <!-- Vertical Current Time Line Pointer extending down the grid -->
-          <div class="current-time-line-indicator" :style="{ left: `${currentTimeLeft + 200}px`, height: `${rowVirtualizer.getTotalSize() + 36}px` }"></div>
+          <div v-show="currentTimeLeft >= 0" class="current-time-line-indicator" :style="{ left: `${currentTimeLeft + 200}px`, height: `${rowVirtualizer.getTotalSize() + 36}px` }"></div>
 
           <!-- Virtualized Rows Container -->
           <div class="virtual-rows-container" :style="{ height: `${rowVirtualizer.getTotalSize()}px` }">
@@ -821,8 +832,8 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
                     'active': selectedProgram?.start === entry.start && selectedChannel?.stream_id === filteredChannels[virtualRow.index].stream_id
                   }"
                   :style="{
-                    left: `${getPositionLeft(entry.start)}px`,
-                    width: `${getPositionWidth(entry.start, entry.stop)}px`
+                    left: `${getPositionLeft(getRenderStart(entry.start))}px`,
+                    width: `${getPositionWidth(getRenderStart(entry.start), entry.stop)}px`
                   }"
                   @click="selectProgram(filteredChannels[virtualRow.index], entry)"
                 >
