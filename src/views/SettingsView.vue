@@ -65,6 +65,14 @@ watch(() => settingsStore.playerAndroid, (newVal) => {
   playerAndroidInput.value = newVal
 })
 
+watch(
+  [() => profileStore.profiles, () => syncStore.statuses],
+  async () => {
+    await loadCounts()
+  },
+  { deep: true, immediate: true }
+)
+
 async function savePlayerWindows() {
   const val = playerWindowsInput.value.trim()
   if (val !== settingsStore.playerWindows) {
@@ -205,8 +213,6 @@ onMounted(async () => {
   } catch (e) {
     console.error("Failed to sync status logs on mount:", e)
   }
-
-  await loadCounts()
 })
 </script>
 
