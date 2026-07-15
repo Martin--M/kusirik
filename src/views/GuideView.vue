@@ -449,22 +449,30 @@ function handleScroll() {
   
   // If the user scrolls close to the right edge (within 200px) and scrolling right
   if (!isScrollingLeft && scrollLeft + clientWidth >= scrollWidth - 200) {
-    endTimeRef.value = new Date(endTimeRef.value.getTime() + 5 * 3600 * 1000)
+    const maxEnd = baseTime.value.getTime() + 24 * 3600 * 1000
+    const newEnd = Math.min(endTimeRef.value.getTime() + 5 * 3600 * 1000, maxEnd)
+    if (newEnd > endTimeRef.value.getTime()) {
+      endTimeRef.value = new Date(newEnd)
+    }
   }
   
   // If the user scrolls close to the left edge (within 200px) and scrolling left
   if (isScrollingLeft && scrollLeft <= 200) {
-    const oldScrollWidth = scrollWidth
-    startTimeRef.value = new Date(startTimeRef.value.getTime() - 5 * 3600 * 1000)
-    
-    // Readjust scroll position to prevent view jumping when expanding left
-    nextTick(() => {
-      if (scrollContainer.value) {
-        const addedWidth = scrollContainer.value.scrollWidth - oldScrollWidth
-        scrollContainer.value.scrollLeft += addedWidth
-        lastScrollLeft = scrollContainer.value.scrollLeft
-      }
-    })
+    const minStart = baseTime.value.getTime() - 24 * 3600 * 1000
+    const newStart = Math.max(startTimeRef.value.getTime() - 5 * 3600 * 1000, minStart)
+    if (newStart < startTimeRef.value.getTime()) {
+      const oldScrollWidth = scrollWidth
+      startTimeRef.value = new Date(newStart)
+      
+      // Readjust scroll position to prevent view jumping when expanding left
+      nextTick(() => {
+        if (scrollContainer.value) {
+          const addedWidth = scrollContainer.value.scrollWidth - oldScrollWidth
+          scrollContainer.value.scrollLeft += addedWidth
+          lastScrollLeft = scrollContainer.value.scrollLeft
+        }
+      })
+    }
   }
 }
 
