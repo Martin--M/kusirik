@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 
 /// Current schema version. Bump this when adding a new migration.
-const CURRENT_VERSION: u32 = 9;
+const CURRENT_VERSION: u32 = 1;
 
 pub fn run(conn: &Connection) -> Result<()> {
     let current_version: u32 = conn
@@ -27,38 +27,6 @@ pub fn run(conn: &Connection) -> Result<()> {
         migration_v1(conn).context("Migration v1 failed")?;
     }
 
-    if current_version < 2 {
-        migration_v2(conn).context("Migration v2 failed")?;
-    }
-
-    if current_version < 3 {
-        migration_v3(conn).context("Migration v3 failed")?;
-    }
-
-    if current_version < 4 {
-        migration_v4(conn).context("Migration v4 failed")?;
-    }
-
-    if current_version < 5 {
-        migration_v5(conn).context("Migration v5 failed")?;
-    }
-
-    if current_version < 6 {
-        migration_v6(conn).context("Migration v6 failed")?;
-    }
-
-    if current_version < 7 {
-        migration_v7(conn).context("Migration v7 failed")?;
-    }
-
-    if current_version < 8 {
-        migration_v8(conn).context("Migration v8 failed")?;
-    }
-
-    if current_version < 9 {
-        migration_v9(conn).context("Migration v9 failed")?;
-    }
-
     // Update schema version
     conn.execute_batch(&format!("PRAGMA user_version = {CURRENT_VERSION}"))
         .context("Failed to update user_version")?;
@@ -67,124 +35,8 @@ pub fn run(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn migration_v9(conn: &Connection) -> Result<()> {
-    tracing::info!("Applying migration v9 — compound query index on epg_entries");
-    conn.execute_batch(
-        "CREATE INDEX IF NOT EXISTS idx_epg_query ON epg_entries(profile_id, start, stop, channel_id);"
-    ).context("Failed to add index for migration v9")?;
-    Ok(())
-}
-
-fn migration_v8(conn: &Connection) -> Result<()> {
-    tracing::info!("Applying migration v8 — countries in live_streams");
-    conn.execute_batch(
-        "ALTER TABLE live_streams ADD COLUMN countries TEXT;"
-    ).context("Failed to add columns for migration v8")?;
-    Ok(())
-}
-
-fn migration_v7(conn: &Connection) -> Result<()> {
-    tracing::info!("Applying migration v7 — profile_type in profiles and url in live_streams");
-    conn.execute_batch(
-        "ALTER TABLE profiles ADD COLUMN profile_type TEXT NOT NULL DEFAULT 'xtream';
-         ALTER TABLE live_streams ADD COLUMN url TEXT;"
-    ).context("Failed to add columns for migration v7")?;
-    Ok(())
-}
-
-fn migration_v6(conn: &Connection) -> Result<()> {
-    tracing::info!("Applying migration v6 — password column in profiles");
-    // Add password column with default empty string.
-    conn.execute_batch(
-        "ALTER TABLE profiles ADD COLUMN password TEXT NOT NULL DEFAULT '';"
-    ).context("Failed to add password column to profiles")?;
-    Ok(())
-}
-
-fn migration_v5(conn: &Connection) -> Result<()> {
-    tracing::info!("Applying migration v5 — playback_history table");
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS playback_history (
-            profile_id  INTEGER NOT NULL,
-            media_type  TEXT NOT NULL,
-            stream_id   INTEGER NOT NULL,
-            played_at   TEXT NOT NULL,
-            PRIMARY KEY (profile_id, media_type, stream_id)
-         );
-         CREATE INDEX IF NOT EXISTS idx_playback_history_played ON playback_history(profile_id, played_at);"
-    ).context("Failed to create playback_history table")?;
-    Ok(())
-}
-
-fn migration_v4(conn: &Connection) -> Result<()> {
-    tracing::info!("Applying migration v4 — is_favorite columns");
-    
-    let has_live_fav: bool = conn.query_row(
-        "SELECT COUNT(*) FROM pragma_table_info('live_streams') WHERE name = 'is_favorite'",
-        [],
-        |row| row.get::<_, i64>(0).map(|c| c > 0)
-    )?;
-    if !has_live_fav {
-        conn.execute_batch(
-            "ALTER TABLE live_streams ADD COLUMN is_favorite INTEGER DEFAULT 0;"
-        ).context("Failed to add is_favorite column to live_streams")?;
-    }
-
-    let has_vod_fav: bool = conn.query_row(
-        "SELECT COUNT(*) FROM pragma_table_info('vod_streams') WHERE name = 'is_favorite'",
-        [],
-        |row| row.get::<_, i64>(0).map(|c| c > 0)
-    )?;
-    if !has_vod_fav {
-        conn.execute_batch(
-            "ALTER TABLE vod_streams ADD COLUMN is_favorite INTEGER DEFAULT 0;"
-        ).context("Failed to add is_favorite column to vod_streams")?;
-    }
-
-    let has_series_fav: bool = conn.query_row(
-        "SELECT COUNT(*) FROM pragma_table_info('series') WHERE name = 'is_favorite'",
-        [],
-        |row| row.get::<_, i64>(0).map(|c| c > 0)
-    )?;
-    if !has_series_fav {
-        conn.execute_batch(
-            "ALTER TABLE series ADD COLUMN is_favorite INTEGER DEFAULT 0;"
-        ).context("Failed to add is_favorite column to series")?;
-    }
-
-    Ok(())
-}
-
-fn migration_v3(conn: &Connection) -> Result<()> {
-    tracing::info!("Applying migration v3 — epg_entries tz_offset column");
-    let has_column: bool = conn.query_row(
-        "SELECT COUNT(*) FROM pragma_table_info('epg_entries') WHERE name = 'tz_offset'",
-        [],
-        |row| row.get::<_, i64>(0).map(|c| c > 0)
-    )?;
-    if !has_column {
-        conn.execute_batch(
-            "ALTER TABLE epg_entries ADD COLUMN tz_offset TEXT DEFAULT '+00:00';"
-        ).context("Failed to add tz_offset column to epg_entries")?;
-    }
-    Ok(())
-}
-
-fn migration_v2(conn: &Connection) -> Result<()> {
-    tracing::info!("Applying migration v2 — image_cache table");
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS image_cache (
-            url          TEXT PRIMARY KEY,
-            data         BLOB NOT NULL,
-            content_type TEXT,
-            fetched_at   TEXT NOT NULL
-        );"
-    ).context("Failed to execute v2 schema SQL")?;
-    Ok(())
-}
-
 fn migration_v1(conn: &Connection) -> Result<()> {
-    tracing::info!("Applying migration v1 — initial schema");
+    tracing::info!("Applying migration v1 — initial flattened schema");
     conn.execute_batch(V1_SCHEMA).context("Failed to execute v1 schema SQL")?;
     Ok(())
 }
@@ -199,21 +51,15 @@ CREATE TABLE IF NOT EXISTS profiles (
   name            TEXT    NOT NULL,
   server_url      TEXT    NOT NULL,
   username        TEXT    NOT NULL,
-  -- password lives in the OS keyring under:
-  --   service: "kusirik"  account: "profile-<id>"
+  password        TEXT    NOT NULL DEFAULT '',
   epg_mode        TEXT    NOT NULL DEFAULT 'xmltv',
-  created_at      TEXT    NOT NULL
+  created_at      TEXT    NOT NULL,
+  profile_type    TEXT    NOT NULL DEFAULT 'xtream'
 );
 
 CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
-  -- ('player_windows',       'C:\Program Files\VideoLAN\VLC\vlc.exe')
-  -- ('player_android',       'org.videolan.vlc')
-  -- ('theme',                'dark')
-  -- ('sync_hour',            '3')
-  -- ('allowed_formats',      '["ts","m3u8"]')
-  -- ('live_format_override', 'ts')
 );
 
 -- ─────────────────────────────────────────────
@@ -223,11 +69,9 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE TABLE IF NOT EXISTS sync_log (
   profile_id  INTEGER NOT NULL,
   data_type   TEXT    NOT NULL,
-  -- 'live_streams' | 'vod_streams' | 'series' | 'epg'
   fetched_at  TEXT    NOT NULL,
   item_count  INTEGER,
   last_error  TEXT,
-  -- NULL on success; last failure message otherwise
   PRIMARY KEY (profile_id, data_type)
 );
 
@@ -252,6 +96,9 @@ CREATE TABLE IF NOT EXISTS live_streams (
   tv_archive            INTEGER DEFAULT 0,
   tv_archive_duration   INTEGER DEFAULT 0,
   added                 TEXT,
+  is_favorite           INTEGER DEFAULT 0,
+  url                   TEXT,
+  countries             TEXT,
   PRIMARY KEY (profile_id, stream_id)
 );
 
@@ -278,6 +125,7 @@ CREATE TABLE IF NOT EXISTS vod_streams (
   rating                TEXT,
   container_extension   TEXT,
   added                 TEXT,
+  is_favorite           INTEGER DEFAULT 0,
   PRIMARY KEY (profile_id, stream_id)
 );
 
@@ -315,6 +163,7 @@ CREATE TABLE IF NOT EXISTS series (
   genre         TEXT,
   release_date  TEXT,
   last_modified TEXT,
+  is_favorite   INTEGER DEFAULT 0,
   PRIMARY KEY (profile_id, series_id)
 );
 
@@ -337,14 +186,94 @@ CREATE TABLE IF NOT EXISTS epg_entries (
   profile_id  INTEGER NOT NULL,
   channel_id  TEXT    NOT NULL,
   start       TEXT    NOT NULL,
-  -- UTC ISO 8601, e.g. 2026-06-17T14:00:00Z
   stop        TEXT    NOT NULL,
   title       TEXT,
   description TEXT,
   tz_offset   TEXT DEFAULT '+00:00',
   UNIQUE (profile_id, channel_id, start)
-  -- prevents duplicate rows on daily re-sync; pairs with INSERT OR REPLACE
 );
 
 CREATE INDEX IF NOT EXISTS idx_epg_lookup ON epg_entries(profile_id, channel_id, start);
+DROP INDEX IF EXISTS idx_epg_query;
+CREATE INDEX IF NOT EXISTS idx_epg_query ON epg_entries(profile_id, channel_id, start, stop);
+
+-- ─────────────────────────────────────────────
+-- Image Cache
+-- ─────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS image_cache (
+    url          TEXT PRIMARY KEY,
+    data         BLOB NOT NULL,
+    content_type TEXT,
+    fetched_at   TEXT NOT NULL
+);
+
+-- ─────────────────────────────────────────────
+-- Playback History
+-- ─────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS playback_history (
+    profile_id  INTEGER NOT NULL,
+    media_type  TEXT NOT NULL,
+    stream_id   INTEGER NOT NULL,
+    played_at   TEXT NOT NULL,
+    PRIMARY KEY (profile_id, media_type, stream_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_playback_history_played ON playback_history(profile_id, played_at);
 "#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_migrations_fresh_db() {
+        let conn = Connection::open_in_memory().unwrap();
+        
+        // Initially, user_version is 0
+        let initial_version: u32 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(initial_version, 0);
+
+        // Run migrations
+        run(&conn).unwrap();
+
+        // After running, user_version should be 1
+        let updated_version: u32 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(updated_version, 1);
+
+        // Verify that expected tables exist
+        let tables = vec![
+            "profiles",
+            "settings",
+            "sync_log",
+            "live_categories",
+            "live_streams",
+            "vod_categories",
+            "vod_streams",
+            "vod_info",
+            "series_categories",
+            "series",
+            "series_info",
+            "epg_entries",
+            "image_cache",
+            "playback_history",
+        ];
+
+        for table in tables {
+            let count: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?1",
+                    [table],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(count, 1, "Table '{}' should exist", table);
+        }
+    }
+}
+
