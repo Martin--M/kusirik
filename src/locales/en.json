@@ -180,7 +180,8 @@
     "pastSchedule": "Past Schedule",
     "nowPlaying": "Now Playing",
     "catchupUnreachable": "Catch-up server is unreachable.",
-    "guideNoData": "No EPG channels found in this range."
+    "guideNoData": "No EPG channels found in this range.",
+    "today": "Now"
   },
   "titlebar": {
     "minimize": "Minimize",

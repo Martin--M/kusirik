@@ -434,46 +434,44 @@ function scrollToNow() {
   }
 }
 
+// Timeline Pagination Limits (24h back / forward)
+const canShiftBackward = computed(() => {
+  const minTime = new Date().getTime() - 24 * 3600 * 1000
+  // Check if shifting back 6h stays above -24h limit
+  return baseTime.value.getTime() - 6 * 3600 * 1000 >= minTime
+})
+
+const canShiftForward = computed(() => {
+  const maxTime = new Date().getTime() + 24 * 3600 * 1000
+  // Check if shifting forward 6h stays below +24h limit
+  return baseTime.value.getTime() + 6 * 3600 * 1000 <= maxTime
+})
+
+function shiftTime(hours: number) {
+  const minTime = new Date().getTime() - 24 * 3600 * 1000
+  const maxTime = new Date().getTime() + 24 * 3600 * 1000
+  const targetTime = baseTime.value.getTime() + hours * 3600 * 1000
+  
+  if (targetTime >= minTime && targetTime <= maxTime) {
+    baseTime.value = new Date(targetTime)
+  }
+}
+
+// Jump back to current time
+function goToday() {
+  baseTime.value = new Date()
+  nextTick(() => {
+    scrollToNow()
+  })
+}
+
 function handleScroll() {
   if (!scrollContainer.value || !isTimeCentered.value) return
   
   const container = scrollContainer.value
   const scrollLeft = container.scrollLeft
   if (scrollLeft === lastScrollLeft) return
-  const isScrollingLeft = scrollLeft < lastScrollLeft
   lastScrollLeft = scrollLeft
-  
-  const clientWidth = container.clientWidth
-  const scrollWidth = container.scrollWidth
-  if (scrollWidth <= clientWidth) return
-  
-  // If the user scrolls close to the right edge (within 200px) and scrolling right
-  if (!isScrollingLeft && scrollLeft + clientWidth >= scrollWidth - 200) {
-    const maxEnd = baseTime.value.getTime() + 24 * 3600 * 1000
-    const newEnd = Math.min(endTimeRef.value.getTime() + 5 * 3600 * 1000, maxEnd)
-    if (newEnd > endTimeRef.value.getTime()) {
-      endTimeRef.value = new Date(newEnd)
-    }
-  }
-  
-  // If the user scrolls close to the left edge (within 200px) and scrolling left
-  if (isScrollingLeft && scrollLeft <= 200) {
-    const minStart = baseTime.value.getTime() - 24 * 3600 * 1000
-    const newStart = Math.max(startTimeRef.value.getTime() - 5 * 3600 * 1000, minStart)
-    if (newStart < startTimeRef.value.getTime()) {
-      const oldScrollWidth = scrollWidth
-      startTimeRef.value = new Date(newStart)
-      
-      // Readjust scroll position to prevent view jumping when expanding left
-      nextTick(() => {
-        if (scrollContainer.value) {
-          const addedWidth = scrollContainer.value.scrollWidth - oldScrollWidth
-          scrollContainer.value.scrollLeft += addedWidth
-          lastScrollLeft = scrollContainer.value.scrollLeft
-        }
-      })
-    }
-  }
 }
 
 const isDesktop = computed(() => {
@@ -694,6 +692,23 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
     <header class="guide-header-bar">
       <div class="header-left">
         <h2 class="page-title">{{ $t('sidebar.guide') }}</h2>
+        <div class="timeline-nav-buttons">
+          <button class="nav-btn" :disabled="!canShiftBackward" @click="shiftTime(-6)">
+            <svg viewBox="0 0 24 24" class="btn-icon" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            <span>-6h</span>
+          </button>
+          <button class="nav-btn" :disabled="!canShiftForward" @click="shiftTime(6)">
+            <span>+6h</span>
+            <svg viewBox="0 0 24 24" class="btn-icon" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+          <button class="nav-btn today-btn" @click="goToday">
+            {{ $t('media.today')}}
+          </button>
+        </div>
       </div>
       <div class="header-right-actions">
         <CustomSelect
@@ -908,10 +923,69 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-6);
+}
+
 .page-title {
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--color-text);
+}
+
+.timeline-nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-1);
+  background-color: var(--color-surface-hover, #f3f4f6);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all var(--transition-fast) ease;
+}
+
+[data-theme='dark'] .nav-btn {
+  background-color: var(--color-surface);
+}
+
+.nav-btn:hover:not(:disabled) {
+  background-color: var(--color-border);
+  border-color: var(--color-text-muted);
+}
+
+.nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.today-btn {
+  background-color: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.today-btn:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
 .guide-sub {

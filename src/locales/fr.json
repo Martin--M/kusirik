@@ -180,7 +180,8 @@
     "pastSchedule": "Rattrapage disponible",
     "nowPlaying": "En cours",
     "catchupUnreachable": "Le serveur de rattrapage est inaccessible.",
-    "guideNoData": "Aucune chaîne EPG trouvée pour cette période."
+    "guideNoData": "Aucune chaîne EPG trouvée pour cette période.",
+    "today": "En cours"
   },
   "titlebar": {
     "minimize": "Réduire",
