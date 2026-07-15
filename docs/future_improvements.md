@@ -72,3 +72,30 @@ Integrate with the native Android Keystore system. Because standard platform key
 1. Generate an AES/RSA key inside Android Keystore Provider.
 2. Encrypt/decrypt the password string when saving or reading from the database.
 3. Save the encrypted ciphertext to SQLite, keeping the cryptographic keys inside the hardware-backed secure enclave.
+
+---
+
+## 4. Stream Interruption & Buffering Handling (IPTV / Live Stream Cuts)
+
+### Current Setup
+When launching external players (such as VLC) to stream live content (specifically `.ts` streams), connections often experience sudden EOF/drops (e.g., due to server-side session recycling, concurrency limits, or network timeouts). Currently, VLC is launched with raw URLs without caching or reconnect flags, causing the player to stop playback immediately upon any connection reset.
+
+### Proposed Improvement
+Modify the launch command logic in [player.rs](file:///home/martin/dev/kusirik/src-tauri/src/commands/player.rs) to automatically supply or allow customization of flags for external players to enable robust buffering and automatic reconnection:
+
+#### For VLC
+Pass network caching and auto-reconnect arguments:
+```bash
+vlc --http-reconnect --network-caching=15000 "<stream_url>"
+```
+
+#### For MPV (Recommended Alternative)
+Pass native buffer/caching flags and FFmpeg demuxer reconnect flags:
+```bash
+mpv --stream-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_delay_max=5 --cache=yes --demuxer-max-bytes=100MiB --cache-secs=30 "<stream_url>"
+```
+
+#### Code Implementation Action Plan
+1. Add settings configurations (in UI and SQLite database) to allow users to select their preferred media player (VLC vs MPV) and customize the network caching buffer size.
+2. In `player.rs`, construct the player processes with the appropriate command arguments based on the selected player.
+

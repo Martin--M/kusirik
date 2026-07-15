@@ -1,5 +1,28 @@
 # Kusirik
 
+## v2.0.0
+
+### Features
+* **Catch-up functionality** Added capability to watch past programs for TV channels that support catch-up
+* **TV Guide** Added a TV guide for channels with EPG data
+* **Localisation** Added support for French
+* **Favorites** Movies/Series/Live TV can now be set as favorite
+* **History** Add configurable playback history
+* **Profiles** Add support for multiple profiles (Xtream only for now)
+* **Public IPTV** Added support for public IPTV
+
+### Fixes
+* Fixed copying to clipboard on mobile. Now the frontend first attempts to write to clipboard via the browser/webview API first. Then it falls back to the Rust backend command utilities if needed.
+* Fixed global search in mobile vertical layout. Before it was inaccessible.
+* Rate limiting on short epg now works properly
+
+### Internal
+* Stop using hardcoded profile id 1
+* Database changes flattened (incompatible with v1.0.0)
+
+### Minor
+* Live stream side bar logos are now square
+
 ## v1.0.0
 
 ### Core Architecture & Performance
