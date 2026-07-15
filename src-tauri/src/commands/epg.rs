@@ -219,10 +219,9 @@ pub async fn get_epg_guide(
              WHERE profile_id = ?1
                AND epg_channel_id IS NOT NULL 
                AND epg_channel_id != ''
-               AND EXISTS (
-                   SELECT 1 FROM epg_entries ee 
-                   WHERE ee.profile_id = live_streams.profile_id 
-                     AND ee.channel_id = live_streams.epg_channel_id 
+               AND epg_channel_id IN (
+                   SELECT DISTINCT channel_id FROM epg_entries ee 
+                   WHERE ee.profile_id = ?1
                      AND ee.start < ?2 
                      AND ee.stop > ?3
                )
@@ -255,11 +254,9 @@ pub async fn get_epg_guide(
              FROM live_streams
              WHERE epg_channel_id IS NOT NULL 
                AND epg_channel_id != ''
-               AND EXISTS (
-                   SELECT 1 FROM epg_entries ee 
-                   WHERE ee.profile_id = live_streams.profile_id 
-                     AND ee.channel_id = live_streams.epg_channel_id 
-                     AND ee.start < ?1 
+               AND epg_channel_id IN (
+                   SELECT DISTINCT channel_id FROM epg_entries ee 
+                   WHERE ee.start < ?1 
                      AND ee.stop > ?2
                )
              GROUP BY profile_id, name
