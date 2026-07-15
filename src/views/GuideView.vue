@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { useInfiniteQuery } from '@tanstack/vue-query'
+import { useInfiniteQuery, keepPreviousData } from '@tanstack/vue-query'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { getEpgGuide, getSyncStatus } from '@/lib/tauri-commands'
 import { usePlayer } from '@/composables/usePlayer'
@@ -147,18 +147,29 @@ watch([baseTime, showCatchupOnly], resetTimeRange, { immediate: true })
 const startTime = computed(() => startTimeRef.value)
 const endTime = computed(() => endTimeRef.value)
 
-const queryStartTime = computed(() => new Date(startTime.value.getTime() - 1 * 3600 * 1000))
-const queryEndTime = computed(() => new Date(endTime.value.getTime() + 1 * 3600 * 1000))
+const queryStartTime = computed(() => {
+  const d = new Date(startTime.value.getTime() - 2 * 3600 * 1000)
+  d.setHours(Math.floor(d.getHours() / 6) * 6, 0, 0, 0)
+  return d.toISOString()
+})
+
+const queryEndTime = computed(() => {
+  const d = new Date(endTime.value.getTime() + 2 * 3600 * 1000)
+  d.setHours(Math.ceil(d.getHours() / 6) * 6, 0, 0, 0)
+  return d.toISOString()
+})
 
 const totalTimelineMinutes = computed(() => {
   return (endTime.value.getTime() - startTime.value.getTime()) / 60000
 })
 
 const lastEpgFetchedAt = ref<string | null>(null)
+const isMounted = ref(false)
 
 // Periodic timer to keep current time line updated and check for EPG sync changes
 let timer: any = null
 onMounted(async () => {
+  isMounted.value = true
   // Capture initial fetched_at
   try {
     const profileId = profileStore.profile?.id
@@ -215,8 +226,8 @@ const {
 } = useInfiniteQuery({
   queryKey: ['epg_guide', queryStartTime, queryEndTime, () => profileStore.profiles.map(p => p.id), streamsQueryProfileId],
   queryFn: async ({ pageParam = 0 }) => {
-    const fromStr = queryStartTime.value.toISOString()
-    const toStr = queryEndTime.value.toISOString()
+    const fromStr = queryStartTime.value
+    const toStr = queryEndTime.value
     if (profileStore.profiles.length === 0) {
       throw new Error('Cannot query EPG Guide: No profiles are configured.')
     }
@@ -229,7 +240,9 @@ const {
     }
     return allPages.length * PAGE_SIZE
   },
-  refetchInterval: 300000 // 5 minutes refresh
+  refetchInterval: 300000, // 5 minutes refresh
+  placeholderData: keepPreviousData,
+  enabled: isMounted
 })
 
 const channels = computed(() => {
@@ -408,12 +421,15 @@ const currentTimeLeft = computed(() => {
 
 // Scrolling behavior
 const scrollContainer = ref<HTMLElement | null>(null)
+let lastScrollLeft = 0
+
 function scrollToNow() {
   if (scrollContainer.value) {
     const containerWidth = scrollContainer.value.clientWidth
     const channelColumnWidth = 200 // sidebar width
     const targetScroll = currentTimeLeft.value - (containerWidth - channelColumnWidth) / 2
     scrollContainer.value.scrollLeft = Math.max(0, targetScroll)
+    lastScrollLeft = scrollContainer.value.scrollLeft
     isTimeCentered.value = true
   }
 }
@@ -423,16 +439,21 @@ function handleScroll() {
   
   const container = scrollContainer.value
   const scrollLeft = container.scrollLeft
+  if (scrollLeft === lastScrollLeft) return
+  const isScrollingLeft = scrollLeft < lastScrollLeft
+  lastScrollLeft = scrollLeft
+  
   const clientWidth = container.clientWidth
   const scrollWidth = container.scrollWidth
+  if (scrollWidth <= clientWidth) return
   
-  // If the user scrolls close to the right edge (within 200px)
-  if (scrollLeft + clientWidth >= scrollWidth - 200) {
+  // If the user scrolls close to the right edge (within 200px) and scrolling right
+  if (!isScrollingLeft && scrollLeft + clientWidth >= scrollWidth - 200) {
     endTimeRef.value = new Date(endTimeRef.value.getTime() + 5 * 3600 * 1000)
   }
   
-  // If the user scrolls close to the left edge (within 200px)
-  if (scrollLeft <= 200) {
+  // If the user scrolls close to the left edge (within 200px) and scrolling left
+  if (isScrollingLeft && scrollLeft <= 200) {
     const oldScrollWidth = scrollWidth
     startTimeRef.value = new Date(startTimeRef.value.getTime() - 5 * 3600 * 1000)
     
@@ -441,6 +462,7 @@ function handleScroll() {
       if (scrollContainer.value) {
         const addedWidth = scrollContainer.value.scrollWidth - oldScrollWidth
         scrollContainer.value.scrollLeft += addedWidth
+        lastScrollLeft = scrollContainer.value.scrollLeft
       }
     })
   }
@@ -462,9 +484,20 @@ const rowVirtualizer = useVirtualizer(
 )
 
 // Watch for data changes and load the next page in the background automatically
-watch(() => infiniteData.value, () => {
+// Uses requestAnimationFrame yielding to prevent CPU starvation and allow smooth UI transitions
+watch(() => infiniteData.value, async () => {
   if (hasNextPage.value && !isFetchingNextPage.value) {
+    await new Promise((resolve) => requestAnimationFrame(resolve))
     fetchNextPage()
+  }
+})
+
+// Watch for scrollContainer to appear (after loading finishes) and center EPG timeline
+watch(scrollContainer, (newVal) => {
+  if (newVal && !isTimeCentered.value) {
+    nextTick(() => {
+      scrollToNow()
+    })
   }
 })
 function shouldShowEndTime(startStr: string, stopStr: string): boolean {
@@ -682,7 +715,7 @@ watch([selectedChannel, selectedProgram], async ([newChannel, newProgram]) => {
     </header>
 
     <!-- Loading Screen -->
-    <div v-if="isLoading" class="guide-loading">
+    <div v-if="isLoading && (!channels || channels.length === 0)" class="guide-loading">
       <span class="spinner"></span>
       <p>{{ $t('settings.stats.loading') }}</p>
     </div>

@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { useProfileStore } from '@/stores/profile.store'
 import { getSyncStatus } from '@/lib/tauri-commands'
+import GuideView from '@/views/GuideView.vue'
 
 // Hash history is required in Tauri (no server to handle path-based routing)
 const router = createRouter({
@@ -25,7 +26,7 @@ const router = createRouter({
     {
       path: '/guide',
       name: 'guide',
-      component: () => import('@/views/GuideView.vue'),
+      component: GuideView,
       meta: { requiresProfile: true },
     },
     {
@@ -67,6 +68,8 @@ const router = createRouter({
   ],
 })
 
+let cachedSyncComplete = false
+
 // Navigation guard: redirect to /setup if no profile exists or initial sync is incomplete
 router.beforeEach(async (to) => {
   const profileStore = useProfileStore()
@@ -77,9 +80,12 @@ router.beforeEach(async (to) => {
   }
 
   const hasProfile = profileStore.hasProfile
+  if (!hasProfile) {
+    cachedSyncComplete = false;
+  }
 
-  let isSyncComplete = false
-  if (hasProfile) {
+  let isSyncComplete = cachedSyncComplete
+  if (hasProfile && !isSyncComplete) {
     try {
       for (const profile of profileStore.profiles) {
         const statusList = await getSyncStatus(profile.id)
@@ -89,6 +95,7 @@ router.beforeEach(async (to) => {
 
         if (live?.fetched_at && vod?.fetched_at && series?.fetched_at) {
           isSyncComplete = true
+          cachedSyncComplete = true
           break
         }
       }
