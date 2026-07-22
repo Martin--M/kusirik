@@ -59,6 +59,7 @@ fn configure(conn: &Connection) -> Result<()> {
         PRAGMA cache_size    = -64000;  -- 64 MB page cache
         PRAGMA foreign_keys  = ON;
         PRAGMA temp_store    = MEMORY;
+        PRAGMA busy_timeout  = 5000;
         ",
     )
     .context("Failed to set SQLite pragmas")?;
