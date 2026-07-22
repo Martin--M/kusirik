@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 
 /// Current schema version. Bump this when adding a new migration.
-const CURRENT_VERSION: u32 = 1;
+const CURRENT_VERSION: u32 = 2;
 
 pub fn run(conn: &Connection) -> Result<()> {
     let current_version: u32 = conn
@@ -26,6 +26,9 @@ pub fn run(conn: &Connection) -> Result<()> {
     if current_version < 1 {
         migration_v1(conn).context("Migration v1 failed")?;
     }
+    if current_version < 2 {
+        migration_v2(conn).context("Migration v2 failed")?;
+    }
 
     // Update schema version
     conn.execute_batch(&format!("PRAGMA user_version = {CURRENT_VERSION}"))
@@ -38,6 +41,13 @@ pub fn run(conn: &Connection) -> Result<()> {
 fn migration_v1(conn: &Connection) -> Result<()> {
     tracing::info!("Applying migration v1 — initial flattened schema");
     conn.execute_batch(V1_SCHEMA).context("Failed to execute v1 schema SQL")?;
+    Ok(())
+}
+
+fn migration_v2(conn: &Connection) -> Result<()> {
+    tracing::info!("Applying migration v2 — add epg_entries stop index for fast pruning");
+    conn.execute_batch("CREATE INDEX IF NOT EXISTS idx_epg_stop ON epg_entries(profile_id, stop);")
+        .context("Failed to execute v2 schema SQL")?;
     Ok(())
 }
 
@@ -240,11 +250,11 @@ mod tests {
         // Run migrations
         run(&conn).unwrap();
 
-        // After running, user_version should be 1
+        // After running, user_version should be 2
         let updated_version: u32 = conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(updated_version, 1);
+        assert_eq!(updated_version, 2);
 
         // Verify that expected tables exist
         let tables = vec![
