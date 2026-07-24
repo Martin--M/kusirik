@@ -93,7 +93,13 @@ router.beforeEach(async (to) => {
         const vod = statusList.find((s) => s.data_type === 'vod_streams')
         const series = statusList.find((s) => s.data_type === 'series')
 
-        if (live?.fetched_at && vod?.fetched_at && series?.fetched_at) {
+        if (profile.profile_type === 'public_iptv') {
+          if (live?.fetched_at) {
+            isSyncComplete = true
+            cachedSyncComplete = true
+            break
+          }
+        } else if (live?.fetched_at && vod?.fetched_at && series?.fetched_at) {
           isSyncComplete = true
           cachedSyncComplete = true
           break
