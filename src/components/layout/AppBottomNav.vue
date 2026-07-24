@@ -8,6 +8,7 @@ import IconMovies from '../icons/IconMovies.vue'
 import IconSeries from '../icons/IconSeries.vue'
 import IconSettings from '../icons/IconSettings.vue'
 import IconStar from '../icons/IconStar.vue'
+import IconClock from '../icons/IconClock.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,6 +20,7 @@ const navItems = computed(() => [
   { name: 'movies', label: t('sidebar.movies'), icon: IconMovies },
   { name: 'series', label: t('sidebar.series'), icon: IconSeries },
   { name: 'favorites', label: t('sidebar.favorites'), icon: IconStar },
+  { name: 'history', label: t('sidebar.history'), icon: IconClock },
   { name: 'settings', label: t('sidebar.settings'), icon: IconSettings }
 ])
 
@@ -51,7 +53,7 @@ function navigate(name: string) {
   background-color: var(--color-surface);
   border-top: 1px solid var(--color-border);
   display: flex;
-  justify-content: space-around;
+  justify-content: flex-start;
   align-items: center;
   position: fixed;
   bottom: 0;
@@ -59,10 +61,20 @@ function navigate(name: string) {
   right: 0;
   z-index: 100;
   padding-bottom: env(safe-area-inset-bottom);
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.app-bottom-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-tab {
-  flex: 1;
+  flex: 1 0 auto;
+  min-width: 64px;
+  padding: 0 var(--spacing-2);
   display: flex;
   flex-direction: column;
   align-items: center;
