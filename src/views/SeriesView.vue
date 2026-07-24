@@ -47,7 +47,7 @@ async function handleToggleFavorite(series: Series) {
   }
 }
 const searchQuery = ref('')
-const sortField = ref<'name' | 'rating' | 'added'>('name')
+const sortField = ref<'name' | 'rating' | 'added' | 'releaseDate'>('name')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const isGridView = ref(true)
 
@@ -59,7 +59,8 @@ const { t } = useI18n()
 const sortLabels = computed(() => ({
   name: t('sortField.name'),
   rating: t('sortField.rating'),
-  added: t('sortField.added')
+  added: t('sortField.added'),
+  releaseDate: t('sortField.releaseDate')
 }))
 
 const toastStore = useToastStore()
@@ -137,6 +138,14 @@ const filteredSeriesList = computed(() => {
       const addedB = parseInt(b.last_modified || '0', 10)
       // asc: recent -> least recent; desc: least recent -> recent
       return sortOrder.value === 'asc' ? addedB - addedA : addedA - addedB
+    } else if (sortField.value === 'releaseDate') {
+      const dateA = a.release_date || ''
+      const dateB = b.release_date || ''
+      if (!dateA && !dateB) return 0
+      if (!dateA) return 1
+      if (!dateB) return -1
+      // asc: newest -> oldest (2026 -> 1990); desc: oldest -> newest (1990 -> 2026)
+      return sortOrder.value === 'asc' ? dateB.localeCompare(dateA) : dateA.localeCompare(dateB)
     }
     return 0
   })

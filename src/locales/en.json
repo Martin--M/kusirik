@@ -192,7 +192,8 @@
   "sortField": {
     "name": "Alphabetical",
     "rating": "Rating",
-    "added": "Date Added"
+    "added": "Date Added",
+    "releaseDate": "Release Date"
   },
   "search": {
     "title": "Search Results",
