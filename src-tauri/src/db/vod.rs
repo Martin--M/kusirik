@@ -26,19 +26,52 @@ pub fn upsert_streams(conn: &mut Connection, profile_id: i64, streams: &[VodStre
         let mut stmt = tx.prepare_cached(
             "INSERT INTO vod_streams (
                 profile_id, stream_id, name, stream_icon, category_id,
-                rating, container_extension, added
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                rating, container_extension, added, release_date
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
             ON CONFLICT(profile_id, stream_id) DO UPDATE SET
                 name = excluded.name,
                 stream_icon = excluded.stream_icon,
                 category_id = excluded.category_id,
                 rating = excluded.rating,
                 container_extension = excluded.container_extension,
-                added = excluded.added",
+                added = excluded.added,
+                release_date = excluded.release_date",
         )?;
 
         for stream in streams {
             let cat_id = stream.category_id.as_deref().unwrap_or("0");
+
+            // Resolve release date into Unix Epoch timestamp (seconds):
+            // 1. If stream.release_date is already provided (e.g. integer epoch), use it directly
+            // 2. Try extracting "(YYYY)" from movie title (defaulting to Jan 1st)
+            let rel_timestamp: Option<i64> = (|| {
+                if let Some(ts) = stream.release_date {
+                    if ts > 0 {
+                        return Some(ts);
+                    }
+                }
+                if let Some(name) = stream.name.as_deref() {
+                    let bytes = name.as_bytes();
+                    if bytes.len() >= 6 {
+                        for i in 0..=bytes.len() - 6 {
+                            if bytes[i] == b'('
+                                && bytes[i + 5] == b')'
+                                && bytes[i + 1..i + 5].iter().all(|b| b.is_ascii_digit())
+                            {
+                                if let Ok(year) = name[i + 1..i + 5].parse::<i32>() {
+                                    if let Some(ndt) = chrono::NaiveDate::from_ymd_opt(year, 1, 1) {
+                                        if let Some(dt) = ndt.and_hms_opt(0, 0, 0) {
+                                            return Some(dt.and_utc().timestamp());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                None
+            })();
+
             stmt.execute(rusqlite::params![
                 profile_id,
                 stream.stream_id,
@@ -47,7 +80,8 @@ pub fn upsert_streams(conn: &mut Connection, profile_id: i64, streams: &[VodStre
                 cat_id,
                 stream.rating,
                 stream.container_extension,
-                stream.added
+                stream.added,
+                rel_timestamp
             ])?;
         }
     }
@@ -99,7 +133,7 @@ pub fn query_streams(
         Some(cat) => (Some(cat), false),
     };
 
-    let sql = "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite, profile_id
+    let sql = "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite, profile_id, release_date
                FROM vod_streams
                WHERE (?1 IS NULL OR profile_id = ?1)
                  AND (
@@ -122,6 +156,7 @@ pub fn query_streams(
             added: row.get(6)?,
             is_favorite: row.get(7)?,
             profile_id: Some(row.get(8)?),
+            release_date: row.get(9)?,
         })
     })?;
 
@@ -138,7 +173,7 @@ pub fn search_streams(
     query: &str,
     limit: u32,
 ) -> Result<Vec<VodStreamApi>> {
-    let sql = "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite, profile_id
+    let sql = "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite, profile_id, release_date
                FROM vod_streams
                WHERE (?1 IS NULL OR profile_id = ?1) AND name LIKE ?2
                ORDER BY name ASC
@@ -155,6 +190,7 @@ pub fn search_streams(
             added: row.get(6)?,
             is_favorite: row.get(7)?,
             profile_id: Some(row.get(8)?),
+            release_date: row.get(9)?,
         })
     })?;
     let mut res = Vec::new();

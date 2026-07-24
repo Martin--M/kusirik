@@ -79,7 +79,7 @@ pub fn query_favorites(conn: &Connection, profile_id: Option<i64>) -> Result<Sea
 
     // 2. Vod streams
     let mut vod_stmt = conn.prepare(
-        "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite, profile_id
+        "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite, profile_id, release_date
          FROM vod_streams
          WHERE (?1 IS NULL OR profile_id = ?1) AND is_favorite = 1
          ORDER BY name ASC",
@@ -95,6 +95,7 @@ pub fn query_favorites(conn: &Connection, profile_id: Option<i64>) -> Result<Sea
             added: row.get(6)?,
             is_favorite: row.get(7)?,
             profile_id: Some(row.get(8)?),
+            release_date: row.get(9)?,
         })
     })?;
     let mut vod = Vec::new();

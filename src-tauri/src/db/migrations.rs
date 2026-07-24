@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 
 /// Current schema version. Bump this when adding a new migration.
-const CURRENT_VERSION: u32 = 2;
+const CURRENT_VERSION: u32 = 3;
 
 pub fn run(conn: &Connection) -> Result<()> {
     let current_version: u32 = conn
@@ -28,6 +28,9 @@ pub fn run(conn: &Connection) -> Result<()> {
     }
     if current_version < 2 {
         migration_v2(conn).context("Migration v2 failed")?;
+    }
+    if current_version < 3 {
+        migration_v3(conn).context("Migration v3 failed")?;
     }
 
     // Update schema version
@@ -55,6 +58,13 @@ fn migration_v2(conn: &Connection) -> Result<()> {
         ",
     )
     .context("Failed to execute v2 schema SQL")?;
+    Ok(())
+}
+
+fn migration_v3(conn: &Connection) -> Result<()> {
+    tracing::info!("Applying migration v3 — add release_date integer column to vod_streams");
+    conn.execute_batch("ALTER TABLE vod_streams ADD COLUMN release_date INTEGER;")
+        .context("Failed to execute v3 schema SQL")?;
     Ok(())
 }
 
@@ -142,6 +152,7 @@ CREATE TABLE IF NOT EXISTS vod_streams (
   rating                TEXT,
   container_extension   TEXT,
   added                 TEXT,
+  release_date          INTEGER,
   is_favorite           INTEGER DEFAULT 0,
   PRIMARY KEY (profile_id, stream_id)
 );

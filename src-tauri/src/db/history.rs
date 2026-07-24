@@ -77,7 +77,7 @@ pub fn query_history(conn: &Connection, profile_id: Option<i64>) -> Result<Searc
 
     // 2. Vod streams (join with playback_history)
     let mut vod_stmt = conn.prepare(
-        "SELECT s.stream_id, s.name, s.stream_icon, s.category_id, s.rating, s.container_extension, s.added, s.is_favorite, s.profile_id
+        "SELECT s.stream_id, s.name, s.stream_icon, s.category_id, s.rating, s.container_extension, s.added, s.is_favorite, s.profile_id, s.release_date
          FROM playback_history h
          JOIN vod_streams s ON h.profile_id = s.profile_id AND h.stream_id = s.stream_id
          WHERE (?1 IS NULL OR h.profile_id = ?1) AND h.media_type = 'vod'
@@ -94,6 +94,7 @@ pub fn query_history(conn: &Connection, profile_id: Option<i64>) -> Result<Searc
             added: row.get(6)?,
             is_favorite: row.get(7)?,
             profile_id: Some(row.get(8)?),
+            release_date: row.get(9)?,
         })
     })?;
     let mut vod = Vec::new();
