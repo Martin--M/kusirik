@@ -47,7 +47,7 @@ async function handleToggleFavorite(series: Series) {
   }
 }
 const searchQuery = ref('')
-const sortField = ref<'name' | 'rating'>('name')
+const sortField = ref<'name' | 'rating' | 'added'>('name')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const isGridView = ref(true)
 
@@ -58,7 +58,8 @@ const { t } = useI18n()
 
 const sortLabels = computed(() => ({
   name: t('sortField.name'),
-  rating: t('sortField.rating')
+  rating: t('sortField.rating'),
+  added: t('sortField.added')
 }))
 
 const toastStore = useToastStore()
@@ -131,6 +132,11 @@ const filteredSeriesList = computed(() => {
       const ratingA = parseFloat(a.rating || '0')
       const ratingB = parseFloat(b.rating || '0')
       return sortOrder.value === 'asc' ? ratingB - ratingA : ratingA - ratingB
+    } else if (sortField.value === 'added') {
+      const addedA = parseInt(a.last_modified || '0', 10)
+      const addedB = parseInt(b.last_modified || '0', 10)
+      // asc: recent -> least recent; desc: least recent -> recent
+      return sortOrder.value === 'asc' ? addedB - addedA : addedA - addedB
     }
     return 0
   })
