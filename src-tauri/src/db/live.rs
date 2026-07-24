@@ -68,18 +68,13 @@ pub fn query_streams(
     offset: u32,
     limit: u32,
 ) -> Result<Vec<LiveStreamDto>> {
-    let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let (db_category, is_uncategorized) = match category_id {
         None | Some("all") => (None, false),
         Some("0") | Some("") | Some("uncategorized") => (None, true),
         Some(cat) => (Some(cat), false),
     };
 
-    let sql = "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, max(is_favorite) as is_favorite, profile_id, countries,
-                      (SELECT title FROM epg_entries
-                       WHERE epg_entries.profile_id = live_streams.profile_id
-                         AND epg_entries.channel_id = live_streams.epg_channel_id
-                         AND epg_entries.start <= ?6 AND epg_entries.stop > ?6 LIMIT 1) AS current_title
+    let sql = "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, max(is_favorite) as is_favorite, profile_id, countries, NULL AS current_title
                FROM live_streams
                WHERE (?1 IS NULL OR profile_id = ?1)
                  AND (
@@ -92,7 +87,7 @@ pub fn query_streams(
                LIMIT ?4 OFFSET ?5";
 
     let mut stmt = conn.prepare(sql)?;
-    let rows = stmt.query_map(rusqlite::params![profile_id, db_category, is_uncategorized, limit, offset, &now], |row| {
+    let rows = stmt.query_map(rusqlite::params![profile_id, db_category, is_uncategorized, limit, offset], |row| {
         Ok(LiveStreamDto {
             stream: LiveStreamApi {
                 stream_id: row.get(0)?,
