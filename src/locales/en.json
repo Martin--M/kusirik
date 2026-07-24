@@ -223,5 +223,18 @@
     "seriesResults": "Recently Watched TV Series ({count})",
     "clearHistory": "Clear History",
     "clearSuccess": "Playback history cleared successfully"
+  },
+  "about": {
+    "title": "About Kusirik",
+    "tagline": "Modern, High-Performance IPTV Engine",
+    "version": "Version {version}",
+    "techStack": "Built with Tauri 2, Rust, Vue 3, & SQLite WAL",
+    "disclaimerTitle": "Disclaimer & Content Notice",
+    "disclaimerBody": "Kusirik is a media management tool and player engine. Kusirik does not host, stream, sell, or distribute any media streams, IPTV playlists, or copyrighted material. Users are strictly responsible for providing their own legally obtained playlist sources (Xtream API or Public IPTV).",
+    "licenseTitle": "Open Source License",
+    "licenseBody": "Kusirik is free and open-source software released under the GNU General Public License v3.0 (GPL-3.0).",
+    "copyright": "© 2026 Kusirik Developers. All rights reserved.",
+    "button": "About Application",
+    "close": "Close"
   }
 }

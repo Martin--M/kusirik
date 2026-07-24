@@ -27,7 +27,9 @@ import IconMoon from '@/components/icons/IconMoon.vue'
 import IconSun from '@/components/icons/IconSun.vue'
 import IconPlay from '@/components/icons/IconPlay.vue'
 import IconSync from '@/components/icons/IconSync.vue'
+import IconLogo from '@/components/icons/IconLogo.vue'
 import { checkIsAndroid } from '@/lib/device'
+
 const router = useRouter()
 const profileStore = useProfileStore()
 const settingsStore = useSettingsStore()
@@ -36,6 +38,7 @@ const toastStore = useToastStore()
 const { t, formatTime } = useI18n()
 
 const isAndroid = ref(false)
+const showAboutModal = ref(false)
 const dataTypes: DataType[] = ['live_streams', 'vod_streams', 'series', 'epg']
 
 const formatOptions = computed(() => ({
@@ -440,6 +443,62 @@ onMounted(async () => {
             </span>
           </div>
         </div>
+      </div>
+
+      <!-- About Application Card -->
+      <div class="settings-card about-card">
+        <div class="card-header">
+          <IconLogo class="card-icon" />
+          <h3>{{ $t('about.title') }}</h3>
+        </div>
+        <div class="card-content about-card-content">
+          <div class="about-app-brand">
+            <IconLogo class="about-brand-logo" />
+            <div class="about-brand-meta">
+              <h4 class="brand-title">Kusirik</h4>
+              <span class="brand-version">{{ $t('about.version', { version: '2.0.0' }) }}</span>
+            </div>
+          </div>
+          <p class="about-desc">{{ $t('about.tagline') }}</p>
+          <button class="about-trigger-btn" @click="showAboutModal = true">
+            {{ $t('about.button') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- About Application Modal -->
+    <div v-if="showAboutModal" class="modal-overlay" @click.self="showAboutModal = false">
+      <div class="about-modal-card">
+        <button class="modal-close-btn" @click="showAboutModal = false">✕</button>
+        
+        <div class="modal-header-brand">
+          <IconLogo class="modal-logo" />
+          <h2 class="modal-app-name">kusirik</h2>
+          <span class="modal-version-tag">{{ $t('about.version', { version: '2.0.0' }) }}</span>
+          <p class="modal-tagline">{{ $t('about.tagline') }}</p>
+          <span class="modal-tech-stack">{{ $t('about.techStack') }}</span>
+        </div>
+
+        <div class="modal-body-content">
+          <div class="info-block">
+            <h4>{{ $t('about.disclaimerTitle') }}</h4>
+            <p>{{ $t('about.disclaimerBody') }}</p>
+          </div>
+
+          <div class="info-block">
+            <h4>{{ $t('about.licenseTitle') }}</h4>
+            <p>{{ $t('about.licenseBody') }}</p>
+          </div>
+
+          <div class="info-footer">
+            <span class="copyright-text">{{ $t('about.copyright') }}</span>
+          </div>
+        </div>
+
+        <button class="modal-action-btn" @click="showAboutModal = false">
+          {{ $t('about.close') }}
+        </button>
       </div>
     </div>
   </div>
@@ -948,5 +1007,192 @@ onMounted(async () => {
   height: 18px;
   color: var(--color-primary);
   flex-shrink: 0;
+}
+
+/* About Card & Modal Styles */
+.about-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.about-app-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.about-brand-logo {
+  width: 36px;
+  height: 36px;
+  color: var(--color-primary);
+}
+
+.about-brand-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.brand-version {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.about-desc {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.about-trigger-btn {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: var(--spacing-2) var(--spacing-4);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.about-trigger-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Modal Overlay & Dialog */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-4);
+}
+
+.about-modal-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-8);
+  max-width: 520px;
+  width: 100%;
+  position: relative;
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: var(--spacing-4);
+  right: var(--spacing-4);
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.modal-header-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--spacing-1);
+}
+
+.modal-logo {
+  width: 48px;
+  height: 48px;
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-2);
+}
+
+.modal-app-name {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.modal-version-tag {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: rgba(96, 165, 250, 0.1);
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+}
+
+.modal-tagline {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-1);
+}
+
+.modal-tech-stack {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  opacity: 0.8;
+}
+
+.modal-body-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.info-block {
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-4);
+}
+
+.info-block h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-2);
+  color: var(--color-text);
+}
+
+.info-block p {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.info-footer {
+  text-align: center;
+}
+
+.copyright-text {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.modal-action-btn {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: var(--spacing-3);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.modal-action-btn:hover {
+  opacity: 0.9;
 }
 </style>
