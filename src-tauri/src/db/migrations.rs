@@ -51,6 +51,7 @@ fn migration_v2(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_epg_stop ON epg_entries(profile_id, stop);
         CREATE INDEX IF NOT EXISTS idx_epg_channel ON epg_entries(profile_id, channel_id);
         CREATE INDEX IF NOT EXISTS idx_epg_time_window ON epg_entries(profile_id, start, stop);
+        CREATE INDEX IF NOT EXISTS idx_epg_active_channels ON epg_entries(profile_id, channel_id, stop, start);
         ",
     )
     .context("Failed to execute v2 schema SQL")?;
