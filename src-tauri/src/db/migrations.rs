@@ -45,9 +45,15 @@ fn migration_v1(conn: &Connection) -> Result<()> {
 }
 
 fn migration_v2(conn: &Connection) -> Result<()> {
-    tracing::info!("Applying migration v2 — add epg_entries stop index for fast pruning");
-    conn.execute_batch("CREATE INDEX IF NOT EXISTS idx_epg_stop ON epg_entries(profile_id, stop);")
-        .context("Failed to execute v2 schema SQL")?;
+    tracing::info!("Applying migration v2 — add epg_entries indexes for fast queries & pruning");
+    conn.execute_batch(
+        "
+        CREATE INDEX IF NOT EXISTS idx_epg_stop ON epg_entries(profile_id, stop);
+        CREATE INDEX IF NOT EXISTS idx_epg_channel ON epg_entries(profile_id, channel_id);
+        CREATE INDEX IF NOT EXISTS idx_epg_time_window ON epg_entries(profile_id, start, stop);
+        ",
+    )
+    .context("Failed to execute v2 schema SQL")?;
     Ok(())
 }
 
