@@ -18,8 +18,7 @@ pub fn get_sync_status(
     state: State<'_, DbConn>,
     profile_id: i64,
 ) -> Result<Vec<serde_json::Value>, String> {
-    let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
-    let conn = &*conn_guard;
+    let conn = state.read().map_err(|e| e.to_string())?;
 
     let mut stmt = conn
         .prepare("SELECT data_type, fetched_at, item_count, last_error FROM sync_log WHERE profile_id = ?1")

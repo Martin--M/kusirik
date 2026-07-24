@@ -120,7 +120,7 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
 
     // Load profile to check type
     let profile = {
-        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        let conn = db_conn.read()?;
         crate::db::profile::get(&conn, profile_id)?
             .ok_or_else(|| anyhow!("Profile not found"))?
     };
@@ -131,7 +131,7 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
 
     let registry = app.state::<crate::api::ClientRegistry>();
     let client = {
-        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        let conn = db_conn.read()?;
         registry.get_or_create(profile_id, &conn).map_err(|e| anyhow!(e))?
     };
 
@@ -140,7 +140,7 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
     for dt in data_types {
         // Check if stale
         let is_stale = {
-            let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+            let conn = db_conn.read()?;
             match get_last_sync_time(&conn, profile_id, dt)? {
                 Some(last_time) => {
                     let diff = Utc::now() - last_time;
@@ -157,7 +157,7 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
         if !is_stale && !force {
             tracing::info!(data_type = dt, "Data is fresh, skipping sync");
             let item_count = {
-                let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+                let conn = db_conn.read()?;
                 let mut stmt = conn.prepare_cached(
                     "SELECT item_count FROM sync_log WHERE profile_id = ?1 AND data_type = ?2"
                 )?;
@@ -202,7 +202,7 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
                 emit_progress(&app, profile_id, dt, "writing");
 
                 {
-                    let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+                    let mut conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
                     crate::db::live::upsert_categories(&mut conn, profile_id, &categories)?;
                     crate::db::live::upsert_streams(&mut conn, profile_id, &streams)?;
                     update_sync_log(&conn, profile_id, dt, Some(streams.len()), None)?;
@@ -230,7 +230,7 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
                 emit_progress(&app, profile_id, dt, "writing");
 
                 {
-                    let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+                    let mut conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
                     crate::db::vod::upsert_categories(&mut conn, profile_id, &categories)?;
                     crate::db::vod::upsert_streams(&mut conn, profile_id, &streams)?;
                     update_sync_log(&conn, profile_id, dt, Some(streams.len()), None)?;
@@ -258,7 +258,7 @@ async fn do_sync(app: AppHandle, profile_id: i64, force: bool) -> Result<()> {
                 emit_progress(&app, profile_id, dt, "writing");
 
                 {
-                    let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+                    let mut conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
                     crate::db::series::upsert_categories(&mut conn, profile_id, &categories)?;
                     crate::db::series::upsert_series(&mut conn, profile_id, &series_list)?;
                     update_sync_log(&conn, profile_id, dt, Some(series_list.len()), None)?;
@@ -327,7 +327,7 @@ fn update_sync_log(
 }
 
 fn record_error(db_conn: &DbConn, profile_id: i64, data_type: &str, error: &str) -> Result<()> {
-    let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+    let conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
     update_sync_log(&conn, profile_id, data_type, None, Some(error))?;
     Ok(())
 }
@@ -344,7 +344,7 @@ async fn sync_epg_internal(app: AppHandle, profile_id: i64, client: &XtreamClien
     let db_conn = app.state::<DbConn>();
 
     let epg_mode = {
-        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        let conn = db_conn.read()?;
         let profile = crate::db::profile::get(&conn, profile_id)?;
         profile.map(|p| p.epg_mode).unwrap_or_else(|| "xmltv".to_string())
     };
@@ -361,6 +361,7 @@ async fn sync_epg_internal(app: AppHandle, profile_id: i64, client: &XtreamClien
 
     let res = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
+        .timeout(std::time::Duration::from_secs(30))
         .build()
         .context("Failed to build HTTP client")?
         .get(&xmltv_url)
@@ -383,7 +384,7 @@ async fn sync_epg_internal(app: AppHandle, profile_id: i64, client: &XtreamClien
     }).await??;
 
     {
-        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        let conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
         update_sync_log(&conn, profile_id, "epg", Some(count), None)?;
     }
 
@@ -408,7 +409,7 @@ async fn do_sync_public_iptv(app: AppHandle, profile_id: i64, force: bool) -> Re
 
     for dt in data_types {
         let is_stale = {
-            let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+            let conn = db_conn.read()?;
             match get_last_sync_time(&conn, profile_id, dt)? {
                 Some(last_time) => {
                     let diff = Utc::now() - last_time;
@@ -424,7 +425,7 @@ async fn do_sync_public_iptv(app: AppHandle, profile_id: i64, force: bool) -> Re
 
         if !is_stale && !force {
             let item_count = {
-                let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+                let conn = db_conn.read()?;
                 let mut stmt = conn.prepare_cached(
                     "SELECT item_count FROM sync_log WHERE profile_id = ?1 AND data_type = ?2"
                 )?;
@@ -463,7 +464,7 @@ async fn do_sync_public_iptv(app: AppHandle, profile_id: i64, force: bool) -> Re
                 }
             }
             _ => {
-                let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+                let conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
                 update_sync_log(&conn, profile_id, dt, Some(0), None)?;
                 emit_progress(&app, profile_id, dt, "done");
                 emit_done(&app, profile_id, dt, 0);
@@ -511,7 +512,7 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
         });
     }
 
-    let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+    let mut conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
     conn.execute("DELETE FROM live_streams WHERE profile_id = ?1", rusqlite::params![profile_id])?;
     conn.execute("DELETE FROM live_categories WHERE profile_id = ?1", rusqlite::params![profile_id])?;
     crate::db::live::upsert_categories(&mut conn, profile_id, &db_categories)?;
@@ -583,7 +584,7 @@ async fn sync_public_iptv_epg(app: AppHandle, profile_id: i64) -> Result<usize> 
 
     // Prune old EPG entries for public IPTV profile (keeping only starting from -24h to align with source data and optimize inserts)
     {
-        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        let conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
         let prune_cutoff = (Utc::now() - chrono::Duration::hours(24)).to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
         match crate::db::epg::cleanup_old_entries(&conn, profile_id, &prune_cutoff) {
             Ok(count) => tracing::info!(count, profile_id, cutoff = %prune_cutoff, "Pruned old EPG entries for public IPTV profile"),
@@ -616,6 +617,7 @@ async fn sync_public_iptv_epg(app: AppHandle, profile_id: i64) -> Result<usize> 
         tracing::info!(url = %url, "Fetching public EPG XML");
         let res = reqwest::Client::builder()
             .danger_accept_invalid_certs(true)
+            .timeout(std::time::Duration::from_secs(30))
             .build()?
             .get(url)
             .send()
@@ -640,7 +642,7 @@ async fn sync_public_iptv_epg(app: AppHandle, profile_id: i64) -> Result<usize> 
     }
 
     {
-        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        let conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
         update_sync_log(&conn, profile_id, "epg", Some(total_count), None)?;
     }
 
@@ -736,8 +738,8 @@ fn parse_and_insert_epg_xml(
                             entries.push(entry);
                             accumulated_count += 1;
 
-                            if entries.len() >= 2000 {
-                                let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+                             if entries.len() >= 2000 {
+                                let mut conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
                                 crate::db::epg::bulk_insert(&mut conn, &entries)?;
                                 entries.clear();
                                 emit_progress(&app, profile_id, "epg", &format!("writing ({} items)", accumulated_count));
@@ -761,7 +763,7 @@ fn parse_and_insert_epg_xml(
     }
 
     if !entries.is_empty() {
-        let mut conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        let mut conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
         crate::db::epg::bulk_insert(&mut conn, &entries)?;
     }
 
@@ -818,7 +820,7 @@ async fn run_epg_sync_startup_background_for_profile(app: AppHandle, profile: cr
 
     let registry = app.state::<crate::api::ClientRegistry>();
     let client = {
-        let conn = db_conn.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        let conn = db_conn.read()?;
         registry.get_or_create(profile.id, &conn).map_err(|e| anyhow!(e))?
     };
     match sync_epg_internal(app.clone(), profile.id, &client).await {
@@ -842,7 +844,7 @@ pub async fn run_startup_tasks(app: AppHandle) -> Result<()> {
     // 1. Get all profiles (blocking DB read, offloaded)
     let db_conn_clone = db_conn.clone();
     let profiles = tokio::task::spawn_blocking(move || {
-        let conn = db_conn_clone.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        let conn = db_conn_clone.read()?;
         crate::db::profile::get_all(&conn)
     }).await??;
 
@@ -852,7 +854,7 @@ pub async fn run_startup_tasks(app: AppHandle) -> Result<()> {
         // 2. Cleanup old entries (ended > 48h ago) - offloaded to spawn_blocking
         let db_conn_clone = db_conn.clone();
         tokio::task::spawn_blocking(move || {
-            let conn = db_conn_clone.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+            let conn = db_conn_clone.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
             let forty_eight_hours_ago = Utc::now() - chrono::Duration::hours(48);
             let before_timestamp = forty_eight_hours_ago.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
             let deleted = crate::db::epg::cleanup_old_entries(&conn, profile_id, &before_timestamp)?;
@@ -863,7 +865,7 @@ pub async fn run_startup_tasks(app: AppHandle) -> Result<()> {
         // 3. Check EPG Sync (24-hour limit on startup) - offloaded to spawn_blocking
         let db_conn_clone = db_conn.clone();
         let needs_epg_sync = tokio::task::spawn_blocking(move || {
-            let conn = db_conn_clone.0.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+            let conn = db_conn_clone.read()?;
             let needs = match get_last_sync_time(&conn, profile_id, "epg")? {
                 Some(last_time) => {
                     let diff = Utc::now() - last_time;
@@ -887,10 +889,12 @@ pub async fn run_startup_tasks(app: AppHandle) -> Result<()> {
                 created_at: profile.created_at.clone(),
                 profile_type: profile.profile_type.clone(),
             };
-            // Run EPG sync sequentially (awaits completion before moving to next profile)
-            if let Err(e) = run_epg_sync_startup_background_for_profile(app_clone, profile_clone).await {
-                tracing::error!(profile_id = profile.id, error = %e, "EPG startup background sync failed");
-            }
+            // Spawn detached Tokio task so startup task loop finishes immediately without awaiting network downloads
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = run_epg_sync_startup_background_for_profile(app_clone, profile_clone).await {
+                    tracing::error!(profile_id = profile_id, error = %e, "EPG startup background sync failed");
+                }
+            });
         } else {
             tracing::info!(profile_id = profile.id, "EPG guide is fresh (last synced < 24h ago). Skipping startup sync.");
         }

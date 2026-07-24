@@ -18,7 +18,7 @@ pub async fn search_all_media(
     profile_id: Option<i64>,
     query: String,
 ) -> Result<SearchResults, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let conn = state.read().map_err(|e| e.to_string())?;
     let sql_query = format!("%{}%", query.trim());
 
     let live = crate::db::live::search_streams(&conn, profile_id, &sql_query, 30)

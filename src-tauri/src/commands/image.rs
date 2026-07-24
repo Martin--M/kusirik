@@ -20,7 +20,7 @@ pub async fn get_image_data(
 
     // 1. Check if the image is in database cache
     let cached = {
-        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        let conn = state.read().map_err(|e| e.to_string())?;
         crate::db::image::get_cached_image(&conn, &url).map_err(|e| e.to_string())?
     };
 
@@ -53,7 +53,7 @@ pub async fn get_image_data(
 
     // 3. Cache the image in database
     {
-        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        let conn = state.writer.lock().map_err(|e| e.to_string())?;
         crate::db::image::insert_cached_image(&conn, &url, &bytes, content_type.as_deref())
             .map_err(|e| e.to_string())?;
     }

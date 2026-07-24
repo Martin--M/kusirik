@@ -7,7 +7,7 @@ pub fn resolve_stream_url(
     url: String,
     profile_id: Option<i64>,
 ) -> Result<String, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let conn = state.read().map_err(|e| e.to_string())?;
     let pid = profile_id.ok_or_else(|| "Profile ID is required".to_string())?;
     let p = crate::db::profile::get(&conn, pid)
         .map_err(|e| e.to_string())?
@@ -41,7 +41,7 @@ pub fn launch_player(
 
     #[cfg(not(target_os = "android"))]
     {
-        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        let conn = state.read().map_err(|e| e.to_string())?;
         let pid = profile_id.ok_or_else(|| "Profile ID is required".to_string())?;
         let p = crate::db::profile::get(&conn, pid)
             .map_err(|e| e.to_string())?
@@ -207,7 +207,7 @@ pub async fn validate_stream_url(
     profile_id: Option<i64>,
 ) -> Result<bool, String> {
     let final_url = {
-        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        let conn = state.read().map_err(|e| e.to_string())?;
         let pid = profile_id.ok_or_else(|| "Profile ID is required".to_string())?;
         let p = crate::db::profile::get(&conn, pid)
             .map_err(|e| e.to_string())?

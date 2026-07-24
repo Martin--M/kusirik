@@ -8,7 +8,7 @@ pub fn get_live_categories(
     state: State<'_, DbConn>,
     profile_id: Option<i64>,
 ) -> Result<Vec<CategoryApi>, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let conn = state.read().map_err(|e| e.to_string())?;
     crate::db::live::query_categories(&conn, profile_id).map_err(|e| e.to_string())
 }
 
@@ -20,7 +20,7 @@ pub fn get_live_streams(
     offset: u32,
     limit: u32,
 ) -> Result<Vec<LiveStreamDto>, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let conn = state.read().map_err(|e| e.to_string())?;
     crate::db::live::query_streams(
         &conn,
         profile_id,
@@ -36,6 +36,6 @@ pub fn get_stream_mirrors(
     profile_id: i64,
     name: String,
 ) -> Result<Vec<crate::api::live::LiveStreamApi>, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let conn = state.read().map_err(|e| e.to_string())?;
     crate::db::live::query_mirrors(&conn, profile_id, &name).map_err(|e| e.to_string())
 }

@@ -39,7 +39,7 @@ pub async fn save_profile(
     payload: SaveProfilePayload,
 ) -> Result<serde_json::Value, String> {
     use tauri::Manager;
-    let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
+    let conn_guard = state.writer.lock().map_err(|e| e.to_string())?;
     let conn = &*conn_guard;
 
     let epg_mode = payload.epg_mode.unwrap_or_else(|| "xmltv".to_string());
@@ -81,7 +81,7 @@ pub async fn add_public_iptv_profile(
     _app: tauri::AppHandle,
     state: State<'_, DbConn>,
 ) -> Result<serde_json::Value, String> {
-    let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
+    let conn_guard = state.writer.lock().map_err(|e| e.to_string())?;
     let conn = &*conn_guard;
 
     let existing = crate::db::profile::get_all(conn).map_err(|e| e.to_string())?;
@@ -126,10 +126,9 @@ pub async fn add_public_iptv_profile(
 
 #[tauri::command]
 pub fn get_profiles(state: State<'_, DbConn>) -> Result<Vec<serde_json::Value>, String> {
-    let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
-    let conn = &*conn_guard;
+    let conn = state.read().map_err(|e| e.to_string())?;
 
-    match crate::db::profile::get_all(conn) {
+    match crate::db::profile::get_all(&conn) {
         Ok(profiles) => {
             let mapped = profiles.into_iter().map(|p| json!({
                 "id": p.id,
@@ -152,10 +151,9 @@ pub fn get_profile(
     state: State<'_, DbConn>,
     id: i64,
 ) -> Result<Option<serde_json::Value>, String> {
-    let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
-    let conn = &*conn_guard;
+    let conn = state.read().map_err(|e| e.to_string())?;
 
-    match crate::db::profile::get(conn, id) {
+    match crate::db::profile::get(&conn, id) {
         Ok(Some(p)) => Ok(Some(json!({
             "id": p.id,
             "name": p.name,
@@ -178,7 +176,7 @@ pub fn delete_profile(
     id: i64,
 ) -> Result<(), String> {
     use tauri::Manager;
-    let conn_guard = state.0.lock().map_err(|e| e.to_string())?;
+    let conn_guard = state.writer.lock().map_err(|e| e.to_string())?;
     let conn = &*conn_guard;
 
 

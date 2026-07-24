@@ -21,7 +21,7 @@ pub async fn get_epg_for_channel(
     // 1. Query the local database first
     let db_conn = state;
     let list = {
-        let conn = db_conn.0.lock().map_err(|e| e.to_string())?;
+        let conn = db_conn.read().map_err(|e| e.to_string())?;
         crate::db::epg::query_for_channel(&conn, profile_id, &channel_id, &from, &to)
             .map_err(|e| e.to_string())?
     };
@@ -55,7 +55,7 @@ pub async fn get_epg_for_channel(
 
     // 2. Fallback: If empty, do on-demand fetch if epg_channel_id maps to a stream_id in live_streams
     let stream_id: Option<i64> = {
-        let conn = db_conn.0.lock().map_err(|e| e.to_string())?;
+        let conn = db_conn.read().map_err(|e| e.to_string())?;
         let mut stmt = conn
             .prepare("SELECT stream_id FROM live_streams WHERE profile_id = ?1 AND epg_channel_id = ?2 LIMIT 1")
             .map_err(|e| e.to_string())?;
@@ -75,7 +75,7 @@ pub async fn get_epg_for_channel(
 
     // Check if the profile is public IPTV (which doesn't support on-demand Xtream short_epg)
     let is_public = {
-        let conn = db_conn.0.lock().map_err(|e| e.to_string())?;
+        let conn = db_conn.read().map_err(|e| e.to_string())?;
         let p = crate::db::profile::get(&conn, profile_id)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Profile not found".to_string())?;
@@ -89,7 +89,7 @@ pub async fn get_epg_for_channel(
     // Fetch EPG listings on demand
     let registry = app.state::<crate::api::ClientRegistry>();
     let client = {
-        let conn = db_conn.0.lock().map_err(|e| e.to_string())?;
+        let conn = db_conn.read().map_err(|e| e.to_string())?;
         registry.get_or_create(profile_id, &conn)?
     };
 
@@ -163,7 +163,7 @@ pub async fn get_epg_for_channel(
     }
 
     if !epg_entries.is_empty() {
-        let mut conn = db_conn.0.lock().map_err(|e| e.to_string())?;
+        let mut conn = db_conn.writer.lock().map_err(|e| e.to_string())?;
         crate::db::epg::bulk_insert(&mut conn, &epg_entries).map_err(|e| e.to_string())?;
     }
 
@@ -176,7 +176,7 @@ pub async fn get_epg_for_channel(
         .to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
 
     let re_queried = {
-        let conn = db_conn.0.lock().map_err(|e| e.to_string())?;
+        let conn = db_conn.read().map_err(|e| e.to_string())?;
         crate::db::epg::query_for_channel(&conn, profile_id, &channel_id, &wider_from, &wider_to)
             .map_err(|e| e.to_string())?
     };
@@ -206,7 +206,7 @@ pub async fn get_epg_guide(
     offset: Option<u32>,
     limit: Option<u32>,
 ) -> Result<Vec<GuideChannel>, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let conn = state.read().map_err(|e| e.to_string())?;
 
     let limit_val = limit.unwrap_or(50);
     let offset_val = offset.unwrap_or(0);
@@ -215,18 +215,19 @@ pub async fn get_epg_guide(
     let channel_rows = if let Some(p_id) = profile_id {
         let mut channel_stmt = conn.prepare_cached(
             "SELECT stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, profile_id, countries
-             FROM live_streams
-             WHERE profile_id = ?1
-               AND epg_channel_id IS NOT NULL 
-               AND epg_channel_id != ''
-               AND epg_channel_id IN (
-                   SELECT DISTINCT channel_id FROM epg_entries ee 
+             FROM live_streams ls
+             WHERE ls.profile_id = ?1
+               AND ls.epg_channel_id IS NOT NULL 
+               AND ls.epg_channel_id != ''
+               AND EXISTS (
+                   SELECT 1 FROM epg_entries ee 
                    WHERE ee.profile_id = ?1
+                     AND ee.channel_id = ls.epg_channel_id
                      AND ee.start < ?2 
                      AND ee.stop > ?3
                )
-             GROUP BY profile_id, name
-             ORDER BY name ASC
+             GROUP BY ls.profile_id, ls.name
+             ORDER BY ls.name ASC
              LIMIT ?4 OFFSET ?5"
         ).map_err(|e| e.to_string())?;
         
@@ -247,20 +248,50 @@ pub async fn get_epg_guide(
         for r in rows {
             res.push(r.map_err(|e| e.to_string())?);
         }
+
+        // Fallback: If no channels have active EPG entries in the window, return channels from live_streams so guide is not blank
+        if res.is_empty() {
+            let mut fallback_stmt = conn.prepare_cached(
+                "SELECT stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, profile_id, countries
+                 FROM live_streams
+                 WHERE profile_id = ?1
+                 ORDER BY name ASC
+                 LIMIT ?2 OFFSET ?3"
+            ).map_err(|e| e.to_string())?;
+
+            let rows = fallback_stmt.query_map(rusqlite::params![p_id, limit_val, offset_val], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, i64>(5)?,
+                    row.get::<_, i64>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                ))
+            }).map_err(|e| e.to_string())?;
+
+            for r in rows {
+                res.push(r.map_err(|e| e.to_string())?);
+            }
+        }
+
         res
     } else {
         let mut channel_stmt = conn.prepare_cached(
             "SELECT stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, profile_id, countries
-             FROM live_streams
-             WHERE epg_channel_id IS NOT NULL 
-               AND epg_channel_id != ''
-               AND epg_channel_id IN (
-                   SELECT DISTINCT channel_id FROM epg_entries ee 
-                   WHERE ee.start < ?1 
+             FROM live_streams ls
+             WHERE ls.epg_channel_id IS NOT NULL 
+               AND ls.epg_channel_id != ''
+               AND EXISTS (
+                   SELECT 1 FROM epg_entries ee 
+                   WHERE ee.channel_id = ls.epg_channel_id
+                     AND ee.start < ?1 
                      AND ee.stop > ?2
                )
-             GROUP BY profile_id, name
-             ORDER BY name ASC
+             GROUP BY ls.profile_id, ls.name
+             ORDER BY ls.name ASC
              LIMIT ?3 OFFSET ?4"
         ).map_err(|e| e.to_string())?;
 
@@ -281,6 +312,33 @@ pub async fn get_epg_guide(
         for r in rows {
             res.push(r.map_err(|e| e.to_string())?);
         }
+
+        if res.is_empty() {
+            let mut fallback_stmt = conn.prepare_cached(
+                "SELECT stream_id, name, stream_icon, epg_channel_id, tv_archive, tv_archive_duration, profile_id, countries
+                 FROM live_streams
+                 ORDER BY name ASC
+                 LIMIT ?1 OFFSET ?2"
+            ).map_err(|e| e.to_string())?;
+
+            let rows = fallback_stmt.query_map(rusqlite::params![limit_val, offset_val], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, i64>(5)?,
+                    row.get::<_, i64>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                ))
+            }).map_err(|e| e.to_string())?;
+
+            for r in rows {
+                res.push(r.map_err(|e| e.to_string())?);
+            }
+        }
+
         res
     };
 

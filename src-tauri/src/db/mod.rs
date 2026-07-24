@@ -1,19 +1,7 @@
-//! Database connection bootstrap.
-//!
-//! Design contract:
-//! - This module owns a single `Mutex<Connection>` used for **all Rust-side writes**:
-//!   migrations, bulk EPG inserts, profile CRUD, sync log updates.
-//! - `tauri-plugin-sql` manages its own internal connection pool, used exclusively
-//!   for **JS-initiated SELECT queries** from the frontend. Both paths share the same
-//!   SQLite file; WAL mode makes concurrent access safe at the OS level.
-//!
-//! Never call rusqlite from frontend-facing JS query paths; never call tauri-plugin-sql
-//! for write operations. Keep this boundary explicit.
-
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 pub mod migrations;
 pub mod profile;
@@ -27,27 +15,57 @@ pub mod common;
 pub mod favorites;
 pub mod history;
 
-/// Tauri managed state wrapper around the single rusqlite connection.
+/// Tauri managed state wrapper separating heavy write operations (writer Mutex)
+/// from concurrent UI read operations (reader Mutex).
+/// In SQLite WAL mode, readers execute concurrently without blocking or waiting
+/// for write transactions on the writer connection.
 #[derive(Clone)]
-pub struct DbConn(pub std::sync::Arc<Mutex<Connection>>);
+pub struct DbConn {
+    pub writer: Arc<Mutex<Connection>>,
+    pub reader: Arc<Mutex<Connection>>,
+}
 
-/// Open (or create) the SQLite database at `db_path`, configure it for
-/// optimal performance, and run any pending migrations.
+impl DbConn {
+    /// Backwards compatibility helper for write operations
+    pub fn writer_conn(&self) -> &Arc<Mutex<Connection>> {
+        &self.writer
+    }
+
+    /// Obtain a read-only lock from the dedicated reader connection for UI SELECT queries.
+    /// Because background syncs write exclusively to `writer`, `reader` is never locked by background sync.
+    pub fn read(&self) -> Result<MutexGuard<'_, Connection>> {
+        self.reader
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Failed to acquire SQLite read lock: {}", e))
+    }
+}
+
+/// Open (or create) the SQLite database at `db_path`, configure WAL mode, and run migrations.
 pub fn open(db_path: &Path) -> Result<DbConn> {
-    tracing::info!(path = %db_path.display(), "Opening SQLite database");
+    tracing::info!(path = %db_path.display(), "Opening SQLite database with Dual Connection (Writer + Reader) architecture");
 
     if let Some(parent) = db_path.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("Failed to create DB directory: {}", parent.display()))?;
     }
 
-    let conn = Connection::open(db_path)
-        .with_context(|| format!("Failed to open SQLite at {}", db_path.display()))?;
+    // 1. Writer connection (for migrations and bulk writes)
+    let writer_conn = Connection::open(db_path)
+        .with_context(|| format!("Failed to open SQLite writer at {}", db_path.display()))?;
+    configure(&writer_conn).context("Failed to configure SQLite writer pragmas")?;
+    migrations::run(&writer_conn).context("Database migration failed")?;
 
-    configure(&conn).context("Failed to configure SQLite pragmas")?;
-    migrations::run(&conn).context("Database migration failed")?;
+    let writer = Arc::new(Mutex::new(writer_conn));
 
-    Ok(DbConn(std::sync::Arc::new(Mutex::new(conn))))
+    // 2. Reader connection (dedicated for UI queries, query_only mode)
+    let reader_conn = Connection::open(db_path)
+        .with_context(|| format!("Failed to open SQLite reader at {}", db_path.display()))?;
+    configure(&reader_conn).context("Failed to configure SQLite reader pragmas")?;
+    reader_conn.execute("PRAGMA query_only = ON;", [])?;
+
+    let reader = Arc::new(Mutex::new(reader_conn));
+
+    Ok(DbConn { writer, reader })
 }
 
 /// Apply WAL mode and performance pragmas.
