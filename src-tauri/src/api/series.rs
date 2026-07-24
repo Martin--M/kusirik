@@ -24,7 +24,7 @@ pub struct SeriesApi {
     pub cast: Option<String>,
     pub director: Option<String>,
     pub genre: Option<String>,
-    #[serde(rename = "releaseDate")]
+    #[serde(alias = "releaseDate")]
     pub release_date: Option<String>,
     #[serde(default, deserialize_with = "deserialize_option_string")]
     pub last_modified: Option<String>,
