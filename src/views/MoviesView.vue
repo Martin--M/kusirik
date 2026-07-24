@@ -51,7 +51,7 @@ async function handleToggleFavorite(stream: VodStream) {
   }
 }
 const searchQuery = ref('')
-const sortField = ref<'name' | 'rating' | 'added'>('name')
+const sortField = ref<'name' | 'rating' | 'added' | 'releaseDate'>('name')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const isGridView = ref(true)
 
@@ -62,7 +62,8 @@ const { t } = useI18n()
 const sortLabels = computed(() => ({
   name: t('sortField.name'),
   rating: t('sortField.rating'),
-  added: t('sortField.added')
+  added: t('sortField.added'),
+  releaseDate: t('sortField.releaseDate')
 }))
 
 const profileStore = useProfileStore()
@@ -138,6 +139,14 @@ const filteredStreams = computed(() => {
       const addedB = parseInt(b.added || '0', 10)
       // asc: recent -> least recent; desc: least recent -> recent
       return sortOrder.value === 'asc' ? addedB - addedA : addedA - addedB
+    } else if (sortField.value === 'releaseDate') {
+      const tsA = a.release_date || 0
+      const tsB = b.release_date || 0
+      if (tsA === 0 && tsB === 0) return 0
+      if (tsA === 0) return 1
+      if (tsB === 0) return -1
+      // asc: newest -> oldest; desc: oldest -> newest
+      return sortOrder.value === 'asc' ? tsB - tsA : tsA - tsB
     }
     return 0
   })
