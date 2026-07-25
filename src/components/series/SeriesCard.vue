@@ -18,15 +18,14 @@ defineEmits<{
   (e: 'delete'): void
 }>()
 
-// Extract year from series name (e.g. "Series Name (2020)") or use release_date
+// Extract year from series name (e.g. "Series Name (2020)") or use release_date epoch timestamp
 const year = computed(() => {
   if (props.series.name) {
     const match = props.series.name.match(/\((\d{4})\)/)
     if (match) return match[1]
   }
-  if (props.series.release_date) {
-    const datePart = props.series.release_date.split('-')[0]
-    if (datePart && /^\d{4}$/.test(datePart)) return datePart
+  if (props.series.release_date && props.series.release_date > 0) {
+    return new Date(props.series.release_date * 1000).getUTCFullYear().toString()
   }
   return null
 })

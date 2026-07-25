@@ -23,6 +23,9 @@ import type { EpgEntry } from '@/types/epg'
 import { useToggleFavorite } from '@/composables/useFavorites'
 import { checkIsDesktop } from '@/lib/device'
 
+const isPastProgram = (stopInput: number | string) => checkPastProgram(stopInput, now.value)
+const isCurrentProgram = (startInput: number | string, stopInput: number | string) => checkCurrentProgram(startInput, stopInput, now.value)
+
 const { t } = useI18n()
 const toastStore = useToastStore()
 const profileStore = useProfileStore()
@@ -399,28 +402,28 @@ const timeSlots = computed(() => {
 })
 
 // Timeline horizontal positioning helper
-function getPositionLeft(dateStr: string): number {
-  const time = new Date(dateStr).getTime()
+function getPositionLeft(dateInput: number | string): number {
+  const time = typeof dateInput === 'number' ? dateInput * 1000 : new Date(dateInput).getTime()
   const start = startTime.value.getTime()
   const diffMinutes = (time - start) / 60000
   return diffMinutes * pxPerMinute
 }
 
-function getPositionWidth(startStr: string, stopStr: string): number {
-  const start = new Date(startStr).getTime()
-  const stop = new Date(stopStr).getTime()
+function getPositionWidth(startInput: number | string, stopInput: number | string): number {
+  const start = typeof startInput === 'number' ? startInput * 1000 : new Date(startInput).getTime()
+  const stop = typeof stopInput === 'number' ? stopInput * 1000 : new Date(stopInput).getTime()
   const diffMinutes = (stop - start) / 60000
   return diffMinutes * pxPerMinute
 }
 
 // Clamp EPG entry start to the visible timeline start to prevent rendering behind channel column
-function getRenderStart(startStr: string): string {
-  const start = new Date(startStr).getTime()
+function getRenderStart(startInput: number | string): number | string {
+  const start = typeof startInput === 'number' ? startInput * 1000 : new Date(startInput).getTime()
   const timelineStart = startTime.value.getTime()
   if (start < timelineStart) {
-    return startTime.value.toISOString()
+    return Math.floor(startTime.value.getTime() / 1000)
   }
-  return startStr
+  return startInput
 }
 
 // Current time marker position
@@ -516,10 +519,10 @@ watch(scrollContainer, (newVal) => {
     })
   }
 })
-function shouldShowEndTime(startStr: string, stopStr: string): boolean {
+function shouldShowEndTime(startInput: number | string, stopInput: number | string): boolean {
   try {
-    const start = new Date(startStr).getTime()
-    const stop = new Date(stopStr).getTime()
+    const start = typeof startInput === 'number' ? startInput * 1000 : new Date(startInput).getTime()
+    const stop = typeof stopInput === 'number' ? stopInput * 1000 : new Date(stopInput).getTime()
     const durationMin = (stop - start) / 60000
     return durationMin > 30
   } catch (e) {
@@ -534,18 +537,15 @@ function formatTime(date: Date): string {
   return `${h}:${m}`
 }
 
-function formatEpgTime(dateStr: string): string {
+function formatEpgTime(dateInput: number | string): string {
   try {
-    const date = new Date(dateStr)
+    const date = typeof dateInput === 'number' ? new Date(dateInput * 1000) : new Date(dateInput)
     return formatTime(date)
   } catch (e) {
     return ''
   }
 }
 
-// Program status checks
-const isPastProgram = (stopStr: string) => checkPastProgram(stopStr, now.value)
-const isCurrentProgram = (startStr: string, stopStr: string) => checkCurrentProgram(startStr, stopStr, now.value)
 
 // Selected program / channel for details sidebar
 const selectedChannel = ref<any | null>(null)

@@ -138,7 +138,7 @@ onBeforeUnmount(() => {
             :name="chunkedItems[virtualRow.index][0].name"
             :image="chunkedItems[virtualRow.index][0].cover"
             :rating="formatRating(chunkedItems[virtualRow.index][0].rating)"
-            :year="chunkedItems[virtualRow.index][0].release_date?.split('-')[0]"
+            :year="chunkedItems[virtualRow.index][0].release_date ? new Date((chunkedItems[virtualRow.index][0].release_date as number) * 1000).getUTCFullYear().toString() : undefined"
             :is-selected="String(selectedSeriesId) === String(chunkedItems[virtualRow.index][0].series_id)"
             @select="emit('select', chunkedItems[virtualRow.index][0])"
             @play="emit('play', chunkedItems[virtualRow.index][0])"

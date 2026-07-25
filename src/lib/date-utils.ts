@@ -1,11 +1,23 @@
 /**
- * Formats a UTC ISO-8601 date string to the channel's local broadcast timezone format
+ * Helper to convert a number (epoch seconds) or string date into Date object
+ */
+function toDate(val: number | string): Date {
+  if (typeof val === 'number') {
+    return new Date(val * 1000)
+  }
+  return new Date(val)
+}
+
+/**
+ * Formats a UTC date (number or ISO string) to the channel's local broadcast timezone format
  * expected by IPTV catch-up servers (e.g. YYYY-MM-DD:HH-MM).
  */
-export function formatUtcForCatchup(dateStr: string, tzOffset?: string | null): string {
+export function formatUtcForCatchup(dateInput: number | string, tzOffset?: number | string | null): string {
   try {
-    let date = new Date(dateStr)
-    if (tzOffset) {
+    let date = toDate(dateInput)
+    if (typeof tzOffset === 'number') {
+      date = new Date(date.getTime() + tzOffset * 1000)
+    } else if (typeof tzOffset === 'string' && tzOffset) {
       const sign = tzOffset.startsWith('-') ? -1 : 1
       const cleaned = tzOffset.replace(/[+-]/g, '')
       const parts = cleaned.split(':')
@@ -30,10 +42,10 @@ export function formatUtcForCatchup(dateStr: string, tzOffset?: string | null): 
 /**
  * Returns the duration between start and stop times in minutes.
  */
-export function getDurationMinutes(startStr: string, stopStr: string): number {
+export function getDurationMinutes(startInput: number | string, stopInput: number | string): number {
   try {
-    const start = new Date(startStr).getTime()
-    const stop = new Date(stopStr).getTime()
+    const start = toDate(startInput).getTime()
+    const stop = toDate(stopInput).getTime()
     return Math.round((stop - start) / 60000)
   } catch (e) {
     return 0
@@ -43,10 +55,10 @@ export function getDurationMinutes(startStr: string, stopStr: string): number {
 /**
  * Returns true if the program is currently airing based on the given current time.
  */
-export function isCurrentProgram(startStr: string, stopStr: string, now: Date): boolean {
+export function isCurrentProgram(startInput: number | string, stopInput: number | string, now: Date): boolean {
   try {
-    const start = new Date(startStr)
-    const stop = new Date(stopStr)
+    const start = toDate(startInput)
+    const stop = toDate(stopInput)
     return start <= now && stop >= now
   } catch (e) {
     return false
@@ -56,9 +68,9 @@ export function isCurrentProgram(startStr: string, stopStr: string, now: Date): 
 /**
  * Returns true if the program stop time is in the past compared to the given current time.
  */
-export function isPastProgram(stopStr: string, now: Date): boolean {
+export function isPastProgram(stopInput: number | string, now: Date): boolean {
   try {
-    const stop = new Date(stopStr)
+    const stop = toDate(stopInput)
     return stop < now
   } catch (e) {
     return false

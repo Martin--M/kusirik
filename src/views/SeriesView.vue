@@ -134,18 +134,18 @@ const filteredSeriesList = computed(() => {
       const ratingB = parseFloat(b.rating || '0')
       return sortOrder.value === 'asc' ? ratingB - ratingA : ratingA - ratingB
     } else if (sortField.value === 'added') {
-      const addedA = parseInt(a.last_modified || '0', 10)
-      const addedB = parseInt(b.last_modified || '0', 10)
+      const addedA = a.last_modified || 0
+      const addedB = b.last_modified || 0
       // asc: recent -> least recent; desc: least recent -> recent
       return sortOrder.value === 'asc' ? addedB - addedA : addedA - addedB
     } else if (sortField.value === 'releaseDate') {
-      const dateA = a.release_date || ''
-      const dateB = b.release_date || ''
-      if (!dateA && !dateB) return 0
-      if (!dateA) return 1
-      if (!dateB) return -1
-      // asc: newest -> oldest (2026 -> 1990); desc: oldest -> newest (1990 -> 2026)
-      return sortOrder.value === 'asc' ? dateB.localeCompare(dateA) : dateA.localeCompare(dateB)
+      const tsA = a.release_date || 0
+      const tsB = b.release_date || 0
+      if (tsA === 0 && tsB === 0) return 0
+      if (tsA === 0) return 1
+      if (tsB === 0) return -1
+      // asc: newest -> oldest; desc: oldest -> newest
+      return sortOrder.value === 'asc' ? tsB - tsA : tsA - tsB
     }
     return 0
   })

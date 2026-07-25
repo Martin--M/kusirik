@@ -135,8 +135,8 @@ const filteredStreams = computed(() => {
       // asc: highest (10) -> lowest (0); desc: lowest (0) -> highest (10)
       return sortOrder.value === 'asc' ? ratingB - ratingA : ratingA - ratingB
     } else if (sortField.value === 'added') {
-      const addedA = parseInt(a.added || '0', 10)
-      const addedB = parseInt(b.added || '0', 10)
+      const addedA = a.added || 0
+      const addedB = b.added || 0
       // asc: recent -> least recent; desc: least recent -> recent
       return sortOrder.value === 'asc' ? addedB - addedA : addedA - addedB
     } else if (sortField.value === 'releaseDate') {

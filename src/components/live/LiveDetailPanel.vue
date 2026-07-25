@@ -68,8 +68,8 @@ onUnmounted(() => {
   clearInterval(timer)
 })
 
-const isPastProgram = (stopStr: string) => checkPastProgram(stopStr, now.value)
-const isCurrentProgram = (startStr: string, stopStr: string) => checkCurrentProgram(startStr, stopStr, now.value)
+const isPastProgram = (stopInput: number | string) => checkPastProgram(stopInput, now.value)
+const isCurrentProgram = (startInput: number | string, stopInput: number | string) => checkCurrentProgram(startInput, stopInput, now.value)
 
 const currentProgram = computed(() => {
   if (!epgData.value) return null
@@ -82,11 +82,15 @@ const pastPrograms = computed(() => {
   const cutoffTime = new Date(now.value.getTime() - durationMs)
   
   const finished = epgData.value.filter((entry) => {
-    const start = new Date(entry.start)
+    const start = typeof entry.start === 'number' ? new Date(entry.start * 1000) : new Date(entry.start)
     return isPastProgram(entry.stop) && start >= cutoffTime
   })
   
-  return [...finished].sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime())
+  return [...finished].sort((a, b) => {
+    const timeA = typeof a.start === 'number' ? a.start * 1000 : new Date(a.start).getTime()
+    const timeB = typeof b.start === 'number' ? b.start * 1000 : new Date(b.start).getTime()
+    return timeB - timeA
+  })
 })
 
 const isCatchupValid = ref(false)
@@ -227,8 +231,8 @@ async function copyCatchupUrl(item: any) {
 
 const currentProgramProgress = computed(() => {
   if (!currentProgram.value) return 0
-  const start = new Date(currentProgram.value.start).getTime()
-  const stop = new Date(currentProgram.value.stop).getTime()
+  const start = typeof currentProgram.value.start === 'number' ? currentProgram.value.start * 1000 : new Date(currentProgram.value.start).getTime()
+  const stop = typeof currentProgram.value.stop === 'number' ? currentProgram.value.stop * 1000 : new Date(currentProgram.value.stop).getTime()
   const current = now.value.getTime()
   if (stop === start) return 0
   const progress = ((current - start) / (stop - start)) * 100
@@ -238,14 +242,14 @@ const currentProgramProgress = computed(() => {
 const upcomingPrograms = computed(() => {
   if (!epgData.value) return []
   return epgData.value.filter((entry) => {
-    const start = new Date(entry.start)
+    const start = typeof entry.start === 'number' ? new Date(entry.start * 1000) : new Date(entry.start)
     return start > now.value
   })
 })
 
-function formatEpgTime(dateStr: string): string {
+function formatEpgTime(dateInput: number | string): string {
   try {
-    const date = new Date(dateStr)
+    const date = typeof dateInput === 'number' ? new Date(dateInput * 1000) : new Date(dateInput)
     const h = String(date.getHours()).padStart(2, '0')
     const m = String(date.getMinutes()).padStart(2, '0')
     return `${h}:${m}`
