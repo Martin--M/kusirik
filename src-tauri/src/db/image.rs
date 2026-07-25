@@ -26,7 +26,7 @@ pub fn insert_cached_image(
     data: &[u8],
     content_type: Option<&str>,
 ) -> Result<()> {
-    let fetched_at = chrono::Utc::now().to_rfc3339();
+    let fetched_at = chrono::Utc::now().timestamp();
     conn.execute(
         "INSERT OR REPLACE INTO image_cache (url, data, content_type, fetched_at)
          VALUES (?1, ?2, ?3, ?4)",

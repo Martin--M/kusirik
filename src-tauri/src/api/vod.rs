@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
-use super::client::{XtreamClient, deserialize_option_string};
+use super::client::{XtreamClient, deserialize_option_string, deserialize_option_i64};
 use super::common::CategoryApi;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -13,8 +13,8 @@ pub struct VodStreamApi {
     #[serde(default, deserialize_with = "deserialize_option_string")]
     pub rating: Option<String>,
     pub container_extension: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_option_string")]
-    pub added: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_option_i64")]
+    pub added: Option<i64>,
     #[serde(default, alias = "releasedate", alias = "releaseDate")]
     pub release_date: Option<i64>,
     #[serde(default)]

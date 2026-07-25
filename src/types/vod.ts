@@ -12,7 +12,7 @@ export interface VodStream {
   category_id: string | null
   rating: string | null
   container_extension: string | null
-  added: string | null
+  added: number | null
   release_date?: number | null
   is_favorite?: number
 }

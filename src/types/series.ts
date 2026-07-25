@@ -15,8 +15,8 @@ export interface Series {
   cast_: string | null
   director: string | null
   genre: string | null
-  release_date: string | null
-  last_modified: string | null
+  release_date: number | null
+  last_modified: number | null
   is_favorite?: number
 }
 

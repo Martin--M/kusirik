@@ -18,11 +18,14 @@ pub async fn get_epg_for_channel(
     to: String,
 ) -> Result<Vec<EpgEntry>, String> {
     use tauri::Manager;
+    let from_ts = parse_timestamp_param(&from);
+    let to_ts = parse_timestamp_param(&to);
+
     // 1. Query the local database first
     let db_conn = state;
     let list = {
         let conn = db_conn.read().map_err(|e| e.to_string())?;
-        crate::db::epg::query_for_channel(&conn, profile_id, &channel_id, &from, &to)
+        crate::db::epg::query_for_channel(&conn, profile_id, &channel_id, from_ts, to_ts)
             .map_err(|e| e.to_string())?
     };
 
@@ -105,22 +108,18 @@ pub async fn get_epg_for_channel(
     // Convert API programs to EPG entries and insert into database
     let mut epg_entries = Vec::new();
     for item in listings {
-        let mut start_iso = None;
-        let mut stop_iso = None;
+        let mut start_ts_num = None;
+        let mut stop_ts_num = None;
         let mut tz_offset = None;
 
         if let Some(ref start_ts) = item.start_timestamp {
             if let Ok(ts) = start_ts.parse::<i64>() {
-                if let Some(dt) = DateTime::from_timestamp(ts, 0) {
-                    start_iso = Some(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true));
-                }
+                start_ts_num = Some(ts);
             }
         }
         if let Some(ref stop_ts) = item.stop_timestamp {
             if let Ok(ts) = stop_ts.parse::<i64>() {
-                if let Some(dt) = DateTime::from_timestamp(ts, 0) {
-                    stop_iso = Some(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true));
-                }
+                stop_ts_num = Some(ts);
             }
         }
 
@@ -131,18 +130,15 @@ pub async fn get_epg_for_channel(
                 chrono::NaiveDateTime::parse_from_str(start_local_str.trim(), "%Y-%m-%d %H:%M:%S")
             ) {
                 let local_ts = naive_local.and_utc().timestamp();
-                let diff_secs = ts - local_ts;
-                let hours = diff_secs / 3600;
-                let minutes = (diff_secs % 3600).abs() / 60;
-                let sign = if diff_secs >= 0 { "+" } else { "-" };
-                tz_offset = Some(format!("{}{:02}:{:02}", sign, hours.abs(), minutes));
+                let diff_secs = (ts - local_ts) as i32;
+                tz_offset = Some(diff_secs);
             }
         }
 
-        let start_iso = start_iso.or_else(|| item.start.as_ref().and_then(|s| crate::api::epg::parse_api_date_to_utc(s)));
-        let stop_iso = stop_iso.or_else(|| item.end.as_ref().and_then(|s| crate::api::epg::parse_api_date_to_utc(s)));
+        let start_ts_num = start_ts_num.or_else(|| item.start.as_ref().and_then(|s| parse_date_str_to_timestamp(s)));
+        let stop_ts_num = stop_ts_num.or_else(|| item.end.as_ref().and_then(|s| parse_date_str_to_timestamp(s)));
 
-        let (start, stop) = match (start_iso, stop_iso) {
+        let (start, stop) = match (start_ts_num, stop_ts_num) {
             (Some(s), Some(e)) => (s, e),
             _ => continue,
         };
@@ -167,17 +163,13 @@ pub async fn get_epg_for_channel(
         crate::db::epg::bulk_insert(&mut conn, &epg_entries).map_err(|e| e.to_string())?;
     }
 
-    // Re-query from DB with a wider window (now-1h to now+24h) so that entries
-    // returned by the short EPG API (which are upcoming) are always included,
-    // regardless of how narrow the original `from`/`to` window was.
-    let wider_from = (Utc::now() - chrono::Duration::hours(1))
-        .to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-    let wider_to = (Utc::now() + chrono::Duration::hours(24))
-        .to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    // Re-query from DB with a wider window (now-1h to now+24h)
+    let wider_from = (Utc::now() - chrono::Duration::hours(1)).timestamp();
+    let wider_to = (Utc::now() + chrono::Duration::hours(24)).timestamp();
 
     let re_queried = {
         let conn = db_conn.read().map_err(|e| e.to_string())?;
-        crate::db::epg::query_for_channel(&conn, profile_id, &channel_id, &wider_from, &wider_to)
+        crate::db::epg::query_for_channel(&conn, profile_id, &channel_id, wider_from, wider_to)
             .map_err(|e| e.to_string())?
     };
 
@@ -197,6 +189,34 @@ pub struct GuideChannel {
     pub epg_entries: Vec<crate::db::epg::EpgEntry>,
 }
 
+fn parse_timestamp_param(s: &str) -> i64 {
+    let s = s.trim();
+    if let Ok(ts) = s.parse::<i64>() {
+        return ts;
+    }
+    if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+        return dt.timestamp();
+    }
+    if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
+        return naive.and_utc().timestamp();
+    }
+    0
+}
+
+fn parse_date_str_to_timestamp(s: &str) -> Option<i64> {
+    let s = s.trim();
+    if let Ok(ts) = s.parse::<i64>() {
+        return Some(ts);
+    }
+    if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+        return Some(dt.timestamp());
+    }
+    if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
+        return Some(naive.and_utc().timestamp());
+    }
+    None
+}
+
 #[tauri::command]
 pub async fn get_epg_guide(
     state: State<'_, DbConn>,
@@ -210,6 +230,9 @@ pub async fn get_epg_guide(
 
     let limit_val = limit.unwrap_or(50);
     let offset_val = offset.unwrap_or(0);
+
+    let from_ts = parse_timestamp_param(&from);
+    let to_ts = parse_timestamp_param(&to);
 
     // 1. Fetch channels that have active EPG listings in the timeline window (paginated & index-backed)
     let channel_rows = if let Some(p_id) = profile_id {
@@ -229,7 +252,7 @@ pub async fn get_epg_guide(
              LIMIT ?4 OFFSET ?5"
         ).map_err(|e| e.to_string())?;
         
-        let rows = channel_stmt.query_map(rusqlite::params![p_id, &to, &from, limit_val, offset_val], |row| {
+        let rows = channel_stmt.query_map(rusqlite::params![p_id, to_ts, from_ts, limit_val, offset_val], |row| {
             Ok((
                 row.get::<_, i64>(0)?,
                 row.get::<_, Option<String>>(1)?,
@@ -264,7 +287,7 @@ pub async fn get_epg_guide(
              LIMIT ?3 OFFSET ?4"
         ).map_err(|e| e.to_string())?;
 
-        let rows = channel_stmt.query_map(rusqlite::params![&to, &from, limit_val, offset_val], |row| {
+        let rows = channel_stmt.query_map(rusqlite::params![to_ts, from_ts, limit_val, offset_val], |row| {
             Ok((
                 row.get::<_, i64>(0)?,
                 row.get::<_, Option<String>>(1)?,
@@ -322,7 +345,7 @@ pub async fn get_epg_guide(
              ORDER BY start ASC"
         ).map_err(|e| e.to_string())?;
         
-        let rows = epg_stmt.query_map(rusqlite::params![p_id, &to, &from, channel_ids_json], |row| {
+        let rows = epg_stmt.query_map(rusqlite::params![p_id, to_ts, from_ts, channel_ids_json], |row| {
             Ok(EpgEntry {
                 profile_id: row.get(0)?,
                 channel_id: row.get(1)?,
@@ -349,7 +372,7 @@ pub async fn get_epg_guide(
              ORDER BY start ASC"
         ).map_err(|e| e.to_string())?;
         
-        let rows = epg_stmt.query_map(rusqlite::params![&to, &from, channel_ids_json], |row| {
+        let rows = epg_stmt.query_map(rusqlite::params![to_ts, from_ts, channel_ids_json], |row| {
             Ok(EpgEntry {
                 profile_id: row.get(0)?,
                 channel_id: row.get(1)?,

@@ -1,16 +1,12 @@
-//! Database migrations — run once on first start, version-gated thereafter.
+//! Database migrations — run once on first start.
 //!
-//! Each migration is a (version, sql) pair. The current schema version is stored
-//! in SQLite's built-in `PRAGMA user_version`. On startup:
-//!   1. Read current user_version from the DB
-//!   2. Apply every migration whose version > current user_version, in order
-//!   3. Update user_version to the latest applied version
+//! The schema is defined in `V1_SCHEMA`.
 
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 
-/// Current schema version. Bump this when adding a new migration.
-const CURRENT_VERSION: u32 = 3;
+/// Current schema version.
+const CURRENT_VERSION: u32 = 1;
 
 pub fn run(conn: &Connection) -> Result<()> {
     let current_version: u32 = conn
@@ -20,51 +16,24 @@ pub fn run(conn: &Connection) -> Result<()> {
     tracing::info!(
         current_version,
         target_version = CURRENT_VERSION,
-        "Running database migrations"
+        "Running database initialization"
     );
 
     if current_version < 1 {
         migration_v1(conn).context("Migration v1 failed")?;
-    }
-    if current_version < 2 {
-        migration_v2(conn).context("Migration v2 failed")?;
-    }
-    if current_version < 3 {
-        migration_v3(conn).context("Migration v3 failed")?;
     }
 
     // Update schema version
     conn.execute_batch(&format!("PRAGMA user_version = {CURRENT_VERSION}"))
         .context("Failed to update user_version")?;
 
-    tracing::info!("Migrations complete (schema v{CURRENT_VERSION})");
+    tracing::info!("Database initialization complete (schema v{CURRENT_VERSION})");
     Ok(())
 }
 
 fn migration_v1(conn: &Connection) -> Result<()> {
     tracing::info!("Applying migration v1 — initial flattened schema");
     conn.execute_batch(V1_SCHEMA).context("Failed to execute v1 schema SQL")?;
-    Ok(())
-}
-
-fn migration_v2(conn: &Connection) -> Result<()> {
-    tracing::info!("Applying migration v2 — add epg_entries indexes for fast queries & pruning");
-    conn.execute_batch(
-        "
-        CREATE INDEX IF NOT EXISTS idx_epg_stop ON epg_entries(profile_id, stop);
-        CREATE INDEX IF NOT EXISTS idx_epg_channel ON epg_entries(profile_id, channel_id);
-        CREATE INDEX IF NOT EXISTS idx_epg_time_window ON epg_entries(profile_id, start, stop);
-        CREATE INDEX IF NOT EXISTS idx_epg_active_channels ON epg_entries(profile_id, channel_id, stop, start);
-        ",
-    )
-    .context("Failed to execute v2 schema SQL")?;
-    Ok(())
-}
-
-fn migration_v3(conn: &Connection) -> Result<()> {
-    tracing::info!("Applying migration v3 — add release_date integer column to vod_streams");
-    conn.execute_batch("ALTER TABLE vod_streams ADD COLUMN release_date INTEGER;")
-        .context("Failed to execute v3 schema SQL")?;
     Ok(())
 }
 
@@ -80,7 +49,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   username        TEXT    NOT NULL,
   password        TEXT    NOT NULL DEFAULT '',
   epg_mode        TEXT    NOT NULL DEFAULT 'xmltv',
-  created_at      TEXT    NOT NULL,
+  created_at      INTEGER NOT NULL,
   profile_type    TEXT    NOT NULL DEFAULT 'xtream'
 );
 
@@ -96,7 +65,7 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE TABLE IF NOT EXISTS sync_log (
   profile_id  INTEGER NOT NULL,
   data_type   TEXT    NOT NULL,
-  fetched_at  TEXT    NOT NULL,
+  fetched_at  INTEGER NOT NULL,
   item_count  INTEGER,
   last_error  TEXT,
   PRIMARY KEY (profile_id, data_type)
@@ -122,7 +91,7 @@ CREATE TABLE IF NOT EXISTS live_streams (
   category_id           TEXT,
   tv_archive            INTEGER DEFAULT 0,
   tv_archive_duration   INTEGER DEFAULT 0,
-  added                 TEXT,
+  added                 INTEGER,
   is_favorite           INTEGER DEFAULT 0,
   url                   TEXT,
   countries             TEXT,
@@ -151,7 +120,7 @@ CREATE TABLE IF NOT EXISTS vod_streams (
   category_id           TEXT,
   rating                TEXT,
   container_extension   TEXT,
-  added                 TEXT,
+  added                 INTEGER,
   release_date          INTEGER,
   is_favorite           INTEGER DEFAULT 0,
   PRIMARY KEY (profile_id, stream_id)
@@ -163,7 +132,7 @@ CREATE TABLE IF NOT EXISTS vod_info (
   profile_id  INTEGER NOT NULL,
   stream_id   INTEGER NOT NULL,
   info_json   TEXT    NOT NULL,
-  fetched_at  TEXT    NOT NULL,
+  fetched_at  INTEGER NOT NULL,
   PRIMARY KEY (profile_id, stream_id)
 );
 
@@ -189,8 +158,8 @@ CREATE TABLE IF NOT EXISTS series (
   cast_         TEXT,
   director      TEXT,
   genre         TEXT,
-  release_date  TEXT,
-  last_modified TEXT,
+  release_date  INTEGER,
+  last_modified INTEGER,
   is_favorite   INTEGER DEFAULT 0,
   PRIMARY KEY (profile_id, series_id)
 );
@@ -201,7 +170,7 @@ CREATE TABLE IF NOT EXISTS series_info (
   profile_id  INTEGER NOT NULL,
   series_id   INTEGER NOT NULL,
   info_json   TEXT    NOT NULL,
-  fetched_at  TEXT    NOT NULL,
+  fetched_at  INTEGER NOT NULL,
   PRIMARY KEY (profile_id, series_id)
 );
 
@@ -213,17 +182,18 @@ CREATE TABLE IF NOT EXISTS epg_entries (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   profile_id  INTEGER NOT NULL,
   channel_id  TEXT    NOT NULL,
-  start       TEXT    NOT NULL,
-  stop        TEXT    NOT NULL,
+  start       INTEGER NOT NULL,
+  stop        INTEGER NOT NULL,
   title       TEXT,
   description TEXT,
-  tz_offset   TEXT DEFAULT '+00:00',
+  tz_offset   INTEGER DEFAULT 0,
   UNIQUE (profile_id, channel_id, start)
 );
 
-CREATE INDEX IF NOT EXISTS idx_epg_lookup ON epg_entries(profile_id, channel_id, start);
-DROP INDEX IF EXISTS idx_epg_query;
-CREATE INDEX IF NOT EXISTS idx_epg_query ON epg_entries(profile_id, channel_id, start, stop);
+CREATE INDEX IF NOT EXISTS idx_epg_stop ON epg_entries(profile_id, stop);
+CREATE INDEX IF NOT EXISTS idx_epg_channel ON epg_entries(profile_id, channel_id);
+CREATE INDEX IF NOT EXISTS idx_epg_time_window ON epg_entries(profile_id, start, stop);
+CREATE INDEX IF NOT EXISTS idx_epg_active_channels ON epg_entries(profile_id, channel_id, stop, start);
 
 -- ─────────────────────────────────────────────
 -- Image Cache
@@ -233,7 +203,7 @@ CREATE TABLE IF NOT EXISTS image_cache (
     url          TEXT PRIMARY KEY,
     data         BLOB NOT NULL,
     content_type TEXT,
-    fetched_at   TEXT NOT NULL
+    fetched_at   INTEGER NOT NULL
 );
 
 -- ─────────────────────────────────────────────
@@ -244,7 +214,7 @@ CREATE TABLE IF NOT EXISTS playback_history (
     profile_id  INTEGER NOT NULL,
     media_type  TEXT NOT NULL,
     stream_id   INTEGER NOT NULL,
-    played_at   TEXT NOT NULL,
+    played_at   INTEGER NOT NULL,
     PRIMARY KEY (profile_id, media_type, stream_id)
 );
 
@@ -268,11 +238,11 @@ mod tests {
         // Run migrations
         run(&conn).unwrap();
 
-        // After running, user_version should be 2
+        // After running, user_version should be 1
         let updated_version: u32 = conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(updated_version, 2);
+        assert_eq!(updated_version, 1);
 
         // Verify that expected tables exist
         let tables = vec![

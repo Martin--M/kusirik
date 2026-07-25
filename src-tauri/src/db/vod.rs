@@ -94,7 +94,7 @@ pub fn upsert_vod_info(
     profile_id: i64,
     stream_id: i64,
     info_json: &str,
-    fetched_at: &str,
+    fetched_at: i64,
 ) -> Result<()> {
     conn.execute(
         "INSERT OR REPLACE INTO vod_info (profile_id, stream_id, info_json, fetched_at)
@@ -104,7 +104,7 @@ pub fn upsert_vod_info(
     Ok(())
 }
 
-pub fn get_vod_info(conn: &Connection, profile_id: i64, stream_id: i64) -> Result<Option<(String, String)>> {
+pub fn get_vod_info(conn: &Connection, profile_id: i64, stream_id: i64) -> Result<Option<(String, i64)>> {
     let mut stmt = conn.prepare_cached(
         "SELECT info_json, fetched_at FROM vod_info WHERE profile_id = ?1 AND stream_id = ?2",
     )?;

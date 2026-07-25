@@ -43,6 +43,34 @@ pub fn upsert_series(conn: &mut Connection, profile_id: i64, series_list: &[Seri
 
         for series in series_list {
             let cat_id = series.category_id.as_deref().unwrap_or("0");
+
+            // Normalize series release_date into Unix timestamp (seconds) if missing epoch
+            let rel_timestamp: Option<i64> = match series.release_date {
+                Some(ts) if ts > 0 => Some(ts),
+                _ => {
+                    series.name.as_deref().and_then(|name| {
+                        let bytes = name.as_bytes();
+                        if bytes.len() >= 6 {
+                            for i in 0..=bytes.len() - 6 {
+                                if bytes[i] == b'('
+                                    && bytes[i + 5] == b')'
+                                    && bytes[i + 1..i + 5].iter().all(|b| b.is_ascii_digit())
+                                {
+                                    if let Ok(year) = name[i + 1..i + 5].parse::<i32>() {
+                                        if let Some(ndt) = chrono::NaiveDate::from_ymd_opt(year, 1, 1) {
+                                            if let Some(dt) = ndt.and_hms_opt(0, 0, 0) {
+                                                return Some(dt.and_utc().timestamp());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        None
+                    })
+                }
+            };
+
             stmt.execute(rusqlite::params![
                 profile_id,
                 series.series_id,
@@ -54,7 +82,7 @@ pub fn upsert_series(conn: &mut Connection, profile_id: i64, series_list: &[Seri
                 series.cast,
                 series.director,
                 series.genre,
-                series.release_date,
+                rel_timestamp,
                 series.last_modified
             ])?;
         }
@@ -68,7 +96,7 @@ pub fn upsert_series_info(
     profile_id: i64,
     series_id: i64,
     info_json: &str,
-    fetched_at: &str,
+    fetched_at: i64,
 ) -> Result<()> {
     conn.execute(
         "INSERT OR REPLACE INTO series_info (profile_id, series_id, info_json, fetched_at)
@@ -78,7 +106,7 @@ pub fn upsert_series_info(
     Ok(())
 }
 
-pub fn get_series_info(conn: &Connection, profile_id: i64, series_id: i64) -> Result<Option<(String, String)>> {
+pub fn get_series_info(conn: &Connection, profile_id: i64, series_id: i64) -> Result<Option<(String, i64)>> {
     let mut stmt = conn.prepare_cached(
         "SELECT info_json, fetched_at FROM series_info WHERE profile_id = ?1 AND series_id = ?2",
     )?;

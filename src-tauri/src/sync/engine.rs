@@ -294,11 +294,12 @@ fn get_last_sync_time(conn: &Connection, profile_id: i64, data_type: &str) -> Re
             // The last sync failed, so we treat it as if there was no successful sync
             return Ok(None);
         }
-        let val: String = row.get(0)?;
-        let dt = DateTime::parse_from_rfc3339(&val)
-            .map(|dt| dt.with_timezone(&Utc))
-            .context("Failed to parse ISO 8601 string")?;
-        Ok(Some(dt))
+        let ts: i64 = row.get(0)?;
+        if let Some(dt) = DateTime::from_timestamp(ts, 0) {
+            Ok(Some(dt))
+        } else {
+            Ok(None)
+        }
     } else {
         Ok(None)
     }
@@ -311,7 +312,7 @@ fn update_sync_log(
     item_count: Option<usize>,
     error: Option<&str>,
 ) -> Result<()> {
-    let now = Utc::now().to_rfc3339();
+    let now = Utc::now().timestamp();
     conn.execute(
         "INSERT OR REPLACE INTO sync_log (profile_id, data_type, fetched_at, item_count, last_error)
          VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -585,8 +586,8 @@ async fn sync_public_iptv_epg(app: AppHandle, profile_id: i64) -> Result<usize> 
     // Prune old EPG entries for public IPTV profile (keeping only starting from -24h to align with source data and optimize inserts)
     {
         let conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-        let prune_cutoff = (Utc::now() - chrono::Duration::hours(24)).to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-        match crate::db::epg::cleanup_old_entries(&conn, profile_id, &prune_cutoff) {
+        let prune_cutoff = (Utc::now() - chrono::Duration::hours(24)).timestamp();
+        match crate::db::epg::cleanup_old_entries(&conn, profile_id, prune_cutoff) {
             Ok(count) => tracing::info!(count, profile_id, cutoff = %prune_cutoff, "Pruned old EPG entries for public IPTV profile"),
             Err(e) => tracing::error!(error = ?e, "Failed to prune old EPG entries"),
         }
@@ -691,13 +692,14 @@ fn parse_and_insert_epg_xml(
                             }
                         }
 
-                        let (start_normalized, tz_offset) = match parse_xmltv_date_to_utc_and_offset(&start) {
-                            Some((utc, off)) => (utc, Some(off)),
-                            None => (start, None),
+                        let (start_normalized, tz_offset) = match parse_xmltv_date_to_timestamp_and_offset(&start) {
+                            Some((ts, off)) => (ts, Some(off)),
+                            None => continue,
                         };
-                        let stop_normalized = parse_xmltv_date_to_utc_and_offset(&stop)
-                            .map(|(utc, _)| utc)
-                            .unwrap_or(stop);
+                        let stop_normalized = match parse_xmltv_date_to_timestamp_and_offset(&stop) {
+                            Some((ts, _)) => ts,
+                            None => continue,
+                        };
 
                         current_entry = Some(crate::db::epg::EpgEntry {
                             profile_id,
@@ -770,30 +772,21 @@ fn parse_and_insert_epg_xml(
     Ok(accumulated_count)
 }
 
-fn parse_xmltv_date_to_utc_and_offset(s: &str) -> Option<(String, String)> {
+fn parse_xmltv_date_to_timestamp_and_offset(s: &str) -> Option<(i64, i32)> {
     let s = s.trim();
     if let Ok(dt) = DateTime::parse_from_str(s, "%Y%m%d%H%M%S %z") {
-        let utc = dt.with_timezone(&Utc).to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+        let ts = dt.timestamp();
         let secs = dt.offset().local_minus_utc();
-        let hours = secs / 3600;
-        let minutes = (secs % 3600).abs() / 60;
-        let sign = if secs >= 0 { "+" } else { "-" };
-        let offset = format!("{}{:02}:{:02}", sign, hours.abs(), minutes);
-        return Some((utc, offset));
+        return Some((ts, secs));
     }
     if let Ok(dt) = DateTime::parse_from_str(s, "%Y%m%d%H%M%S%z") {
-        let utc = dt.with_timezone(&Utc).to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+        let ts = dt.timestamp();
         let secs = dt.offset().local_minus_utc();
-        let hours = secs / 3600;
-        let minutes = (secs % 3600).abs() / 60;
-        let sign = if secs >= 0 { "+" } else { "-" };
-        let offset = format!("{}{:02}:{:02}", sign, hours.abs(), minutes);
-        return Some((utc, offset));
+        return Some((ts, secs));
     }
     if let Ok(naive) = NaiveDateTime::parse_from_str(s, "%Y%m%d%H%M%S") {
         let dt = DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc);
-        let utc = dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-        return Some((utc, "+00:00".to_string()));
+        return Some((dt.timestamp(), 0));
     }
     None
 }
@@ -856,8 +849,8 @@ pub async fn run_startup_tasks(app: AppHandle) -> Result<()> {
         tokio::task::spawn_blocking(move || {
             let conn = db_conn_clone.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
             let forty_eight_hours_ago = Utc::now() - chrono::Duration::hours(48);
-            let before_timestamp = forty_eight_hours_ago.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-            let deleted = crate::db::epg::cleanup_old_entries(&conn, profile_id, &before_timestamp)?;
+            let before_timestamp = forty_eight_hours_ago.timestamp();
+            let deleted = crate::db::epg::cleanup_old_entries(&conn, profile_id, before_timestamp)?;
             tracing::info!(profile_id, deleted_count = deleted, "EPG startup cleanup complete (removed items older than 48h)");
             Ok::<(), anyhow::Error>(())
         }).await??;

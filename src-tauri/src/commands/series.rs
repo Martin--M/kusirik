@@ -76,8 +76,8 @@ pub async fn get_series_info(
     {
         let conn = state.writer.lock().map_err(|e| e.to_string())?;
         let info_str = serde_json::to_string(&info_val).map_err(|e| e.to_string())?;
-        let now = Utc::now().to_rfc3339();
-        crate::db::series::upsert_series_info(&conn, p_id, series_id, &info_str, &now).map_err(|e| e.to_string())?;
+        let now = Utc::now().timestamp();
+        crate::db::series::upsert_series_info(&conn, p_id, series_id, &info_str, now).map_err(|e| e.to_string())?;
     }
 
     Ok(info_val)

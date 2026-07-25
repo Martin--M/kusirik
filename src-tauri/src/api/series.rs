@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
-use super::client::{XtreamClient, deserialize_option_string};
+use super::client::{XtreamClient, deserialize_option_string, deserialize_option_i64};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SeriesCategoryApi {
@@ -24,10 +24,10 @@ pub struct SeriesApi {
     pub cast: Option<String>,
     pub director: Option<String>,
     pub genre: Option<String>,
-    #[serde(alias = "releaseDate")]
-    pub release_date: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_option_string")]
-    pub last_modified: Option<String>,
+    #[serde(default, alias = "releaseDate", deserialize_with = "deserialize_option_i64")]
+    pub release_date: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_option_i64")]
+    pub last_modified: Option<i64>,
     #[serde(default)]
     pub is_favorite: Option<i32>,
     #[serde(default)]

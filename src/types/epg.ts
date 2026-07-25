@@ -2,11 +2,11 @@ export interface EpgEntry {
   id: number
   profile_id: number
   channel_id: string
-  start: string // UTC ISO 8601
-  stop: string  // UTC ISO 8601
+  start: number // Unix Epoch Seconds
+  stop: number  // Unix Epoch Seconds
   title: string | null
   description: string | null
-  tz_offset?: string | null
+  tz_offset?: number | null // Offset in seconds
 }
 
 export interface GuideChannel {

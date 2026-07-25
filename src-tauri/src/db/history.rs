@@ -11,11 +11,11 @@ pub fn record_playback(
     media_type: &str,
     stream_id: i64,
 ) -> Result<()> {
-    let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let now = chrono::Utc::now().timestamp();
     conn.execute(
         "INSERT OR REPLACE INTO playback_history (profile_id, media_type, stream_id, played_at)
          VALUES (?1, ?2, ?3, ?4)",
-        rusqlite::params![profile_id, media_type, stream_id, &now],
+        rusqlite::params![profile_id, media_type, stream_id, now],
     ).context("Failed to record playback history")?;
     Ok(())
 }

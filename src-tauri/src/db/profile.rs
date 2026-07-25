@@ -10,7 +10,7 @@ pub struct Profile {
     pub username: String,
     pub password: String,
     pub epg_mode: String,
-    pub created_at: String,
+    pub created_at: i64,
     pub profile_type: String,
 }
 

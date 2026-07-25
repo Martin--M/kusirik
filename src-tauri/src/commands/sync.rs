@@ -28,7 +28,7 @@ pub fn get_sync_status(
         .query_map(rusqlite::params![profile_id], |row| {
             Ok(serde_json::json!({
                 "data_type": row.get::<_, String>(0)?,
-                "fetched_at": row.get::<_, String>(1)?,
+                "fetched_at": row.get::<_, i64>(1)?,
                 "item_count": row.get::<_, Option<i64>>(2)?,
                 "last_error": row.get::<_, Option<String>>(3)?,
             }))

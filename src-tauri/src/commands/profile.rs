@@ -43,7 +43,7 @@ pub async fn save_profile(
     let conn = &*conn_guard;
 
     let epg_mode = payload.epg_mode.unwrap_or_else(|| "xmltv".to_string());
-    let created_at = Utc::now().to_rfc3339();
+    let created_at = Utc::now().timestamp();
     let profile_type = payload.profile_type.unwrap_or_else(|| "xtream".to_string());
 
     let profile = Profile {
@@ -53,7 +53,7 @@ pub async fn save_profile(
         username: payload.username.clone(),
         password: payload.password.clone().unwrap_or_default(),
         epg_mode: epg_mode.clone(),
-        created_at: created_at.clone(),
+        created_at,
         profile_type: profile_type.clone(),
     };
 
@@ -98,7 +98,7 @@ pub async fn add_public_iptv_profile(
         }));
     }
 
-    let created_at = Utc::now().to_rfc3339();
+    let created_at = Utc::now().timestamp();
     let profile = Profile {
         id: 0,
         name: "Public IPTV".to_string(),
@@ -106,7 +106,7 @@ pub async fn add_public_iptv_profile(
         username: "public".to_string(),
         password: "".to_string(),
         epg_mode: "xmltv".to_string(),
-        created_at: created_at.clone(),
+        created_at,
         profile_type: "public_iptv".to_string(),
     };
 

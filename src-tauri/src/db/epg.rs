@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 pub struct EpgEntry {
     pub profile_id: i64,
     pub channel_id: String,
-    pub start: String, // UTC ISO 8601
-    pub stop: String,  // UTC ISO 8601
+    pub start: i64, // Unix Epoch Seconds
+    pub stop: i64,  // Unix Epoch Seconds
     pub title: Option<String>,
     pub description: Option<String>,
-    pub tz_offset: Option<String>,
+    pub tz_offset: Option<i32>, // Offset in seconds (e.g. 7200 for UTC+2)
 }
 
-/// Bulk insert EPG entries using INSERT OR REPLACE to handle daily re-syncs
+/// Bulk insert EPG entries using INSERT OR IGNORE to handle daily re-syncs
 /// without accumulating duplicates (schema has UNIQUE on profile_id, channel_id, start).
 pub fn bulk_insert(conn: &mut Connection, entries: &[EpgEntry]) -> Result<()> {
     if entries.is_empty() {
@@ -35,7 +35,7 @@ pub fn bulk_insert(conn: &mut Connection, entries: &[EpgEntry]) -> Result<()> {
                 entry.stop,
                 entry.title,
                 entry.description,
-                entry.tz_offset.as_deref().unwrap_or("+00:00"),
+                entry.tz_offset.unwrap_or(0),
             ])?;
         }
     }
@@ -50,8 +50,8 @@ pub fn query_for_channel(
     conn: &Connection,
     profile_id: i64,
     channel_id: &str,
-    from: &str,
-    to: &str,
+    from: i64,
+    to: i64,
 ) -> Result<Vec<EpgEntry>> {
     let mut stmt = conn.prepare_cached(
         "SELECT profile_id, channel_id, start, stop, title, description, tz_offset 
@@ -79,11 +79,11 @@ pub fn query_for_channel(
     Ok(list)
 }
 
-/// Deletes EPG entries that ended before the given timestamp (UTC ISO 8601).
-pub fn cleanup_old_entries(conn: &Connection, profile_id: i64, before_utc_iso: &str) -> Result<usize> {
+/// Deletes EPG entries that ended before the given timestamp (Unix Epoch Seconds).
+pub fn cleanup_old_entries(conn: &Connection, profile_id: i64, before_timestamp: i64) -> Result<usize> {
     let count = conn.execute(
         "DELETE FROM epg_entries WHERE profile_id = ?1 AND stop < ?2",
-        params![profile_id, before_utc_iso],
+        params![profile_id, before_timestamp],
     )?;
     Ok(count)
 }

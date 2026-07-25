@@ -203,6 +203,55 @@ where
     }
 }
 
+/// A custom deserializer helper that reads fields that might be strings, numbers, or null,
+/// and coerces them into an Option<i64> (Unix Epoch seconds).
+pub fn deserialize_option_i64<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Helper {
+        String(String),
+        Float(f64),
+        Int(i64),
+        Null,
+    }
+
+    match Helper::deserialize(deserializer)? {
+        Helper::String(s) => {
+            let s = s.trim();
+            if s.is_empty() {
+                return Ok(None);
+            }
+            // 1. Try ISO date "YYYY-MM-DD" (e.g. "2024-09-19")
+            if let Ok(ndt) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+                if let Some(dt) = ndt.and_hms_opt(0, 0, 0) {
+                    return Ok(Some(dt.and_utc().timestamp()));
+                }
+            }
+            // 2. Try 4-digit year "YYYY" (e.g. "2024")
+            if s.len() == 4 && s.chars().all(|c| c.is_ascii_digit()) {
+                if let Ok(year) = s.parse::<i32>() {
+                    if let Some(ndt) = chrono::NaiveDate::from_ymd_opt(year, 1, 1) {
+                        if let Some(dt) = ndt.and_hms_opt(0, 0, 0) {
+                            return Ok(Some(dt.and_utc().timestamp()));
+                        }
+                    }
+                }
+            }
+            // 3. Try direct Unix epoch timestamp string (e.g. "1608130741")
+            if let Ok(ts) = s.parse::<i64>() {
+                return Ok(Some(ts));
+            }
+            Ok(None)
+        }
+        Helper::Float(f) => Ok(Some(f as i64)),
+        Helper::Int(i) => Ok(Some(i)),
+        Helper::Null => Ok(None),
+    }
+}
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -268,6 +317,12 @@ mod tests {
         val: Option<String>,
     }
 
+    #[derive(Deserialize, Debug, PartialEq)]
+    struct DummyI64 {
+        #[serde(default, deserialize_with = "deserialize_option_i64")]
+        val: Option<i64>,
+    }
+
     #[test]
     fn test_deserialize_option_string() {
         let cases = vec![
@@ -281,6 +336,23 @@ mod tests {
 
         for (json_str, expected) in cases {
             let parsed: Dummy = serde_json::from_str(json_str).unwrap();
+            assert_eq!(parsed.val, expected, "Failed for JSON: {}", json_str);
+        }
+    }
+
+    #[test]
+    fn test_deserialize_option_i64() {
+        let cases = vec![
+            (r#"{"val": 1608130741}"#, Some(1608130741)),
+            (r#"{"val": "1608130741"}"#, Some(1608130741)),
+            (r#"{"val": "2024-09-19"}"#, Some(1726704000)),
+            (r#"{"val": "2020"}"#, Some(1577836800)),
+            (r#"{"val": ""}"#, None),
+            (r#"{"val": null}"#, None),
+        ];
+
+        for (json_str, expected) in cases {
+            let parsed: DummyI64 = serde_json::from_str(json_str).unwrap();
             assert_eq!(parsed.val, expected, "Failed for JSON: {}", json_str);
         }
     }
