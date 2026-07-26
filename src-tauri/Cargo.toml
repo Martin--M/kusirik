@@ -27,7 +27,7 @@ tokio = { version = "1", features = ["full"] }
 # SQLite — direct access for migrations and bulk EPG writes
 # tauri-plugin-sql manages its own connection pool for JS SELECT queries;
 # this Mutex<Connection> is for all Rust-side writes. Both use WAL mode.
-rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { version = "0.31", features = ["bundled-full"] }
 
 # EPG XML streaming parser
 quick-xml = { version = "0.40", features = ["async-tokio"] }

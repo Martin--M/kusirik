@@ -219,6 +219,74 @@ CREATE TABLE IF NOT EXISTS playback_history (
 );
 
 CREATE INDEX IF NOT EXISTS idx_playback_history_played ON playback_history(profile_id, played_at);
+
+-- ─────────────────────────────────────────────
+-- FTS5 Full-Text Search Tables & Triggers
+-- ─────────────────────────────────────────────
+
+CREATE VIRTUAL TABLE IF NOT EXISTS fts_vod USING fts5(
+  name,
+  category_id UNINDEXED,
+  content='vod_streams',
+  content_rowid='stream_id',
+  tokenize='unicode61 remove_diacritics 2'
+);
+
+CREATE TRIGGER IF NOT EXISTS vod_ai AFTER INSERT ON vod_streams BEGIN
+  INSERT INTO fts_vod(rowid, name, category_id) VALUES (new.stream_id, new.name, new.category_id);
+END;
+CREATE TRIGGER IF NOT EXISTS vod_ad AFTER DELETE ON vod_streams BEGIN
+  INSERT INTO fts_vod(fts_vod, rowid, name, category_id) VALUES('delete', old.stream_id, old.name, old.category_id);
+END;
+CREATE TRIGGER IF NOT EXISTS vod_au AFTER UPDATE ON vod_streams BEGIN
+  INSERT INTO fts_vod(fts_vod, rowid, name, category_id) VALUES('delete', old.stream_id, old.name, old.category_id);
+  INSERT INTO fts_vod(rowid, name, category_id) VALUES (new.stream_id, new.name, new.category_id);
+END;
+
+CREATE VIRTUAL TABLE IF NOT EXISTS fts_series USING fts5(
+  name,
+  cast_,
+  director,
+  plot,
+  category_id UNINDEXED,
+  content='series',
+  content_rowid='series_id',
+  tokenize='unicode61 remove_diacritics 2'
+);
+
+CREATE TRIGGER IF NOT EXISTS series_ai AFTER INSERT ON series BEGIN
+  INSERT INTO fts_series(rowid, name, cast_, director, plot, category_id)
+  VALUES (new.series_id, new.name, new.cast_, new.director, new.plot, new.category_id);
+END;
+CREATE TRIGGER IF NOT EXISTS series_ad AFTER DELETE ON series BEGIN
+  INSERT INTO fts_series(fts_series, rowid, name, cast_, director, plot, category_id)
+  VALUES('delete', old.series_id, old.name, old.cast_, old.director, old.plot, old.category_id);
+END;
+CREATE TRIGGER IF NOT EXISTS series_au AFTER UPDATE ON series BEGIN
+  INSERT INTO fts_series(fts_series, rowid, name, cast_, director, plot, category_id)
+  VALUES('delete', old.series_id, old.name, old.cast_, old.director, old.plot, old.category_id);
+  INSERT INTO fts_series(rowid, name, cast_, director, plot, category_id)
+  VALUES (new.series_id, new.name, new.cast_, new.director, new.plot, new.category_id);
+END;
+
+CREATE VIRTUAL TABLE IF NOT EXISTS fts_live USING fts5(
+  name,
+  category_id UNINDEXED,
+  content='live_streams',
+  content_rowid='stream_id',
+  tokenize='unicode61 remove_diacritics 2'
+);
+
+CREATE TRIGGER IF NOT EXISTS live_ai AFTER INSERT ON live_streams BEGIN
+  INSERT INTO fts_live(rowid, name, category_id) VALUES (new.stream_id, new.name, new.category_id);
+END;
+CREATE TRIGGER IF NOT EXISTS live_ad AFTER DELETE ON live_streams BEGIN
+  INSERT INTO fts_live(fts_live, rowid, name, category_id) VALUES('delete', old.stream_id, old.name, old.category_id);
+END;
+CREATE TRIGGER IF NOT EXISTS live_au AFTER UPDATE ON live_streams BEGIN
+  INSERT INTO fts_live(fts_live, rowid, name, category_id) VALUES('delete', old.stream_id, old.name, old.category_id);
+  INSERT INTO fts_live(rowid, name, category_id) VALUES (new.stream_id, new.name, new.category_id);
+END;
 "#;
 
 #[cfg(test)]
