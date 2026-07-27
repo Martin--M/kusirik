@@ -120,27 +120,24 @@ pub fn search_streams(
     query: &str,
     limit: u32,
 ) -> Result<Vec<LiveStreamDto>> {
-    let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-    let sql = "SELECT stream_id, name, stream_icon, epg_channel_id, category_id, tv_archive, tv_archive_duration, added, is_favorite, profile_id, countries,
+    let sanitized = crate::commands::search::sanitize_fts5_query(query);
+    if sanitized.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let now = chrono::Utc::now().timestamp();
+    let sql = "SELECT s.stream_id, s.name, s.stream_icon, s.epg_channel_id, s.category_id, s.tv_archive, s.tv_archive_duration, s.added, s.is_favorite, s.profile_id, s.countries,
                       (SELECT title FROM epg_entries
-                       WHERE epg_entries.profile_id = live_streams.profile_id
-                         AND epg_entries.channel_id = live_streams.epg_channel_id
+                       WHERE epg_entries.profile_id = s.profile_id
+                         AND epg_entries.channel_id = s.epg_channel_id
                          AND epg_entries.start <= ?4 AND epg_entries.stop > ?4 LIMIT 1) AS current_title
-               FROM live_streams
-               WHERE (?1 IS NULL OR profile_id = ?1) AND (
-                   name LIKE ?2 OR
-                   EXISTS (
-                       SELECT 1 FROM epg_entries
-                       WHERE epg_entries.profile_id = live_streams.profile_id
-                         AND epg_entries.channel_id = live_streams.epg_channel_id
-                         AND epg_entries.start <= ?4 AND epg_entries.stop > ?4
-                         AND epg_entries.title LIKE ?2
-                   )
-               )
-               ORDER BY name ASC
+               FROM live_streams s
+               JOIN fts_live fts ON s.stream_id = fts.rowid
+               WHERE (?1 IS NULL OR s.profile_id = ?1) AND fts_live MATCH ?2
+               ORDER BY bm25(fts_live) ASC
                LIMIT ?3";
     let mut stmt = conn.prepare_cached(sql)?;
-    let rows = stmt.query_map(rusqlite::params![profile_id, query, limit, &now], |row| {
+    let rows = stmt.query_map(rusqlite::params![profile_id, sanitized, limit, now], |row| {
         Ok(LiveStreamDto {
             stream: LiveStreamApi {
                 stream_id: row.get(0)?,

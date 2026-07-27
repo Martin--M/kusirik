@@ -173,13 +173,19 @@ pub fn search_streams(
     query: &str,
     limit: u32,
 ) -> Result<Vec<VodStreamApi>> {
-    let sql = "SELECT stream_id, name, stream_icon, category_id, rating, container_extension, added, is_favorite, profile_id, release_date
-               FROM vod_streams
-               WHERE (?1 IS NULL OR profile_id = ?1) AND name LIKE ?2
-               ORDER BY name ASC
+    let sanitized = crate::commands::search::sanitize_fts5_query(query);
+    if sanitized.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let sql = "SELECT s.stream_id, s.name, s.stream_icon, s.category_id, s.rating, s.container_extension, s.added, s.is_favorite, s.profile_id, s.release_date
+               FROM vod_streams s
+               JOIN fts_vod fts ON s.stream_id = fts.rowid
+               WHERE (?1 IS NULL OR s.profile_id = ?1) AND fts_vod MATCH ?2
+               ORDER BY bm25(fts_vod) ASC
                LIMIT ?3";
     let mut stmt = conn.prepare_cached(sql)?;
-    let rows = stmt.query_map(rusqlite::params![profile_id, query, limit], |row| {
+    let rows = stmt.query_map(rusqlite::params![profile_id, sanitized, limit], |row| {
         Ok(VodStreamApi {
             stream_id: row.get(0)?,
             name: row.get(1)?,

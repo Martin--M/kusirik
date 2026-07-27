@@ -173,13 +173,19 @@ pub fn search_series(
     query: &str,
     limit: u32,
 ) -> Result<Vec<SeriesApi>> {
-    let sql = "SELECT series_id, name, cover, category_id, rating, plot, cast_, director, genre, release_date, last_modified, is_favorite, profile_id
-               FROM series
-               WHERE (?1 IS NULL OR profile_id = ?1) AND name LIKE ?2
-               ORDER BY name ASC
+    let sanitized = crate::commands::search::sanitize_fts5_query(query);
+    if sanitized.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let sql = "SELECT s.series_id, s.name, s.cover, s.category_id, s.rating, s.plot, s.cast_, s.director, s.genre, s.release_date, s.last_modified, s.is_favorite, s.profile_id
+               FROM series s
+               JOIN fts_series fts ON s.series_id = fts.rowid
+               WHERE (?1 IS NULL OR s.profile_id = ?1) AND fts_series MATCH ?2
+               ORDER BY bm25(fts_series, 10.0, 2.0, 2.0, 1.0) ASC
                LIMIT ?3";
     let mut stmt = conn.prepare_cached(sql)?;
-    let rows = stmt.query_map(rusqlite::params![profile_id, query, limit], |row| {
+    let rows = stmt.query_map(rusqlite::params![profile_id, sanitized, limit], |row| {
         Ok(SeriesApi {
             series_id: row.get(0)?,
             name: row.get(1)?,
