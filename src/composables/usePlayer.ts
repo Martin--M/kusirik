@@ -113,7 +113,7 @@ export function usePlayer() {
     await startPlayback(url, profile.id)
     if (settingsStore.historyEnabled && seriesId) {
       try {
-        await recordPlaybackHistory(profile.id, 'series', seriesId)
+        await recordPlaybackHistory(profile.id, 'series', seriesId, id)
         queryClient.invalidateQueries({ queryKey: ['playback_history'] })
       } catch (e) {
         console.error('Failed to record series history:', e)

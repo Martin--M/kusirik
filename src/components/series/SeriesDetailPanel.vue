@@ -50,10 +50,20 @@ const mappedSelectedSeries = computed(() => {
   }
 })
 
-// Auto-expand first season when details load
+// Auto-expand season containing last_episode_id (or first season if none)
 watch(seriesDetails, (newDetails) => {
   if (newDetails && newDetails.episodes) {
     const keys = Object.keys(newDetails.episodes)
+    if (props.series?.last_episode_id) {
+      const targetEpId = props.series.last_episode_id
+      for (const seasonKey of keys) {
+        const episodesList = newDetails.episodes[seasonKey]
+        if (episodesList?.some((ep: any) => (typeof ep.id === 'string' ? parseInt(ep.id, 10) : ep.id) === targetEpId)) {
+          expandedSeason.value = seasonKey
+          return
+        }
+      }
+    }
     if (keys.length > 0) {
       expandedSeason.value = keys[0]
     }
@@ -197,11 +207,15 @@ async function copyEpisodeUrl(episode: any) {
                 v-for="episode in episodesList"
                 :key="episode.id"
                 class="episode-row"
+                :class="{ 'is-last-watched': (typeof episode.id === 'string' ? parseInt(episode.id, 10) : episode.id) === series?.last_episode_id }"
               >
                 <div class="episode-main">
                   <span class="episode-num">Ep {{ episode.episode_num }}</span>
                   <span class="episode-title" :title="episode.title || ''">
                     {{ episode.title || $t('media.episode', { num: episode.episode_num }) }}
+                  </span>
+                  <span v-if="(typeof episode.id === 'string' ? parseInt(episode.id, 10) : episode.id) === series?.last_episode_id" class="ep-watched-tag">
+                    ✓ Watched
                   </span>
                 </div>
                 <div class="episode-info" v-if="episode.info?.plot">
@@ -449,6 +463,21 @@ async function copyEpisodeUrl(episode: any) {
 
 .season-header:hover {
   background-color: rgba(255, 255, 255, 0.03);
+}
+
+.episode-row.is-last-watched {
+  border-left: 3px solid var(--color-primary);
+  background-color: rgba(59, 130, 246, 0.08);
+}
+
+.ep-watched-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  background-color: rgba(59, 130, 246, 0.15);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  margin-left: 6px;
 }
 
 .season-title {
