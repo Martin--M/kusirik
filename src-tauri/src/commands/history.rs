@@ -8,9 +8,10 @@ pub async fn record_playback_history(
     profile_id: i64,
     media_type: String,
     stream_id: i64,
+    last_episode_id: Option<i64>,
 ) -> Result<(), String> {
     let conn = state.writer.lock().map_err(|e| e.to_string())?;
-    crate::db::history::record_playback(&conn, profile_id, &media_type, stream_id)
+    crate::db::history::record_playback(&conn, profile_id, &media_type, stream_id, last_episode_id)
         .map_err(|e| e.to_string())
 }
 

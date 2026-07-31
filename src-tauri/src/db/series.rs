@@ -157,6 +157,7 @@ pub fn query_series(
             last_modified: row.get(10)?,
             is_favorite: row.get(11)?,
             profile_id: Some(row.get(12)?),
+            last_episode_id: None,
         })
     })?;
 
@@ -200,6 +201,7 @@ pub fn search_series(
             last_modified: row.get(10)?,
             is_favorite: row.get(11)?,
             profile_id: Some(row.get(12)?),
+            last_episode_id: None,
         })
     })?;
     let mut res = Vec::new();

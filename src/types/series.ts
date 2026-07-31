@@ -18,6 +18,7 @@ export interface Series {
   release_date: number | null
   last_modified: number | null
   is_favorite?: number
+  last_episode_id?: number | null
 }
 
 export interface SeriesInfo {

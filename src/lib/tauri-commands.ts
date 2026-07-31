@@ -155,8 +155,8 @@ export const getFavorites = (profileId?: number | null) =>
 
 // ─── Playback History ─────────────────────────────────────────────────────────
 
-export const recordPlaybackHistory = (profileId: number, mediaType: 'live' | 'vod' | 'series', streamId: number) =>
-  invoke<void>('record_playback_history', { profileId, mediaType, streamId })
+export const recordPlaybackHistory = (profileId: number, mediaType: 'live' | 'vod' | 'series', streamId: number, lastEpisodeId?: number | null) =>
+  invoke<void>('record_playback_history', { profileId, mediaType, streamId, lastEpisodeId })
 
 export const getPlaybackHistory = (profileId?: number | null) =>
   invoke<SearchResults>('get_playback_history', { profileId })

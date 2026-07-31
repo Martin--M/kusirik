@@ -125,6 +125,7 @@ pub fn query_favorites(conn: &Connection, profile_id: Option<i64>) -> Result<Sea
             last_modified: row.get(10)?,
             is_favorite: row.get(11)?,
             profile_id: Some(row.get(12)?),
+            last_episode_id: None,
         })
     })?;
     let mut series = Vec::new();

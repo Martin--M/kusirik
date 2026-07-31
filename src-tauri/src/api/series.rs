@@ -32,6 +32,8 @@ pub struct SeriesApi {
     pub is_favorite: Option<i32>,
     #[serde(default)]
     pub profile_id: Option<i64>,
+    #[serde(default)]
+    pub last_episode_id: Option<i64>,
 }
 
 pub async fn fetch_categories(client: &XtreamClient) -> Result<Vec<SeriesCategoryApi>> {

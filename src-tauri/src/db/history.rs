@@ -10,12 +10,13 @@ pub fn record_playback(
     profile_id: i64,
     media_type: &str,
     stream_id: i64,
+    last_episode_id: Option<i64>,
 ) -> Result<()> {
     let now = chrono::Utc::now().timestamp();
     conn.execute(
-        "INSERT OR REPLACE INTO playback_history (profile_id, media_type, stream_id, played_at)
-         VALUES (?1, ?2, ?3, ?4)",
-        rusqlite::params![profile_id, media_type, stream_id, now],
+        "INSERT OR REPLACE INTO playback_history (profile_id, media_type, stream_id, last_episode_id, played_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        rusqlite::params![profile_id, media_type, stream_id, last_episode_id, now],
     ).context("Failed to record playback history")?;
     Ok(())
 }
@@ -104,7 +105,7 @@ pub fn query_history(conn: &Connection, profile_id: Option<i64>) -> Result<Searc
 
     // 3. Series (join with playback_history)
     let mut series_stmt = conn.prepare(
-        "SELECT s.series_id, s.name, s.cover, s.category_id, s.rating, s.plot, s.cast_, s.director, s.genre, s.release_date, s.last_modified, s.is_favorite, s.profile_id
+        "SELECT s.series_id, s.name, s.cover, s.category_id, s.rating, s.plot, s.cast_, s.director, s.genre, s.release_date, s.last_modified, s.is_favorite, s.profile_id, h.last_episode_id
          FROM playback_history h
          JOIN series s ON h.profile_id = s.profile_id AND h.stream_id = s.series_id
          WHERE (?1 IS NULL OR h.profile_id = ?1) AND h.media_type = 'series'
@@ -125,6 +126,7 @@ pub fn query_history(conn: &Connection, profile_id: Option<i64>) -> Result<Searc
             last_modified: row.get(10)?,
             is_favorite: row.get(11)?,
             profile_id: Some(row.get(12)?),
+            last_episode_id: row.get(13)?,
         })
     })?;
     let mut series = Vec::new();

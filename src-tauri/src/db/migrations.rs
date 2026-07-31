@@ -211,10 +211,11 @@ CREATE TABLE IF NOT EXISTS image_cache (
 -- ─────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS playback_history (
-    profile_id  INTEGER NOT NULL,
-    media_type  TEXT NOT NULL,
-    stream_id   INTEGER NOT NULL,
-    played_at   INTEGER NOT NULL,
+    profile_id       INTEGER NOT NULL,
+    media_type       TEXT NOT NULL,
+    stream_id        INTEGER NOT NULL,
+    last_episode_id  INTEGER,
+    played_at        INTEGER NOT NULL,
     PRIMARY KEY (profile_id, media_type, stream_id)
 );
 
