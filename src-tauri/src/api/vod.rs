@@ -15,7 +15,7 @@ pub struct VodStreamApi {
     pub container_extension: Option<String>,
     #[serde(default, deserialize_with = "deserialize_option_i64")]
     pub added: Option<i64>,
-    #[serde(default, alias = "releasedate", alias = "releaseDate")]
+    #[serde(default, alias = "releasedate", alias = "releaseDate", deserialize_with = "deserialize_option_i64")]
     pub release_date: Option<i64>,
     #[serde(default)]
     pub is_favorite: Option<i32>,

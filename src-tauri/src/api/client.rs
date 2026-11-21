@@ -203,6 +203,36 @@ where
     }
 }
 
+/// Parses a date or timestamp string into Unix Epoch seconds.
+/// Supports ISO dates ("YYYY-MM-DD"), 4-digit years ("YYYY" -> Jan 1), and numeric epoch strings.
+pub fn parse_date_or_timestamp(s: &str) -> Option<i64> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+    // 1. Try ISO date "YYYY-MM-DD" (e.g. "2024-09-19")
+    if let Ok(ndt) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        if let Some(dt) = ndt.and_hms_opt(0, 0, 0) {
+            return Some(dt.and_utc().timestamp());
+        }
+    }
+    // 2. Try 4-digit year "YYYY" (e.g. "2024")
+    if s.len() == 4 && s.chars().all(|c| c.is_ascii_digit()) {
+        if let Ok(year) = s.parse::<i32>() {
+            if let Some(ndt) = chrono::NaiveDate::from_ymd_opt(year, 1, 1) {
+                if let Some(dt) = ndt.and_hms_opt(0, 0, 0) {
+                    return Some(dt.and_utc().timestamp());
+                }
+            }
+        }
+    }
+    // 3. Try direct Unix epoch timestamp string (e.g. "1608130741")
+    if let Ok(ts) = s.parse::<i64>() {
+        return Some(ts);
+    }
+    None
+}
+
 /// A custom deserializer helper that reads fields that might be strings, numbers, or null,
 /// and coerces them into an Option<i64> (Unix Epoch seconds).
 pub fn deserialize_option_i64<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
@@ -219,33 +249,7 @@ where
     }
 
     match Helper::deserialize(deserializer)? {
-        Helper::String(s) => {
-            let s = s.trim();
-            if s.is_empty() {
-                return Ok(None);
-            }
-            // 1. Try ISO date "YYYY-MM-DD" (e.g. "2024-09-19")
-            if let Ok(ndt) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
-                if let Some(dt) = ndt.and_hms_opt(0, 0, 0) {
-                    return Ok(Some(dt.and_utc().timestamp()));
-                }
-            }
-            // 2. Try 4-digit year "YYYY" (e.g. "2024")
-            if s.len() == 4 && s.chars().all(|c| c.is_ascii_digit()) {
-                if let Ok(year) = s.parse::<i32>() {
-                    if let Some(ndt) = chrono::NaiveDate::from_ymd_opt(year, 1, 1) {
-                        if let Some(dt) = ndt.and_hms_opt(0, 0, 0) {
-                            return Ok(Some(dt.and_utc().timestamp()));
-                        }
-                    }
-                }
-            }
-            // 3. Try direct Unix epoch timestamp string (e.g. "1608130741")
-            if let Ok(ts) = s.parse::<i64>() {
-                return Ok(Some(ts));
-            }
-            Ok(None)
-        }
+        Helper::String(s) => Ok(parse_date_or_timestamp(&s)),
         Helper::Float(f) => Ok(Some(f as i64)),
         Helper::Int(i) => Ok(Some(i)),
         Helper::Null => Ok(None),

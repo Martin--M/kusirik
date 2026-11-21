@@ -35,42 +35,47 @@ pub fn upsert_streams(conn: &mut Connection, profile_id: i64, streams: &[VodStre
                 rating = excluded.rating,
                 container_extension = excluded.container_extension,
                 added = excluded.added,
-                release_date = excluded.release_date",
+                release_date = CASE
+                    WHEN ?10 = 1 THEN excluded.release_date
+                    WHEN vod_streams.release_date IS NOT NULL
+                         AND strftime('%m-%d', vod_streams.release_date, 'unixepoch') != '01-01'
+                         THEN vod_streams.release_date
+                    ELSE COALESCE(excluded.release_date, vod_streams.release_date)
+                END",
         )?;
 
         for stream in streams {
             let cat_id = stream.category_id.as_deref().unwrap_or("0");
 
             // Resolve release date into Unix Epoch timestamp (seconds):
-            // 1. If stream.release_date is already provided (e.g. integer epoch), use it directly
-            // 2. Try extracting "(YYYY)" from movie title (defaulting to Jan 1st)
-            let rel_timestamp: Option<i64> = (|| {
-                if let Some(ts) = stream.release_date {
-                    if ts > 0 {
-                        return Some(ts);
-                    }
-                }
-                if let Some(name) = stream.name.as_deref() {
-                    let bytes = name.as_bytes();
-                    if bytes.len() >= 6 {
-                        for i in 0..=bytes.len() - 6 {
-                            if bytes[i] == b'('
-                                && bytes[i + 5] == b')'
-                                && bytes[i + 1..i + 5].iter().all(|b| b.is_ascii_digit())
-                            {
-                                if let Ok(year) = name[i + 1..i + 5].parse::<i32>() {
-                                    if let Some(ndt) = chrono::NaiveDate::from_ymd_opt(year, 1, 1) {
-                                        if let Some(dt) = ndt.and_hms_opt(0, 0, 0) {
-                                            return Some(dt.and_utc().timestamp());
+            // 1. If stream.release_date is already provided by the API, mark as precise (is_precise = 1)
+            // 2. Otherwise try extracting "(YYYY)" from movie title (Jan 1st fallback, is_precise = 0)
+            let (rel_timestamp, is_precise): (Option<i64>, i32) = match stream.release_date {
+                Some(ts) if ts > 0 => (Some(ts), 1),
+                _ => {
+                    let fallback = stream.name.as_deref().and_then(|name| {
+                        let bytes = name.as_bytes();
+                        if bytes.len() >= 6 {
+                            for i in 0..=bytes.len() - 6 {
+                                if bytes[i] == b'('
+                                    && bytes[i + 5] == b')'
+                                    && bytes[i + 1..i + 5].iter().all(|b| b.is_ascii_digit())
+                                {
+                                    if let Ok(year) = name[i + 1..i + 5].parse::<i32>() {
+                                        if let Some(ndt) = chrono::NaiveDate::from_ymd_opt(year, 1, 1) {
+                                            if let Some(dt) = ndt.and_hms_opt(0, 0, 0) {
+                                                return Some(dt.and_utc().timestamp());
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
+                        None
+                    });
+                    (fallback, 0)
                 }
-                None
-            })();
+            };
 
             stmt.execute(rusqlite::params![
                 profile_id,
@@ -81,11 +86,46 @@ pub fn upsert_streams(conn: &mut Connection, profile_id: i64, streams: &[VodStre
                 stream.rating,
                 stream.container_extension,
                 stream.added,
-                rel_timestamp
+                rel_timestamp,
+                is_precise
             ])?;
         }
     }
     tx.commit()?;
+    Ok(())
+}
+
+/// Extracts a release date Unix timestamp (seconds) from a `get_vod_info` JSON payload.
+pub fn extract_release_date_from_vod_info(info_val: &serde_json::Value) -> Option<i64> {
+    let info_obj = info_val.get("info").unwrap_or(info_val);
+    for key in ["releasedate", "release_date", "releaseDate"] {
+        if let Some(val) = info_obj.get(key) {
+            let parsed = match val {
+                serde_json::Value::String(s) => crate::api::client::parse_date_or_timestamp(s),
+                serde_json::Value::Number(n) => n.as_i64(),
+                _ => None,
+            };
+            if let Some(ts) = parsed {
+                if ts > 0 {
+                    return Some(ts);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Refines a movie's cached `release_date` in `vod_streams` (e.g. from `get_vod_info`).
+pub fn update_release_date(
+    conn: &Connection,
+    profile_id: i64,
+    stream_id: i64,
+    release_date: i64,
+) -> Result<()> {
+    conn.execute(
+        "UPDATE vod_streams SET release_date = ?1 WHERE profile_id = ?2 AND stream_id = ?3",
+        rusqlite::params![release_date, profile_id, stream_id],
+    )?;
     Ok(())
 }
 
@@ -204,6 +244,70 @@ pub fn search_streams(
         res.push(r?);
     }
     Ok(res)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_vod_stream_api_deserializes_string_release_dates() {
+        let json = r#"{
+            "stream_id": 42,
+            "name": "Example Movie (2026)",
+            "releasedate": "2026-11-20",
+            "added": "1795179001"
+        }"#;
+        let parsed: VodStreamApi = serde_json::from_str(json).unwrap();
+        assert_eq!(parsed.release_date, Some(1795132800));
+        assert_eq!(parsed.added, Some(1795179001));
+    }
+
+    #[test]
+    fn test_refine_release_date_from_vod_info_preserved_across_resync() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        crate::db::migrations::run(&conn).unwrap();
+
+        // 1. Initial sync without API release_date falls back to Jan 1 of title year
+        let initial = vec![VodStreamApi {
+            stream_id: 100,
+            name: Some("Steps (2026)".to_string()),
+            stream_icon: None,
+            category_id: Some("1".to_string()),
+            rating: Some("7.5".to_string()),
+            container_extension: Some("mp4".to_string()),
+            added: Some(1795179001),
+            release_date: None,
+            is_favorite: Some(0),
+            profile_id: Some(1),
+        }];
+        upsert_streams(&mut conn, 1, &initial).unwrap();
+
+        let rows = query_streams(&conn, Some(1), None, 0, 10).unwrap();
+        assert_eq!(rows[0].release_date, Some(1767225600)); // 2026-01-01
+
+        // 2. Refine release_date from vod_info JSON payload
+        let info_json = serde_json::json!({
+            "info": {
+                "releasedate": "2026-11-20"
+            }
+        });
+        let refined_ts = extract_release_date_from_vod_info(&info_json).unwrap();
+        assert_eq!(refined_ts, 1795132800); // 2026-11-20
+        update_release_date(&conn, 1, 100, refined_ts).unwrap();
+
+        // 3. Re-sync without API release_date must preserve the refined Nov 20 date
+        upsert_streams(&mut conn, 1, &initial).unwrap();
+        let rows_after_resync = query_streams(&conn, Some(1), None, 0, 10).unwrap();
+        assert_eq!(rows_after_resync[0].release_date, Some(1795132800));
+
+        // 4. Re-sync WITH an explicit API release_date overrides it
+        let mut with_api_date = initial.clone();
+        with_api_date[0].release_date = Some(1795219200); // 2026-11-21
+        upsert_streams(&mut conn, 1, &with_api_date).unwrap();
+        let rows_after_override = query_streams(&conn, Some(1), None, 0, 10).unwrap();
+        assert_eq!(rows_after_override[0].release_date, Some(1795219200));
+    }
 }
 
 

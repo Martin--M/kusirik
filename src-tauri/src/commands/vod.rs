@@ -72,12 +72,18 @@ pub async fn get_vod_info(
 
     let info_val = crate::api::vod::fetch_vod_info(&client, stream_id).await.map_err(|e| e.to_string())?;
 
-    // 4. Cache in database
+    // 4. Cache in database and opportunistically refine vod_streams.release_date
     {
         let conn = state.writer.lock().map_err(|e| e.to_string())?;
         let info_str = serde_json::to_string(&info_val).map_err(|e| e.to_string())?;
         let now = Utc::now().timestamp();
         crate::db::vod::upsert_vod_info(&conn, p_id, stream_id, &info_str, now).map_err(|e| e.to_string())?;
+
+        if let Some(release_ts) = crate::db::vod::extract_release_date_from_vod_info(&info_val) {
+            if let Err(e) = crate::db::vod::update_release_date(&conn, p_id, stream_id, release_ts) {
+                tracing::warn!(stream_id, error = %e, "Failed to refine vod_streams.release_date from vod_info");
+            }
+        }
     }
 
     Ok(info_val)
