@@ -652,14 +652,16 @@ async fn sync_public_iptv_epg(app: AppHandle, profile_id: i64) -> Result<usize> 
     Ok(total_count)
 }
 
-fn parse_and_insert_epg_xml(
-    app: AppHandle,
-    db_conn: DbConn,
+fn parse_epg_xml_with_callback<F>(
     profile_id: i64,
-    body_bytes: Vec<u8>,
-    mut accumulated_count: usize,
-) -> Result<usize> {
-    let mut reader = Reader::from_reader(std::io::Cursor::new(&body_bytes));
+    body_bytes: &[u8],
+    batch_size: usize,
+    mut on_batch: F,
+) -> Result<usize>
+where
+    F: FnMut(&[crate::db::epg::EpgEntry], usize) -> Result<()>,
+{
+    let mut reader = Reader::from_reader(std::io::Cursor::new(body_bytes));
     reader.config_mut().trim_text(true);
 
     let mut buf = Vec::new();
@@ -667,6 +669,7 @@ fn parse_and_insert_epg_xml(
     let mut current_entry: Option<crate::db::epg::EpgEntry> = None;
     let mut inside_title = false;
     let mut inside_desc = false;
+    let mut parsed_count = 0usize;
 
     loop {
         match reader.read_event_into(&mut buf) {
@@ -738,13 +741,11 @@ fn parse_and_insert_epg_xml(
                     b"programme" => {
                         if let Some(entry) = current_entry.take() {
                             entries.push(entry);
-                            accumulated_count += 1;
+                            parsed_count += 1;
 
-                             if entries.len() >= 2000 {
-                                let mut conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-                                crate::db::epg::bulk_insert(&mut conn, &entries)?;
+                            if entries.len() >= batch_size {
+                                on_batch(&entries, parsed_count)?;
                                 entries.clear();
-                                emit_progress(&app, profile_id, "epg", &format!("writing ({} items)", accumulated_count));
                             }
                         }
                     }
@@ -765,11 +766,34 @@ fn parse_and_insert_epg_xml(
     }
 
     if !entries.is_empty() {
-        let mut conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
-        crate::db::epg::bulk_insert(&mut conn, &entries)?;
+        on_batch(&entries, parsed_count)?;
     }
 
-    Ok(accumulated_count)
+    Ok(parsed_count)
+}
+
+fn parse_and_insert_epg_xml(
+    app: AppHandle,
+    db_conn: DbConn,
+    profile_id: i64,
+    body_bytes: Vec<u8>,
+    accumulated_count: usize,
+) -> Result<usize> {
+    let added = parse_epg_xml_with_callback(profile_id, &body_bytes, 2000, |batch, parsed_so_far| {
+        let mut conn = db_conn.writer.lock().map_err(|e| anyhow!("DB lock error: {}", e))?;
+        crate::db::epg::bulk_insert(&mut conn, batch)?;
+        if batch.len() >= 2000 {
+            emit_progress(
+                &app,
+                profile_id,
+                "epg",
+                &format!("writing ({} items)", accumulated_count + parsed_so_far),
+            );
+        }
+        Ok(())
+    })?;
+
+    Ok(accumulated_count + added)
 }
 
 fn parse_xmltv_date_to_timestamp_and_offset(s: &str) -> Option<(i64, i32)> {
@@ -894,4 +918,115 @@ pub async fn run_startup_tasks(app: AppHandle) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hash_str_to_i64_is_stable_and_js_safe() {
+        const MAX_SAFE_INT: i64 = (1i64 << 53) - 1;
+        let h1 = hash_str_to_i64("https://stream.example.com/live/ch1.m3u8");
+        let h2 = hash_str_to_i64("https://stream.example.com/live/ch1.m3u8");
+        let h3 = hash_str_to_i64("https://stream.example.com/live/ch2.m3u8");
+
+        assert_eq!(h1, h2);
+        assert_ne!(h1, h3);
+        assert!(h1 >= 0 && h1 <= MAX_SAFE_INT);
+        assert!(h3 >= 0 && h3 <= MAX_SAFE_INT);
+    }
+
+    #[test]
+    fn test_parse_xmltv_date_to_timestamp_and_offset() {
+        // Space-separated positive offset (+0200 = +7200s): 14:00+02:00 == 12:00 UTC
+        assert_eq!(
+            parse_xmltv_date_to_timestamp_and_offset("20261121140000 +0200"),
+            Some((1795262400, 7200))
+        );
+        // Negative offset (-0500 = -18000s): 07:00-05:00 == 12:00 UTC
+        assert_eq!(
+            parse_xmltv_date_to_timestamp_and_offset("20261121070000 -0500"),
+            Some((1795262400, -18000))
+        );
+        // Compact offset without space
+        assert_eq!(
+            parse_xmltv_date_to_timestamp_and_offset("20261121120000+0000"),
+            Some((1795262400, 0))
+        );
+        // Naive UTC without offset
+        assert_eq!(
+            parse_xmltv_date_to_timestamp_and_offset("20261121120000"),
+            Some((1795262400, 0))
+        );
+        assert_eq!(parse_xmltv_date_to_timestamp_and_offset("invalid"), None);
+    }
+
+    #[test]
+    fn test_sync_log_tracks_success_and_error_states() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::db::migrations::run(&conn).unwrap();
+
+        assert!(get_last_sync_time(&conn, 1, "epg").unwrap().is_none());
+
+        // Failed sync should be treated as no valid sync timestamp
+        update_sync_log(&conn, 1, "epg", None, Some("network timeout")).unwrap();
+        assert!(get_last_sync_time(&conn, 1, "epg").unwrap().is_none());
+
+        // Successful sync records a valid timestamp
+        update_sync_log(&conn, 1, "epg", Some(500), None).unwrap();
+        assert!(get_last_sync_time(&conn, 1, "epg").unwrap().is_some());
+    }
+
+    #[test]
+    fn test_parse_epg_xml_with_callback_parses_batches_and_skips_invalid() {
+        let xml = br#"<?xml version="1.0" encoding="UTF-8"?>
+        <tv>
+          <programme start="20261121120000 +0000" stop="20261121130000 +0000" channel="ch1">
+            <title>Morning News</title>
+            <desc>Daily headlines</desc>
+          </programme>
+          <programme start="bad-date" stop="20261121140000 +0000" channel="ch1">
+            <title>Skipped Invalid</title>
+          </programme>
+          <programme start="20261121080000 -0500" stop="20261121090000 -0500" channel="ch2">
+            <title>Sports Live</title>
+          </programme>
+        </tv>"#;
+
+        let mut collected = Vec::new();
+        let mut batch_calls = 0usize;
+        let count = parse_epg_xml_with_callback(7, xml, 1, |batch, _| {
+            batch_calls += 1;
+            collected.extend_from_slice(batch);
+            Ok(())
+        })
+        .unwrap();
+
+        assert_eq!(count, 2);
+        assert_eq!(batch_calls, 2);
+        assert_eq!(collected.len(), 2);
+
+        assert_eq!(collected[0].profile_id, 7);
+        assert_eq!(collected[0].channel_id, "ch1");
+        assert_eq!(collected[0].start, 1795262400);
+        assert_eq!(collected[0].stop, 1795266000);
+        assert_eq!(collected[0].title.as_deref(), Some("Morning News"));
+        assert_eq!(collected[0].description.as_deref(), Some("Daily headlines"));
+        assert_eq!(collected[0].tz_offset, Some(0));
+
+        assert_eq!(collected[1].channel_id, "ch2");
+        assert_eq!(collected[1].start, 1795266000);
+        assert_eq!(collected[1].stop, 1795269600);
+        assert_eq!(collected[1].title.as_deref(), Some("Sports Live"));
+        assert_eq!(collected[1].description, None);
+        assert_eq!(collected[1].tz_offset, Some(-18000));
+    }
+
+    #[test]
+    fn test_parse_epg_xml_with_callback_errors_on_malformed_xml() {
+        let bad_xml = b"<tv><programme><title>Unclosed</tv>";
+        let res = parse_epg_xml_with_callback(1, bad_xml, 10, |_, _| Ok(()));
+        assert!(res.is_err());
+    }
 }

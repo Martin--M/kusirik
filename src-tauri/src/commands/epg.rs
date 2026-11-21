@@ -404,3 +404,24 @@ pub async fn get_epg_guide(
 
     Ok(channels)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_timestamp_param_and_date_str() {
+        assert_eq!(parse_timestamp_param("1795269600"), 1795269600);
+        assert_eq!(parse_timestamp_param("  1795269600  "), 1795269600);
+        assert_eq!(parse_timestamp_param("2026-11-21T14:00:00Z"), 1795269600);
+        assert_eq!(parse_timestamp_param("2026-11-21T09:00:00-05:00"), 1795269600);
+        assert_eq!(parse_timestamp_param("2026-11-21 14:00:00"), 1795269600);
+        assert_eq!(parse_timestamp_param("invalid"), 0);
+
+        assert_eq!(parse_date_str_to_timestamp("1795269600"), Some(1795269600));
+        assert_eq!(parse_date_str_to_timestamp("2026-11-21T14:00:00Z"), Some(1795269600));
+        assert_eq!(parse_date_str_to_timestamp("2026-11-21 14:00:00"), Some(1795269600));
+        assert_eq!(parse_date_str_to_timestamp("invalid"), None);
+        assert_eq!(parse_date_str_to_timestamp(""), None);
+    }
+}

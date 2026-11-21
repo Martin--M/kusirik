@@ -44,3 +44,24 @@ pub async fn search_all_media(
 
     Ok(SearchResults { live, vod, series })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sanitize_fts5_query() {
+        assert_eq!(sanitize_fts5_query("matrix"), "\"matrix\"*");
+        assert_eq!(sanitize_fts5_query("the matrix reloaded"), "\"the\"* \"matrix\"* \"reloaded\"*");
+        // Strips FTS5 syntax operators (quotes, colons, asterisks, parens, hyphens)
+        assert_eq!(
+            sanitize_fts5_query(r#"name:"foo" OR (bar-baz)*"#),
+            "\"name\"* \"foo\"* \"OR\"* \"bar\"* \"baz\"*"
+        );
+        // Preserves Unicode letters
+        assert_eq!(sanitize_fts5_query("Amélie Café"), "\"Amélie\"* \"Café\"*");
+        // Empty or punctuation-only returns empty string
+        assert_eq!(sanitize_fts5_query(""), "");
+        assert_eq!(sanitize_fts5_query("   *** --- :::   "), "");
+    }
+}
