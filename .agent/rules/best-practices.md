@@ -12,4 +12,6 @@ Always prioritize software engineering best practices and established industry s
 - **Strict boundary contracts**: Keep schemas, Rust DTOs, Tauri IPC payloads, and TypeScript types strictly aligned (e.g., integer epoch units, nullability, and error shapes).
 - **Explicit error handling**: Never swallow errors silently. Surface actionable, user-visible feedback (such as error states or toasts) and log structured diagnostics when operations fail.
 - **Clean, modular, idiomatic code**: Follow idiomatic Rust and TypeScript/Vue 3 conventions, keep functions focused and readable, and avoid blocking UI/main threads with I/O or subprocess waits.
-- **Verify with automated checks**: Add or update targeted unit tests for bug fixes and new behavior, and run relevant test suites and type checks before considering work complete.
+- **Verify with automated checks**: Add or update targeted unit tests for bug fixes and new behavior, and run all relevant verification checks before considering work complete:
+  - Rust (`src-tauri/`): `cargo clippy --all-targets -- -D warnings` and `cargo test`
+  - Frontend: `npm test` and `vue-tsc --noEmit`
