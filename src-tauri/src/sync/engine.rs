@@ -903,7 +903,7 @@ pub async fn run_startup_tasks(app: AppHandle) -> Result<()> {
                 username: profile.username.clone(),
                 password: profile.password.clone(),
                 epg_mode: profile.epg_mode.clone(),
-                created_at: profile.created_at.clone(),
+                created_at: profile.created_at,
                 profile_type: profile.profile_type.clone(),
             };
             // Spawn detached Tokio task so startup task loop finishes immediately without awaiting network downloads
@@ -933,8 +933,8 @@ mod tests {
 
         assert_eq!(h1, h2);
         assert_ne!(h1, h3);
-        assert!(h1 >= 0 && h1 <= MAX_SAFE_INT);
-        assert!(h3 >= 0 && h3 <= MAX_SAFE_INT);
+        assert!((0..=MAX_SAFE_INT).contains(&h1));
+        assert!((0..=MAX_SAFE_INT).contains(&h3));
     }
 
     #[test]
