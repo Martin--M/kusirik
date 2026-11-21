@@ -70,16 +70,66 @@ pub fn open(db_path: &Path) -> Result<DbConn> {
 
 /// Apply WAL mode and performance pragmas.
 fn configure(conn: &Connection) -> Result<()> {
+    // Configure busy_timeout first so subsequent pragmas wait if another connection holds a lock.
+    // Use the dedicated API / pragma_update_and_check for pragmas that return a result row,
+    // because rusqlite's `extra_check` feature (enabled by `bundled-full`) makes `execute_batch`
+    // return `Error::ExecuteReturnedResults` when a PRAGMA yields a row.
+    conn.busy_timeout(std::time::Duration::from_millis(5000))
+        .context("Failed to set SQLite busy_timeout")?;
+    let journal_mode: String = conn
+        .pragma_update_and_check(None, "journal_mode", "WAL", |row| row.get(0))
+        .context("Failed to set SQLite journal_mode = WAL")?;
+    tracing::debug!(journal_mode = %journal_mode, "SQLite journal_mode configured");
+
     conn.execute_batch(
         "
-        PRAGMA journal_mode  = WAL;
         PRAGMA synchronous   = NORMAL;
         PRAGMA cache_size    = -64000;  -- 64 MB page cache
         PRAGMA foreign_keys  = ON;
         PRAGMA temp_store    = MEMORY;
-        PRAGMA busy_timeout  = 5000;
         ",
     )
     .context("Failed to set SQLite pragmas")?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_open_configures_writer_and_reader_pragmas() {
+        let temp_path = std::env::temp_dir().join(format!(
+            "kusirik_db_open_test_{}.db",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&temp_path);
+
+        let db = open(&temp_path).expect("db::open should succeed with bundled-full/extra_check");
+
+        {
+            let writer = db.writer.lock().unwrap();
+            let mode: String = writer
+                .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(mode.to_lowercase(), "wal");
+            let timeout: i64 = writer
+                .query_row("PRAGMA busy_timeout", [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(timeout, 5000);
+        }
+
+        {
+            let reader = db.read().unwrap();
+            let query_only: i64 = reader
+                .query_row("PRAGMA query_only", [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(query_only, 1);
+        }
+
+        drop(db);
+        let _ = std::fs::remove_file(&temp_path);
+        let _ = std::fs::remove_file(temp_path.with_extension("db-wal"));
+        let _ = std::fs::remove_file(temp_path.with_extension("db-shm"));
+    }
 }
