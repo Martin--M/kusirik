@@ -136,3 +136,106 @@ pub fn query_history(conn: &Connection, profile_id: Option<i64>) -> Result<Searc
 
     Ok(SearchResults { live, vod, series })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn seed_media(conn: &mut Connection) {
+        crate::db::migrations::run(conn).unwrap();
+        crate::db::live::upsert_streams(
+            conn,
+            1,
+            &[LiveStreamApi {
+                stream_id: 10,
+                name: Some("CNN".into()),
+                stream_icon: None,
+                epg_channel_id: None,
+                category_id: Some("1".into()),
+                tv_archive: Some(0),
+                tv_archive_duration: Some(0),
+                added: Some(1700000000),
+                is_favorite: None,
+                profile_id: None,
+                url: None,
+                countries: None,
+            }],
+        )
+        .unwrap();
+        crate::db::vod::upsert_streams(
+            conn,
+            1,
+            &[VodStreamApi {
+                stream_id: 20,
+                name: Some("Arrival (2016)".into()),
+                stream_icon: None,
+                category_id: Some("1".into()),
+                rating: Some("7.9".into()),
+                container_extension: Some("mkv".into()),
+                added: Some(1700000000),
+                release_date: None,
+                is_favorite: None,
+                profile_id: None,
+            }],
+        )
+        .unwrap();
+        crate::db::series::upsert_series(
+            conn,
+            1,
+            &[SeriesApi {
+                series_id: 30,
+                name: Some("Andor".into()),
+                cover: None,
+                category_id: Some("1".into()),
+                rating: Some("8.4".into()),
+                plot: None,
+                cast: None,
+                director: None,
+                genre: None,
+                release_date: Some(1663718400),
+                last_modified: Some(1700000000),
+                is_favorite: None,
+                profile_id: None,
+                last_episode_id: None,
+            }],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_playback_history_record_update_delete_and_clear() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        seed_media(&mut conn);
+
+        record_playback(&conn, 1, "live", 10, None).unwrap();
+        record_playback(&conn, 1, "vod", 20, None).unwrap();
+        record_playback(&conn, 1, "series", 30, Some(3001)).unwrap();
+
+        let history = query_history(&conn, Some(1)).unwrap();
+        assert_eq!(history.live.len(), 1);
+        assert_eq!(history.vod.len(), 1);
+        assert_eq!(history.series.len(), 1);
+        assert_eq!(history.series[0].last_episode_id, Some(3001));
+
+        // Re-recording series updates last_episode_id in place
+        record_playback(&conn, 1, "series", 30, Some(3002)).unwrap();
+        let updated = query_history(&conn, Some(1)).unwrap();
+        assert_eq!(updated.series.len(), 1);
+        assert_eq!(updated.series[0].last_episode_id, Some(3002));
+
+        // Delete a single item
+        delete_playback(&conn, 1, "vod", 20).unwrap();
+        let after_delete = query_history(&conn, Some(1)).unwrap();
+        assert!(after_delete.vod.is_empty());
+        assert_eq!(after_delete.live.len(), 1);
+
+        // Clearing another profile leaves profile 1 intact
+        clear_history(&conn, 2).unwrap();
+        assert_eq!(query_history(&conn, Some(1)).unwrap().live.len(), 1);
+
+        // Clearing profile 1 empties all history
+        clear_history(&conn, 1).unwrap();
+        let empty = query_history(&conn, Some(1)).unwrap();
+        assert!(empty.live.is_empty() && empty.vod.is_empty() && empty.series.is_empty());
+    }
+}

@@ -211,3 +211,84 @@ pub fn search_series(
     Ok(res)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_series(id: i64, name: &str, cat: &str, plot: &str, release_date: Option<i64>) -> SeriesApi {
+        SeriesApi {
+            series_id: id,
+            name: Some(name.to_string()),
+            cover: None,
+            category_id: Some(cat.to_string()),
+            rating: Some("8.5".to_string()),
+            plot: Some(plot.to_string()),
+            cast: Some("Jane Doe, John Smith".to_string()),
+            director: Some("Alex Director".to_string()),
+            genre: Some("Sci-Fi".to_string()),
+            release_date,
+            last_modified: Some(1700000000),
+            is_favorite: None,
+            profile_id: None,
+            last_episode_id: None,
+        }
+    }
+
+    #[test]
+    fn test_series_upsert_query_info_and_fts5_ranking() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        crate::db::migrations::run(&conn).unwrap();
+
+        upsert_categories(
+            &mut conn,
+            1,
+            &[
+                SeriesCategoryApi { category_id: Some("5".into()), category_name: "Sci-Fi".into(), profile_id: None },
+                SeriesCategoryApi { category_id: Some("6".into()), category_name: "Drama".into(), profile_id: None },
+            ],
+        )
+        .unwrap();
+        assert_eq!(query_categories(&conn, Some(1)).unwrap().len(), 2);
+
+        upsert_series(
+            &mut conn,
+            1,
+            &[
+                // Exact API release_date preserved
+                sample_series(1, "Starlight", "5", "Space exploration drama", Some(1760000000)),
+                // Missing release_date falls back to (2024) from title
+                sample_series(2, "Dark Harbor (2024)", "6", "A mystery about starlight on the coast", None),
+            ],
+        )
+        .unwrap();
+
+        let all = query_series(&conn, Some(1), Some("all"), 0, 50).unwrap();
+        assert_eq!(all.len(), 2);
+        // Ordered by name ASC: Dark Harbor (2024), then Starlight
+        assert_eq!(all[0].name.as_deref(), Some("Dark Harbor (2024)"));
+        assert_eq!(all[0].release_date, Some(1704067200)); // 2024-01-01
+        assert_eq!(all[1].release_date, Some(1760000000));
+
+        let cat5 = query_series(&conn, Some(1), Some("5"), 0, 50).unwrap();
+        assert_eq!(cat5.len(), 1);
+        assert_eq!(cat5[0].series_id, 1);
+
+        // Series info cache
+        assert_eq!(get_series_info(&conn, 1, 1).unwrap(), None);
+        upsert_series_info(&conn, 1, 1, r#"{"episodes":{}}"#, 1700000999).unwrap();
+        let (json, ts) = get_series_info(&conn, 1, 1).unwrap().unwrap();
+        assert_eq!(json, r#"{"episodes":{}}"#);
+        assert_eq!(ts, 1700000999);
+
+        // FTS5 BM25 search: title match ("Starlight") ranks above plot-only match ("starlight")
+        let hits = search_series(&conn, Some(1), "starlight", 10).unwrap();
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0].series_id, 1);
+        assert_eq!(hits[1].series_id, 2);
+
+        // Cast / director search works
+        let cast_hits = search_series(&conn, Some(1), "Alex Director", 10).unwrap();
+        assert_eq!(cast_hits.len(), 2);
+    }
+}
+

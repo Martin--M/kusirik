@@ -308,6 +308,72 @@ mod tests {
         let rows_after_override = query_streams(&conn, Some(1), None, 0, 10).unwrap();
         assert_eq!(rows_after_override[0].release_date, Some(1795219200));
     }
+
+    #[test]
+    fn test_vod_categories_info_cache_and_fts5_search() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        crate::db::migrations::run(&conn).unwrap();
+
+        upsert_categories(
+            &mut conn,
+            1,
+            &[
+                CategoryApi { category_id: Some("10".into()), category_name: "Action".into(), profile_id: None },
+                CategoryApi { category_id: Some("20".into()), category_name: "Drama".into(), profile_id: None },
+            ],
+        )
+        .unwrap();
+        assert_eq!(query_categories(&conn, Some(1)).unwrap().len(), 2);
+
+        upsert_streams(
+            &mut conn,
+            1,
+            &[
+                VodStreamApi {
+                    stream_id: 10,
+                    name: Some("The Matrix (1999)".into()),
+                    stream_icon: None,
+                    category_id: Some("10".into()),
+                    rating: Some("8.7".into()),
+                    container_extension: Some("mkv".into()),
+                    added: Some(1700000000),
+                    release_date: None,
+                    is_favorite: None,
+                    profile_id: None,
+                },
+                VodStreamApi {
+                    stream_id: 11,
+                    name: Some("Amélie (2001)".into()),
+                    stream_icon: None,
+                    category_id: None, // defaults to uncategorized ("0")
+                    rating: Some("8.3".into()),
+                    container_extension: Some("mp4".into()),
+                    added: Some(1700000100),
+                    release_date: None,
+                    is_favorite: None,
+                    profile_id: None,
+                },
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(query_streams(&conn, Some(1), Some("10"), 0, 10).unwrap().len(), 1);
+        assert_eq!(query_streams(&conn, Some(1), Some("uncategorized"), 0, 10).unwrap().len(), 1);
+        assert_eq!(query_streams(&conn, Some(1), Some("all"), 0, 1).unwrap().len(), 1);
+
+        // VOD info cache
+        assert_eq!(get_vod_info(&conn, 1, 10).unwrap(), None);
+        upsert_vod_info(&conn, 1, 10, r#"{"info":{"plot":"Neo"}}"#, 1700000500).unwrap();
+        let (json, ts) = get_vod_info(&conn, 1, 10).unwrap().unwrap();
+        assert!(json.contains("Neo"));
+        assert_eq!(ts, 1700000500);
+
+        // FTS5 search with diacritics removal ("amelie" matches "Amélie (2001)")
+        let hits = search_streams(&conn, Some(1), "amelie", 10).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].stream_id, 11);
+        assert!(search_streams(&conn, Some(2), "amelie", 10).unwrap().is_empty());
+    }
 }
 
 

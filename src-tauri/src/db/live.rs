@@ -251,5 +251,102 @@ mod tests {
         assert_eq!(mirrors.len(), 1);
         assert_eq!(mirrors[0].added, Some(1_700_000_000));
     }
+
+    #[test]
+    fn test_live_categories_filtering_grouping_and_fts5_search() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        crate::db::migrations::run(&conn).unwrap();
+
+        upsert_categories(
+            &mut conn,
+            1,
+            &[
+                CategoryApi { category_id: Some("10".into()), category_name: "Sports".into(), profile_id: None },
+                CategoryApi { category_id: Some("20".into()), category_name: "News".into(), profile_id: None },
+            ],
+        )
+        .unwrap();
+        upsert_categories(
+            &mut conn,
+            2,
+            &[CategoryApi { category_id: Some("99".into()), category_name: "Cinema".into(), profile_id: None }],
+        )
+        .unwrap();
+
+        assert_eq!(query_categories(&conn, Some(1)).unwrap().len(), 2);
+        assert_eq!(query_categories(&conn, None).unwrap().len(), 3);
+
+        // Two mirrors with the same name on profile 1, plus uncategorized and another profile
+        upsert_streams(
+            &mut conn,
+            1,
+            &[
+                LiveStreamApi {
+                    stream_id: 1,
+                    name: Some("ESPN HD".into()),
+                    stream_icon: None,
+                    epg_channel_id: Some("espn.us".into()),
+                    category_id: Some("10".into()),
+                    tv_archive: Some(1),
+                    tv_archive_duration: Some(3),
+                    added: Some(1700000000),
+                    is_favorite: None,
+                    profile_id: None,
+                    url: None,
+                    countries: None,
+                },
+                LiveStreamApi {
+                    stream_id: 2,
+                    name: Some("ESPN HD".into()),
+                    stream_icon: None,
+                    epg_channel_id: Some("espn.us".into()),
+                    category_id: Some("10".into()),
+                    tv_archive: Some(0),
+                    tv_archive_duration: Some(0),
+                    added: Some(1700000010),
+                    is_favorite: None,
+                    profile_id: None,
+                    url: None,
+                    countries: None,
+                },
+                LiveStreamApi {
+                    stream_id: 3,
+                    name: Some("Café News".into()),
+                    stream_icon: None,
+                    epg_channel_id: None,
+                    category_id: None, // defaults to "0" (uncategorized)
+                    tv_archive: Some(0),
+                    tv_archive_duration: Some(0),
+                    added: None,
+                    is_favorite: None,
+                    profile_id: None,
+                    url: None,
+                    countries: None,
+                },
+            ],
+        )
+        .unwrap();
+
+        // Mark second mirror as favorite; GROUP BY should surface max(is_favorite) = 1
+        crate::db::favorites::toggle_favorite(&conn, 1, "live", 2).unwrap();
+
+        let sports = query_streams(&conn, Some(1), Some("10"), 0, 50).unwrap();
+        assert_eq!(sports.len(), 1);
+        assert_eq!(sports[0].stream.name.as_deref(), Some("ESPN HD"));
+        assert_eq!(sports[0].stream.is_favorite, Some(1));
+        assert_eq!(query_mirrors(&conn, 1, "ESPN HD").unwrap().len(), 2);
+
+        let uncat = query_streams(&conn, Some(1), Some("uncategorized"), 0, 50).unwrap();
+        assert_eq!(uncat.len(), 1);
+        assert_eq!(uncat[0].stream.name.as_deref(), Some("Café News"));
+
+        // FTS5 search with diacritics removal ("cafe" matches "Café News")
+        let hits = search_streams(&conn, Some(1), "cafe", 10).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].stream.stream_id, 3);
+
+        // Punctuation-only query returns empty without SQL error
+        assert!(search_streams(&conn, Some(1), "*** :: ---", 10).unwrap().is_empty());
+    }
 }
 

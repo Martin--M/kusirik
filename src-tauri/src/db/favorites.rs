@@ -135,3 +135,100 @@ pub fn query_favorites(conn: &Connection, profile_id: Option<i64>) -> Result<Sea
 
     Ok(SearchResults { live, vod, series })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn seed_media(conn: &mut Connection) {
+        crate::db::migrations::run(conn).unwrap();
+        crate::db::live::upsert_streams(
+            conn,
+            1,
+            &[LiveStreamApi {
+                stream_id: 1,
+                name: Some("BBC One".into()),
+                stream_icon: None,
+                epg_channel_id: None,
+                category_id: Some("1".into()),
+                tv_archive: Some(0),
+                tv_archive_duration: Some(0),
+                added: Some(1700000000),
+                is_favorite: None,
+                profile_id: None,
+                url: None,
+                countries: None,
+            }],
+        )
+        .unwrap();
+        crate::db::vod::upsert_streams(
+            conn,
+            1,
+            &[VodStreamApi {
+                stream_id: 2,
+                name: Some("Dune (2021)".into()),
+                stream_icon: None,
+                category_id: Some("1".into()),
+                rating: Some("8.0".into()),
+                container_extension: Some("mp4".into()),
+                added: Some(1700000000),
+                release_date: None,
+                is_favorite: None,
+                profile_id: None,
+            }],
+        )
+        .unwrap();
+        crate::db::series::upsert_series(
+            conn,
+            1,
+            &[SeriesApi {
+                series_id: 3,
+                name: Some("Severance".into()),
+                cover: None,
+                category_id: Some("1".into()),
+                rating: Some("8.7".into()),
+                plot: None,
+                cast: None,
+                director: None,
+                genre: None,
+                release_date: Some(1645142400),
+                last_modified: Some(1700000000),
+                is_favorite: None,
+                profile_id: None,
+                last_episode_id: None,
+            }],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_toggle_and_query_favorites_across_media_types() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        seed_media(&mut conn);
+
+        assert!(toggle_favorite(&conn, 1, "invalid", 1).is_err());
+
+        assert!(toggle_favorite(&conn, 1, "live", 1).unwrap());
+        assert!(toggle_favorite(&conn, 1, "vod", 2).unwrap());
+        assert!(toggle_favorite(&conn, 1, "series", 3).unwrap());
+
+        let favs = query_favorites(&conn, Some(1)).unwrap();
+        assert_eq!(favs.live.len(), 1);
+        assert_eq!(favs.vod.len(), 1);
+        assert_eq!(favs.series.len(), 1);
+        assert_eq!(favs.live[0].stream.stream_id, 1);
+        assert_eq!(favs.vod[0].stream_id, 2);
+        assert_eq!(favs.series[0].series_id, 3);
+
+        // Profile scoping
+        let other = query_favorites(&conn, Some(2)).unwrap();
+        assert!(other.live.is_empty() && other.vod.is_empty() && other.series.is_empty());
+
+        // Toggle off
+        assert!(!toggle_favorite(&conn, 1, "vod", 2).unwrap());
+        let after = query_favorites(&conn, Some(1)).unwrap();
+        assert!(after.vod.is_empty());
+        assert_eq!(after.live.len(), 1);
+        assert_eq!(after.series.len(), 1);
+    }
+}
