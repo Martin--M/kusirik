@@ -100,3 +100,68 @@ pub fn delete(conn: &Connection, id: i64) -> Result<()> {
     conn.execute("DELETE FROM profiles WHERE id = ?1", rusqlite::params![id])?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn setup_conn() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::db::migrations::run(&conn).unwrap();
+        conn
+    }
+
+    #[test]
+    fn test_profile_crud_lifecycle() {
+        let conn = setup_conn();
+        assert!(get_all(&conn).unwrap().is_empty());
+        assert!(get(&conn, 1).unwrap().is_none());
+
+        let p1 = Profile {
+            id: 0,
+            name: "Provider A".to_string(),
+            server_url: "http://a.example.com".to_string(),
+            username: "user_a".to_string(),
+            password: "secret".to_string(),
+            epg_mode: "xmltv".to_string(),
+            created_at: 1700000001,
+            profile_type: "xtream".to_string(),
+        };
+        let id1 = insert(&conn, &p1).unwrap();
+        assert!(id1 > 0);
+
+        let p2 = Profile {
+            id: 0,
+            name: "Public IPTV".to_string(),
+            server_url: "https://iptv-org.github.io/api".to_string(),
+            username: "public".to_string(),
+            password: String::new(),
+            epg_mode: "xmltv".to_string(),
+            created_at: 1700000002,
+            profile_type: "public_iptv".to_string(),
+        };
+        let id2 = insert(&conn, &p2).unwrap();
+        assert!(id2 > id1);
+
+        // Explicit id updates existing profile
+        let updated = Profile {
+            id: id1,
+            name: "Provider A Updated".to_string(),
+            ..p1
+        };
+        assert_eq!(insert(&conn, &updated).unwrap(), id1);
+
+        let fetched = get(&conn, id1).unwrap().unwrap();
+        assert_eq!(fetched.name, "Provider A Updated");
+        assert_eq!(fetched.password, "secret");
+
+        let all = get_all(&conn).unwrap();
+        assert_eq!(all.len(), 2);
+        assert_eq!(all[0].id, id1);
+        assert_eq!(all[1].id, id2);
+
+        delete(&conn, id1).unwrap();
+        assert!(get(&conn, id1).unwrap().is_none());
+        assert_eq!(get_all(&conn).unwrap().len(), 1);
+    }
+}
