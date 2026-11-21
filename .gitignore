@@ -38,5 +38,4 @@ Thumbs.db
 .env.*.local
 
 # AI
-.agent
 plan.md
