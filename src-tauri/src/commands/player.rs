@@ -25,8 +25,133 @@ pub fn resolve_stream_url(
     Ok(url.replace("***", &p.password))
 }
 
+#[cfg(not(target_os = "android"))]
+fn spawn_dispatcher(cmd: &mut std::process::Command, label: &str) -> Result<(), String> {
+    use std::io::Read;
+    use std::process::Stdio;
+    use std::time::{Duration, Instant};
+
+    let mut child = cmd
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to start {}: {}", label, e))?;
+
+    // Short-lived OS dispatchers (e.g. xdg-open, open, cmd /c start) often exit
+    // almost immediately with a non-zero status when no handler is available.
+    let deadline = Instant::now() + Duration::from_millis(250);
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                if status.success() {
+                    return Ok(());
+                }
+                let mut stderr_buf = String::new();
+                if let Some(mut stderr) = child.stderr.take() {
+                    let _ = stderr.read_to_string(&mut stderr_buf);
+                }
+                let detail = stderr_buf.trim();
+                if detail.is_empty() {
+                    return Err(format!("{} exited with status {}", label, status));
+                }
+                return Err(format!("{} failed ({}): {}", label, status, detail));
+            }
+            Ok(None) => {
+                if Instant::now() >= deadline {
+                    return Ok(());
+                }
+                std::thread::sleep(Duration::from_millis(25));
+            }
+            Err(e) => {
+                return Err(format!("Failed to check {} process status: {}", label, e));
+            }
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn launch_desktop_player(configured_player_path: &str, final_url: &str) -> Result<(), String> {
+    use std::process::Command;
+
+    let trimmed_path = configured_player_path.trim();
+
+    // If the user explicitly configured a player path, surface its exact launch error
+    // instead of silently falling back to a system dispatcher that masks path issues.
+    if !trimmed_path.is_empty() {
+        return Command::new(trimmed_path)
+            .arg(final_url)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| {
+                tracing::error!(
+                    player_path = %trimmed_path,
+                    error = %e,
+                    "Failed to launch configured media player"
+                );
+                format!("Failed to launch media player '{}': {}", trimmed_path, e)
+            });
+    }
+
+    // No custom player configured: try platform defaults and system handlers.
+    #[cfg(target_os = "windows")]
+    {
+        let default_paths = [
+            "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe",
+            "C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe",
+        ];
+        for path in default_paths {
+            if std::path::Path::new(path).exists() {
+                if Command::new(path).arg(final_url).spawn().is_ok() {
+                    return Ok(());
+                }
+            }
+        }
+
+        let mut cmd = Command::new("cmd");
+        cmd.args(["/c", "start", "", final_url]);
+        if let Err(e) = spawn_dispatcher(&mut cmd, "cmd /c start") {
+            return Err(format!(
+                "No media player configured and Windows default handler failed: {}",
+                e
+            ));
+        }
+        return Ok(());
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if Command::new("vlc").arg(final_url).spawn().is_ok() {
+            return Ok(());
+        }
+
+        let mut cmd = Command::new("xdg-open");
+        cmd.arg(final_url);
+        return spawn_dispatcher(&mut cmd, "xdg-open").map_err(|e| {
+            format!(
+                "No media player configured, 'vlc' was not found in PATH, and system handler failed ({}). Set a valid player path in Settings.",
+                e
+            )
+        });
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let mut cmd = Command::new("open");
+        cmd.arg(final_url);
+        return spawn_dispatcher(&mut cmd, "open").map_err(|e| {
+            format!(
+                "No media player configured and macOS default handler failed ({}). Set a valid player path in Settings.",
+                e
+            )
+        });
+    }
+
+    #[allow(unreachable_code)]
+    Err("Failed to launch media player or default system handler.".to_string())
+}
+
 #[tauri::command]
-pub fn launch_player(
+pub async fn launch_player(
     state: State<'_, DbConn>,
     url: String,
     profile_id: Option<i64>,
@@ -41,78 +166,35 @@ pub fn launch_player(
 
     #[cfg(not(target_os = "android"))]
     {
-        let conn = state.read().map_err(|e| e.to_string())?;
-        let pid = profile_id.ok_or_else(|| "Profile ID is required".to_string())?;
-        let p = crate::db::profile::get(&conn, pid)
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| "Profile not found".to_string())?;
+        let (final_url, player_path) = {
+            let conn = state.read().map_err(|e| e.to_string())?;
+            let pid = profile_id.ok_or_else(|| "Profile ID is required".to_string())?;
+            let p = crate::db::profile::get(&conn, pid)
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| "Profile not found".to_string())?;
 
-        let final_url = if p.profile_type == "public_iptv" {
-            if let Some(sid) = url.split('/').next_back().and_then(|s| s.split('.').next()).and_then(|s| s.parse::<i64>().ok()) {
-                let mut stmt = conn.prepare("SELECT url FROM live_streams WHERE profile_id = ?1 AND stream_id = ?2").map_err(|e| e.to_string())?;
-                let db_url: Option<String> = stmt.query_row(rusqlite::params![pid, sid], |row| row.get(0)).map_err(|e| e.to_string())?;
-                db_url.ok_or_else(|| "Public IPTV stream URL not found".to_string())?
+            let final_url = if p.profile_type == "public_iptv" {
+                if let Some(sid) = url.split('/').next_back().and_then(|s| s.split('.').next()).and_then(|s| s.parse::<i64>().ok()) {
+                    let mut stmt = conn.prepare("SELECT url FROM live_streams WHERE profile_id = ?1 AND stream_id = ?2").map_err(|e| e.to_string())?;
+                    let db_url: Option<String> = stmt.query_row(rusqlite::params![pid, sid], |row| row.get(0)).map_err(|e| e.to_string())?;
+                    db_url.ok_or_else(|| "Public IPTV stream URL not found".to_string())?
+                } else {
+                    return Err("Invalid stream URL format".to_string());
+                }
             } else {
-                return Err("Invalid stream URL format".to_string());
-            }
-        } else {
-            url.replace("***", &p.password)
+                url.replace("***", &p.password)
+            };
+
+            let player_path = crate::db::settings::get(&conn, "player_windows")
+                .map_err(|e| e.to_string())?
+                .unwrap_or_default();
+
+            (final_url, player_path)
         };
 
-        use std::process::Command;
-
-        let player_path = crate::db::settings::get(&conn, "player_windows")
-            .map_err(|e| e.to_string())?
-            .unwrap_or_default();
-
-        #[allow(unused_mut)]
-        let mut final_player_path = player_path;
-        if final_player_path.is_empty() {
-            #[cfg(target_os = "windows")]
-            {
-                let default_paths = [
-                    "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe",
-                    "C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe",
-                ];
-                for path in default_paths {
-                    if std::path::Path::new(path).exists() {
-                        final_player_path = path.to_string();
-                        break;
-                    }
-                }
-            }
-        }
-
-        if !final_player_path.is_empty() && Command::new(&final_player_path).arg(&final_url).spawn().is_ok() {
-            return Ok(());
-        }
-
-        // Fallbacks
-        #[cfg(target_os = "windows")]
-        {
-            if Command::new("cmd").args(["/c", "start", &final_url]).spawn().is_ok() {
-                return Ok(());
-            }
-        }
-
-        #[cfg(target_os = "linux")]
-        {
-            if Command::new("vlc").arg(&final_url).spawn().is_ok() {
-                return Ok(());
-            }
-            if Command::new("xdg-open").arg(&final_url).spawn().is_ok() {
-                return Ok(());
-            }
-        }
-
-        #[cfg(target_os = "macos")]
-        {
-            if Command::new("open").arg(&final_url).spawn().is_ok() {
-                return Ok(());
-            }
-        }
-
-        Err("Failed to launch media player or default system handler.".to_string())
+        tokio::task::spawn_blocking(move || launch_desktop_player(&player_path, &final_url))
+            .await
+            .map_err(|e| format!("Failed to run player launch task: {}", e))?
     }
 }
 
@@ -252,5 +334,36 @@ pub async fn validate_stream_url(
             tracing::warn!("Pre-check for stream URL failed: {}", err);
             Err(err.to_string())
         }
+    }
+}
+
+#[cfg(all(test, not(target_os = "android")))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_configured_missing_player_returns_error() {
+        let missing = "/nonexistent/path/to/custom-player-binary";
+        let err = launch_desktop_player(missing, "http://example.com/stream.ts")
+            .expect_err("Missing configured player path must return an error instead of falling back");
+        assert!(
+            err.contains(missing),
+            "Expected error message to include configured path, got: {}",
+            err
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_spawn_dispatcher_reports_immediate_nonzero_exit() {
+        let mut cmd = std::process::Command::new("sh");
+        cmd.args(["-c", "echo 'no handler' >&2; exit 3"]);
+        let err = spawn_dispatcher(&mut cmd, "xdg-open")
+            .expect_err("Non-zero dispatcher exit must return an error");
+        assert!(
+            err.contains("xdg-open") && err.contains("no handler"),
+            "Expected dispatcher label and stderr in error, got: {}",
+            err
+        );
     }
 }
