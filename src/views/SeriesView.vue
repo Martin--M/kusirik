@@ -47,7 +47,7 @@ async function handleToggleFavorite(series: Series) {
   }
 }
 const searchQuery = ref('')
-const sortField = ref<'name' | 'rating' | 'added' | 'releaseDate'>('name')
+const sortField = ref<'name' | 'rating' | 'added' | 'releaseDate'>('releaseDate')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const isGridView = ref(true)
 

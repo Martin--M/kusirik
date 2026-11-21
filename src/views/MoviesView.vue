@@ -51,7 +51,7 @@ async function handleToggleFavorite(stream: VodStream) {
   }
 }
 const searchQuery = ref('')
-const sortField = ref<'name' | 'rating' | 'added' | 'releaseDate'>('name')
+const sortField = ref<'name' | 'rating' | 'added' | 'releaseDate'>('releaseDate')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const isGridView = ref(true)
 
