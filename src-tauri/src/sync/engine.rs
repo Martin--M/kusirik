@@ -564,7 +564,7 @@ async fn sync_public_iptv_streams(app: AppHandle, profile_id: i64) -> Result<usi
                 category_id,
                 0,
                 0,
-                "",
+                Option::<i64>::None,
                 stream.url,
                 countries,
             ])?;

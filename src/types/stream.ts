@@ -13,7 +13,7 @@ export interface LiveStream {
   category_id: string | null
   tv_archive: number
   tv_archive_duration: number
-  added: string | null
+  added: number | null
   is_favorite?: number
   current_title?: string | null
   url?: string | null

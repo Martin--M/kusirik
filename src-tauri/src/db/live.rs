@@ -200,3 +200,56 @@ pub fn query_mirrors(
     Ok(list)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_upsert_and_query_live_streams_with_integer_and_null_added() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        crate::db::migrations::run(&conn).unwrap();
+
+        let streams = vec![
+            LiveStreamApi {
+                stream_id: 101,
+                name: Some("Channel Alpha".to_string()),
+                stream_icon: None,
+                epg_channel_id: Some("alpha.tv".to_string()),
+                category_id: Some("10".to_string()),
+                tv_archive: Some(1),
+                tv_archive_duration: Some(3),
+                added: Some(1_700_000_000),
+                is_favorite: Some(0),
+                profile_id: Some(1),
+                url: None,
+                countries: None,
+            },
+            LiveStreamApi {
+                stream_id: 102,
+                name: Some("Channel Beta".to_string()),
+                stream_icon: None,
+                epg_channel_id: None,
+                category_id: Some("10".to_string()),
+                tv_archive: Some(0),
+                tv_archive_duration: Some(0),
+                added: None,
+                is_favorite: Some(0),
+                profile_id: Some(1),
+                url: None,
+                countries: None,
+            },
+        ];
+
+        upsert_streams(&mut conn, 1, &streams).unwrap();
+
+        let queried = query_streams(&conn, Some(1), None, 0, 50).unwrap();
+        assert_eq!(queried.len(), 2);
+        assert_eq!(queried[0].stream.added, Some(1_700_000_000));
+        assert_eq!(queried[1].stream.added, None);
+
+        let mirrors = query_mirrors(&conn, 1, "Channel Alpha").unwrap();
+        assert_eq!(mirrors.len(), 1);
+        assert_eq!(mirrors[0].added, Some(1_700_000_000));
+    }
+}
+

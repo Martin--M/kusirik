@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
-use super::client::{XtreamClient, deserialize_option_string, deserialize_option_i32};
+use super::client::{XtreamClient, deserialize_option_string, deserialize_option_i32, deserialize_option_i64};
 use super::common::CategoryApi;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -15,8 +15,8 @@ pub struct LiveStreamApi {
     pub tv_archive: Option<i32>,
     #[serde(default, deserialize_with = "deserialize_option_i32")]
     pub tv_archive_duration: Option<i32>,
-    #[serde(default, deserialize_with = "deserialize_option_string")]
-    pub added: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_option_i64")]
+    pub added: Option<i64>,
     #[serde(default)]
     pub is_favorite: Option<i32>,
     #[serde(default)]
