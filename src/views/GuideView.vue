@@ -19,8 +19,8 @@ import {
   toDate,
   toEpochMs
 } from '@/lib/date-utils'
+import { deduplicateEpgEntries } from '@/lib/epg-utils'
 import { useProfileStore } from '@/stores/profile.store'
-import type { EpgEntry } from '@/types/epg'
 
 import { useToggleFavorite } from '@/composables/useFavorites'
 import { checkIsDesktop } from '@/lib/device'
@@ -254,88 +254,6 @@ const channels = computed(() => {
   if (!infiniteData.value) return []
   return infiniteData.value.pages.flat()
 })
-
-
-function deduplicateEpgEntries(entries: EpgEntry[]): EpgEntry[] {
-  if (!entries || entries.length === 0) return []
-  const sorted = entries.map(e => ({ ...e })).sort((a, b) => toEpochMs(a.start) - toEpochMs(b.start))
-  const result: EpgEntry[] = []
-  
-  for (const entry of sorted) {
-    if (result.length === 0) {
-      result.push(entry)
-      continue
-    }
-    
-    const last = result[result.length - 1]
-    const lastStart = toEpochMs(last.start)
-    const lastStop = toEpochMs(last.stop)
-    const currentStart = toEpochMs(entry.start)
-    
-    // Check if duplicate (same start time or title and very close start times)
-    if (lastStart === currentStart || (last.title === entry.title && Math.abs(lastStart - currentStart) < 300000)) {
-      continue
-    }
-    
-    // If current start is before last stop, they overlap
-    if (currentStart < lastStop) {
-      if (currentStart > lastStart) {
-        last.stop = entry.start
-      } else {
-        continue
-      }
-    }
-    
-    result.push(entry)
-  }
-  
-  return mergeShortSegments(result)
-}
-
-function mergeShortSegments(entries: EpgEntry[]): EpgEntry[] {
-  if (entries.length <= 1) return entries
-  
-  let i = 0
-  while (i < entries.length) {
-    const entry = entries[i]
-    const duration = (toEpochMs(entry.stop) - toEpochMs(entry.start)) / 60000
-    
-    if (duration <= 5) {
-      let merged = false
-      const prev = i > 0 ? entries[i - 1] : null
-      const next = i < entries.length - 1 ? entries[i + 1] : null
-      
-      const prevDuration = prev ? (toEpochMs(prev.stop) - toEpochMs(prev.start)) / 60000 : Infinity
-      const nextDuration = next ? (toEpochMs(next.stop) - toEpochMs(next.start)) / 60000 : Infinity
-      
-      if (prevDuration <= 5) {
-        prev!.stop = entry.stop
-        entries.splice(i, 1)
-        merged = true
-      } else if (nextDuration <= 5) {
-        next!.start = entry.start
-        entries.splice(i, 1)
-        merged = true
-      } else {
-        if (prev) {
-          prev.stop = entry.stop
-          entries.splice(i, 1)
-          merged = true
-        } else if (next) {
-          next.start = entry.start
-          entries.splice(i, 1)
-          merged = true
-        }
-      }
-      
-      if (merged) {
-        continue
-      }
-    }
-    i++
-  }
-  return entries
-}
 
 const cleanChannels = computed(() => {
   if (!channels.value) return []

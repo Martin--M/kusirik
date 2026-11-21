@@ -12,6 +12,7 @@ import { useToastStore } from '@/stores/toast.store'
 import { useI18n } from '@/composables/useI18n'
 import { copyToSystemClipboard } from '@/lib/tauri-commands'
 import { buildMovieUrl } from '@/lib/url-builder'
+import { sortMediaItems, type MediaSortField, type MediaSortOrder } from '@/lib/media-sort'
 import { useToggleFavorite } from '@/composables/useFavorites'
 
 const selectedCategoryId = ref<string>('all')
@@ -51,8 +52,8 @@ async function handleToggleFavorite(stream: VodStream) {
   }
 }
 const searchQuery = ref('')
-const sortField = ref<'name' | 'rating' | 'added' | 'releaseDate'>('releaseDate')
-const sortOrder = ref<'asc' | 'desc'>('asc')
+const sortField = ref<MediaSortField>('releaseDate')
+const sortOrder = ref<MediaSortOrder>('asc')
 const isGridView = ref(true)
 
 const isMobileDetailOpen = ref(false)
@@ -122,43 +123,7 @@ const filteredStreams = computed(() => {
   }
 
   // Apply sort
-  return [...result].sort((a, b) => {
-    if (sortField.value === 'name') {
-      const nameA = a.name || ''
-      const nameB = b.name || ''
-      return sortOrder.value === 'asc'
-        ? nameA.localeCompare(nameB)
-        : nameB.localeCompare(nameA)
-    } else if (sortField.value === 'rating') {
-      const ratingA = parseFloat(a.rating || '0')
-      const ratingB = parseFloat(b.rating || '0')
-      // asc: highest (10) -> lowest (0); desc: lowest (0) -> highest (10)
-      return sortOrder.value === 'asc' ? ratingB - ratingA : ratingA - ratingB
-    } else if (sortField.value === 'added') {
-      const addedA = a.added || 0
-      const addedB = b.added || 0
-      // asc: recent -> least recent; desc: least recent -> recent
-      return sortOrder.value === 'asc' ? addedB - addedA : addedA - addedB
-    } else if (sortField.value === 'releaseDate') {
-      const tsA = a.release_date || 0
-      const tsB = b.release_date || 0
-      if (tsA === 0 && tsB !== 0) return 1
-      if (tsB === 0 && tsA !== 0) return -1
-      if (tsA !== tsB) {
-        // asc: newest -> oldest; desc: oldest -> newest
-        return sortOrder.value === 'asc' ? tsB - tsA : tsA - tsB
-      }
-      // Tie-breaker when movies share the same release date (e.g. year-only fallback):
-      // sort by date added in the same direction, then alphabetically.
-      const addedA = a.added || 0
-      const addedB = b.added || 0
-      if (addedA !== addedB) {
-        return sortOrder.value === 'asc' ? addedB - addedA : addedA - addedB
-      }
-      return (a.name || '').localeCompare(b.name || '')
-    }
-    return 0
-  })
+  return sortMediaItems(result, sortField.value, sortOrder.value, (m) => m.added || 0)
 })
 
 
