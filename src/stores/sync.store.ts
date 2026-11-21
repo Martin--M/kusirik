@@ -39,7 +39,7 @@ export const useSyncStore = defineStore('sync', () => {
     statuses.value[profileId][data_type].status = status
   }
 
-  function onDone(profileId: number, data_type: DataType, count: number, fetched_at: string) {
+  function onDone(profileId: number, data_type: DataType, count: number, fetched_at: number | string) {
     ensureProfile(profileId)
     statuses.value[profileId][data_type].is_syncing = false
     statuses.value[profileId][data_type].status = null

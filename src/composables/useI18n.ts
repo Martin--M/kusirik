@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import en from '@/locales/en.json'
 import fr from '@/locales/fr.json'
+import { toDate } from '@/lib/date-utils'
 
 type LocaleType = 'en' | 'fr'
 
@@ -48,17 +49,18 @@ export function useI18n() {
   }
 
   /**
-   * Localized date/time formatter utilizing native browser Intl APIs
+   * Localized date/time formatter utilizing native browser Intl APIs.
+   * Accepts Unix epoch seconds (number) or an ISO date string.
    */
-  const formatTime = (isoString: string | null): string => {
-    if (!isoString) {
+  const formatTime = (timestamp: number | string | null | undefined): string => {
+    if (timestamp === null || timestamp === undefined || timestamp === '') {
       return t('settings.stats.never')
     }
     try {
-      const date = new Date(isoString)
+      const date = toDate(timestamp)
       // Check for invalid date
       if (isNaN(date.getTime())) {
-        return isoString
+        return String(timestamp)
       }
 
       // Configure beautiful localized presentation using native Intl
@@ -75,7 +77,7 @@ export function useI18n() {
       const localeTag = currentLocale.value === 'fr' ? 'fr-FR' : 'en-US'
       return new Intl.DateTimeFormat(localeTag, options).format(date)
     } catch (e) {
-      return isoString
+      return String(timestamp)
     }
   }
 

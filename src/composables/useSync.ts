@@ -37,7 +37,7 @@ export function useSync() {
 
     unlisten.push(
       await listen<SyncDoneEvent>('sync://done', ({ payload }) => {
-        const now = new Date().toISOString()
+        const now = Math.floor(Date.now() / 1000)
         syncStore.onDone(payload.profile_id, payload.data_type, payload.count, now)
         // Invalidate TanStack Query cache for this data type so views re-fetch from DB
         queryClient.invalidateQueries({ queryKey: [payload.data_type] })

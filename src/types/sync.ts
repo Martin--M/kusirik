@@ -2,7 +2,7 @@ export type DataType = 'live_streams' | 'vod_streams' | 'series' | 'epg'
 
 export interface SyncStatus {
   data_type: DataType
-  fetched_at: string | null
+  fetched_at: number | string | null
   item_count: number | null
   last_error: string | null
   is_syncing: boolean
