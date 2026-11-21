@@ -7,7 +7,7 @@ export const useToastStore = defineStore('toast', () => {
   const type = ref<'success' | 'error'>('success')
   let timeoutId: number | null = null
 
-  function showToast(msg: string, t: 'success' | 'error' = 'success') {
+  function showToast(msg: string, t: 'success' | 'error' = 'success', durationMs?: number) {
     message.value = msg
     type.value = t
     show.value = true
@@ -16,9 +16,10 @@ export const useToastStore = defineStore('toast', () => {
       clearTimeout(timeoutId)
     }
 
+    const timeout = durationMs ?? (t === 'error' ? 6000 : 3000)
     timeoutId = window.setTimeout(() => {
       show.value = false
-    }, 3000)
+    }, timeout)
   }
 
   return {

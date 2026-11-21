@@ -25,6 +25,8 @@ const toastStore = useToastStore()
   align-items: center;
   gap: var(--spacing-3);
   padding: 12px 20px;
+  max-width: min(520px, calc(100vw - 48px));
+  overflow-wrap: anywhere;
   border-radius: var(--radius-md);
   color: #fff;
   font-weight: 600;

@@ -26,7 +26,7 @@ export function usePlayer() {
     return profileStore.profiles[0]
   }
 
-  async function startPlayback(url: string, profileId?: number) {
+  async function startPlayback(url: string, profileId?: number): Promise<boolean> {
     try {
       if (isAndroid.value) {
         const finalUrl = await resolveStreamUrl(url, profileId)
@@ -34,9 +34,15 @@ export function usePlayer() {
       } else {
         await launchPlayer(url, profileId)
       }
+      return true
     } catch (e: any) {
       console.error('Playback launch failed:', e)
-      toastStore.showToast(e?.message || e || 'Failed to launch external player.', 'error')
+      const errorMsg =
+        typeof e === 'string' && e.trim()
+          ? e
+          : e?.message || 'Failed to launch external player.'
+      toastStore.showToast(errorMsg, 'error')
+      return false
     }
   }
 
@@ -53,8 +59,8 @@ export function usePlayer() {
       id,
       settingsStore.liveFormat
     )
-    await startPlayback(url, profile.id)
-    if (settingsStore.historyEnabled) {
+    const launched = await startPlayback(url, profile.id)
+    if (launched && settingsStore.historyEnabled) {
       try {
         await recordPlaybackHistory(profile.id, 'live', id)
         queryClient.invalidateQueries({ queryKey: ['playback_history'] })
@@ -81,8 +87,8 @@ export function usePlayer() {
       id,
       toValue(containerExtension)
     )
-    await startPlayback(url, profile.id)
-    if (settingsStore.historyEnabled) {
+    const launched = await startPlayback(url, profile.id)
+    if (launched && settingsStore.historyEnabled) {
       try {
         await recordPlaybackHistory(profile.id, 'vod', id)
         queryClient.invalidateQueries({ queryKey: ['playback_history'] })
@@ -110,8 +116,8 @@ export function usePlayer() {
       id,
       toValue(containerExtension)
     )
-    await startPlayback(url, profile.id)
-    if (settingsStore.historyEnabled && seriesId) {
+    const launched = await startPlayback(url, profile.id)
+    if (launched && settingsStore.historyEnabled && seriesId) {
       try {
         await recordPlaybackHistory(profile.id, 'series', seriesId, id)
         queryClient.invalidateQueries({ queryKey: ['playback_history'] })
@@ -140,8 +146,8 @@ export function usePlayer() {
       startDateTime,
       durationMinutes
     )
-    await startPlayback(url, profile.id)
-    if (settingsStore.historyEnabled) {
+    const launched = await startPlayback(url, profile.id)
+    if (launched && settingsStore.historyEnabled) {
       try {
         await recordPlaybackHistory(profile.id, 'live', id)
         queryClient.invalidateQueries({ queryKey: ['playback_history'] })
