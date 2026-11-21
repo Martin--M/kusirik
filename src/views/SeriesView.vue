@@ -141,11 +141,20 @@ const filteredSeriesList = computed(() => {
     } else if (sortField.value === 'releaseDate') {
       const tsA = a.release_date || 0
       const tsB = b.release_date || 0
-      if (tsA === 0 && tsB === 0) return 0
-      if (tsA === 0) return 1
-      if (tsB === 0) return -1
-      // asc: newest -> oldest; desc: oldest -> newest
-      return sortOrder.value === 'asc' ? tsB - tsA : tsA - tsB
+      if (tsA === 0 && tsB !== 0) return 1
+      if (tsB === 0 && tsA !== 0) return -1
+      if (tsA !== tsB) {
+        // asc: newest -> oldest; desc: oldest -> newest
+        return sortOrder.value === 'asc' ? tsB - tsA : tsA - tsB
+      }
+      // Tie-breaker when series share the same release date:
+      // sort by last_modified in the same direction, then alphabetically.
+      const addedA = a.last_modified || 0
+      const addedB = b.last_modified || 0
+      if (addedA !== addedB) {
+        return sortOrder.value === 'asc' ? addedB - addedA : addedA - addedB
+      }
+      return (a.name || '').localeCompare(b.name || '')
     }
     return 0
   })
