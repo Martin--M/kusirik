@@ -1,11 +1,18 @@
 /**
- * Helper to convert a number (epoch seconds) or string date into Date object
+ * Converts a Unix epoch timestamp (in seconds) or ISO date string into Unix epoch milliseconds.
  */
-function toDate(val: number | string): Date {
+export function toEpochMs(val: number | string): number {
   if (typeof val === 'number') {
-    return new Date(val * 1000)
+    return val * 1000
   }
-  return new Date(val)
+  return new Date(val).getTime()
+}
+
+/**
+ * Converts a Unix epoch timestamp (in seconds) or ISO date string into a Date object.
+ */
+export function toDate(val: number | string): Date {
+  return new Date(toEpochMs(val))
 }
 
 /**

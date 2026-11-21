@@ -154,7 +154,7 @@ const streamsQueryId = computed(() => {
   return selectedCategoryId.value
 })
 
-const { data: rawStreams, isLoading: isLoadingStreams } = useLiveStreams(
+const { data: rawStreams, isLoading: isLoadingStreams, error: streamsError } = useLiveStreams(
   streamsQueryId,
   streamsQueryProfileId
 )
@@ -335,6 +335,9 @@ async function copyUrl(stream: LiveStream) {
             </div>
           </div>
         </div>
+        <div v-else-if="streamsError" class="streams-error">
+          <p>{{ streamsError.message || String(streamsError) }}</p>
+        </div>
         <LiveChannelList
           v-else
           :streams="filteredStreams"
@@ -467,6 +470,13 @@ async function copyUrl(stream: LiveStream) {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.streams-error {
+  padding: var(--spacing-6);
+  color: #ef4444;
+  text-align: center;
+  font-size: 0.9rem;
 }
 
 .loading-streams {

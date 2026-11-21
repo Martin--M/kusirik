@@ -15,7 +15,9 @@ import {
   formatUtcForCatchup,
   getDurationMinutes,
   isCurrentProgram as checkCurrentProgram,
-  isPastProgram as checkPastProgram
+  isPastProgram as checkPastProgram,
+  toDate,
+  toEpochMs
 } from '@/lib/date-utils'
 import { useProfileStore } from '@/stores/profile.store'
 import type { EpgEntry } from '@/types/epg'
@@ -166,7 +168,7 @@ const totalTimelineMinutes = computed(() => {
   return (endTime.value.getTime() - startTime.value.getTime()) / 60000
 })
 
-const lastEpgFetchedAt = ref<string | null>(null)
+const lastEpgFetchedAt = ref<number | string | null>(null)
 const isMounted = ref(false)
 
 // Periodic timer to keep current time line updated and check for EPG sync changes
@@ -256,7 +258,7 @@ const channels = computed(() => {
 
 function deduplicateEpgEntries(entries: EpgEntry[]): EpgEntry[] {
   if (!entries || entries.length === 0) return []
-  const sorted = entries.map(e => ({ ...e })).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+  const sorted = entries.map(e => ({ ...e })).sort((a, b) => toEpochMs(a.start) - toEpochMs(b.start))
   const result: EpgEntry[] = []
   
   for (const entry of sorted) {
@@ -266,9 +268,9 @@ function deduplicateEpgEntries(entries: EpgEntry[]): EpgEntry[] {
     }
     
     const last = result[result.length - 1]
-    const lastStart = new Date(last.start).getTime()
-    const lastStop = new Date(last.stop).getTime()
-    const currentStart = new Date(entry.start).getTime()
+    const lastStart = toEpochMs(last.start)
+    const lastStop = toEpochMs(last.stop)
+    const currentStart = toEpochMs(entry.start)
     
     // Check if duplicate (same start time or title and very close start times)
     if (lastStart === currentStart || (last.title === entry.title && Math.abs(lastStart - currentStart) < 300000)) {
@@ -296,15 +298,15 @@ function mergeShortSegments(entries: EpgEntry[]): EpgEntry[] {
   let i = 0
   while (i < entries.length) {
     const entry = entries[i]
-    const duration = (new Date(entry.stop).getTime() - new Date(entry.start).getTime()) / 60000
+    const duration = (toEpochMs(entry.stop) - toEpochMs(entry.start)) / 60000
     
     if (duration <= 5) {
       let merged = false
       const prev = i > 0 ? entries[i - 1] : null
       const next = i < entries.length - 1 ? entries[i + 1] : null
       
-      const prevDuration = prev ? (new Date(prev.stop).getTime() - new Date(prev.start).getTime()) / 60000 : Infinity
-      const nextDuration = next ? (new Date(next.stop).getTime() - new Date(next.start).getTime()) / 60000 : Infinity
+      const prevDuration = prev ? (toEpochMs(prev.stop) - toEpochMs(prev.start)) / 60000 : Infinity
+      const nextDuration = next ? (toEpochMs(next.stop) - toEpochMs(next.start)) / 60000 : Infinity
       
       if (prevDuration <= 5) {
         prev!.stop = entry.stop
@@ -365,8 +367,8 @@ const filteredChannels = computed(() => {
 
   list = list.map(channel => {
     const visibleEntries = channel.epg_entries.filter(entry => {
-      const entryStart = new Date(entry.start).getTime()
-      const entryStop = new Date(entry.stop).getTime()
+      const entryStart = toEpochMs(entry.start)
+      const entryStop = toEpochMs(entry.stop)
       return entryStart < endMs && entryStop > startMs
     })
     return {
@@ -403,22 +405,22 @@ const timeSlots = computed(() => {
 
 // Timeline horizontal positioning helper
 function getPositionLeft(dateInput: number | string): number {
-  const time = typeof dateInput === 'number' ? dateInput * 1000 : new Date(dateInput).getTime()
+  const time = toEpochMs(dateInput)
   const start = startTime.value.getTime()
   const diffMinutes = (time - start) / 60000
   return diffMinutes * pxPerMinute
 }
 
 function getPositionWidth(startInput: number | string, stopInput: number | string): number {
-  const start = typeof startInput === 'number' ? startInput * 1000 : new Date(startInput).getTime()
-  const stop = typeof stopInput === 'number' ? stopInput * 1000 : new Date(stopInput).getTime()
+  const start = toEpochMs(startInput)
+  const stop = toEpochMs(stopInput)
   const diffMinutes = (stop - start) / 60000
   return diffMinutes * pxPerMinute
 }
 
 // Clamp EPG entry start to the visible timeline start to prevent rendering behind channel column
 function getRenderStart(startInput: number | string): number | string {
-  const start = typeof startInput === 'number' ? startInput * 1000 : new Date(startInput).getTime()
+  const start = toEpochMs(startInput)
   const timelineStart = startTime.value.getTime()
   if (start < timelineStart) {
     return Math.floor(startTime.value.getTime() / 1000)
@@ -521,8 +523,8 @@ watch(scrollContainer, (newVal) => {
 })
 function shouldShowEndTime(startInput: number | string, stopInput: number | string): boolean {
   try {
-    const start = typeof startInput === 'number' ? startInput * 1000 : new Date(startInput).getTime()
-    const stop = typeof stopInput === 'number' ? stopInput * 1000 : new Date(stopInput).getTime()
+    const start = toEpochMs(startInput)
+    const stop = toEpochMs(stopInput)
     const durationMin = (stop - start) / 60000
     return durationMin > 30
   } catch (e) {
@@ -539,8 +541,7 @@ function formatTime(date: Date): string {
 
 function formatEpgTime(dateInput: number | string): string {
   try {
-    const date = typeof dateInput === 'number' ? new Date(dateInput * 1000) : new Date(dateInput)
-    return formatTime(date)
+    return formatTime(toDate(dateInput))
   } catch (e) {
     return ''
   }
