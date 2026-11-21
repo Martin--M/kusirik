@@ -360,4 +360,101 @@ mod tests {
             assert_eq!(parsed.val, expected, "Failed for JSON: {}", json_str);
         }
     }
+
+    #[derive(Deserialize, Debug, PartialEq)]
+    struct DummyI32 {
+        #[serde(default, deserialize_with = "deserialize_option_i32")]
+        val: Option<i32>,
+    }
+
+    #[test]
+    fn test_deserialize_option_i32() {
+        let cases = vec![
+            (r#"{"val": 1}"#, Some(1)),
+            (r#"{"val": 7.9}"#, Some(7)),
+            (r#"{"val": "42"}"#, Some(42)),
+            (r#"{"val": "  15  "}"#, Some(15)),
+            (r#"{"val": ""}"#, None),
+            (r#"{"val": "   "}"#, None),
+            (r#"{"val": null}"#, None),
+            (r#"{}"#, None),
+        ];
+
+        for (json_str, expected) in cases {
+            let parsed: DummyI32 = serde_json::from_str(json_str).unwrap();
+            assert_eq!(parsed.val, expected, "Failed for JSON: {}", json_str);
+        }
+
+        let err = serde_json::from_str::<DummyI32>(r#"{"val": "not-a-number"}"#);
+        assert!(err.is_err());
+    }
+
+    #[test]
+    fn test_parse_date_or_timestamp_edge_cases() {
+        assert_eq!(parse_date_or_timestamp("2026-11-20"), Some(1795132800));
+        assert_eq!(parse_date_or_timestamp("  2026  "), Some(1767225600));
+        assert_eq!(parse_date_or_timestamp("1700000000"), Some(1700000000));
+        assert_eq!(parse_date_or_timestamp(""), None);
+        assert_eq!(parse_date_or_timestamp("   "), None);
+        assert_eq!(parse_date_or_timestamp("invalid-date"), None);
+        assert_eq!(parse_date_or_timestamp("2026-13-45"), None);
+    }
+
+    #[test]
+    fn test_xtream_client_url_and_credentials() {
+        let client = XtreamClient::new(
+            "http://example.com:8080///".to_string(),
+            "alice".to_string(),
+            "secret".to_string(),
+        );
+        assert!(client.has_credentials());
+        assert_eq!(
+            client.get_url(None),
+            "http://example.com:8080/player_api.php?username=alice&password=secret"
+        );
+        assert_eq!(
+            client.get_url(Some("get_vod_streams")),
+            "http://example.com:8080/player_api.php?username=alice&password=secret&action=get_vod_streams"
+        );
+
+        client.update_credentials("https://new.host".to_string(), "bob".to_string(), "  ".to_string());
+        assert!(!client.has_credentials());
+        assert_eq!(
+            client.get_url(Some("get_series")),
+            "https://new.host/player_api.php?username=bob&password=  &action=get_series"
+        );
+    }
+
+    #[test]
+    fn test_client_registry_lifecycle() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        crate::db::migrations::run(&conn).unwrap();
+
+        let profile = crate::db::profile::Profile {
+            id: 0,
+            name: "Main".to_string(),
+            server_url: "http://iptv.local".to_string(),
+            username: "u1".to_string(),
+            password: "p1".to_string(),
+            epg_mode: "xmltv".to_string(),
+            created_at: 1700000000,
+            profile_type: "xtream".to_string(),
+        };
+        let pid = crate::db::profile::insert(&conn, &profile).unwrap();
+
+        let registry = ClientRegistry::new();
+        assert!(registry.get_or_create(999, &conn).is_err());
+
+        let c1 = registry.get_or_create(pid, &conn).unwrap();
+        assert_eq!(c1.get_url(None), "http://iptv.local/player_api.php?username=u1&password=p1");
+
+        // Updating in-place reflects on existing Arc<XtreamClient>
+        registry.update(pid, "http://iptv2.local".to_string(), "u2".to_string(), "p2".to_string());
+        assert_eq!(c1.get_url(None), "http://iptv2.local/player_api.php?username=u2&password=p2");
+
+        // Removing clears cached entry so get_or_create reloads from DB
+        registry.remove(pid);
+        let c2 = registry.get_or_create(pid, &conn).unwrap();
+        assert_eq!(c2.get_url(None), "http://iptv.local/player_api.php?username=u1&password=p1");
+    }
 }

@@ -93,3 +93,50 @@ pub fn parse_api_date_to_utc(s: &str) -> Option<String> {
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_decode_base64_standard_and_utf8() {
+        assert_eq!(decode_base64("SGVsbG8gV29ybGQ="), Some("Hello World".to_string()));
+        // Unpadded base64
+        assert_eq!(decode_base64("SGVsbG8"), Some("Hello".to_string()));
+        // UTF-8 accented characters ("Café")
+        assert_eq!(decode_base64("Q2Fmw6k="), Some("Café".to_string()));
+        // Whitespace inside base64 is ignored
+        assert_eq!(decode_base64("SGVs\nbG8="), Some("Hello".to_string()));
+        // Invalid UTF-8 bytes
+        assert_eq!(decode_base64("////"), None);
+    }
+
+    #[test]
+    fn test_maybe_decode_base64() {
+        // Valid base64 EPG title ("SportsCenter")
+        assert_eq!(maybe_decode_base64("U3BvcnRzQ2VudGVy"), "SportsCenter");
+        // Plain text containing spaces is left untouched
+        assert_eq!(maybe_decode_base64("Evening News"), "Evening News");
+        // Empty and short strings (< 4 chars) are left untouched
+        assert_eq!(maybe_decode_base64(""), "");
+        assert_eq!(maybe_decode_base64("CNN"), "CNN");
+        // Non-base64 punctuation is left untouched
+        assert_eq!(maybe_decode_base64("News: Live!"), "News: Live!");
+        // Invalid UTF-8 base64 is left untouched
+        assert_eq!(maybe_decode_base64("////"), "////");
+    }
+
+    #[test]
+    fn test_parse_api_date_to_utc() {
+        assert_eq!(
+            parse_api_date_to_utc("2026-11-21 14:30:00"),
+            Some("2026-11-21T14:30:00Z".to_string())
+        );
+        assert_eq!(
+            parse_api_date_to_utc("  20261121143000  "),
+            Some("2026-11-21T14:30:00Z".to_string())
+        );
+        assert_eq!(parse_api_date_to_utc("not-a-date"), None);
+        assert_eq!(parse_api_date_to_utc(""), None);
+    }
+}
