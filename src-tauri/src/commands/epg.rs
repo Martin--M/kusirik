@@ -177,6 +177,41 @@ pub async fn get_epg_for_channel(
 }
 
 #[derive(serde::Serialize)]
+pub struct ActiveEpgMatch {
+    pub profile_id: i64,
+    pub channel_id: String,
+}
+
+#[tauri::command]
+pub async fn search_active_epg_channels(
+    state: State<'_, DbConn>,
+    profile_id: Option<i64>,
+    query: String,
+) -> Result<Vec<ActiveEpgMatch>, String> {
+    if query.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let db_conn = state.inner().clone();
+    let now = Utc::now().timestamp();
+
+    tokio::task::spawn_blocking(move || {
+        let conn = db_conn.read().map_err(|e| e.to_string())?;
+        let matches = crate::db::epg::search_active_channel_ids(&conn, profile_id, &query, now)
+            .map_err(|e| e.to_string())?;
+        Ok(matches
+            .into_iter()
+            .map(|(profile_id, channel_id)| ActiveEpgMatch {
+                profile_id,
+                channel_id,
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| format!("Failed to run active EPG search task: {}", e))?
+}
+
+#[derive(serde::Serialize)]
 pub struct GuideChannel {
     pub stream_id: i64,
     pub name: Option<String>,

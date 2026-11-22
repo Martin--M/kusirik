@@ -79,6 +79,69 @@ pub fn query_for_channel(
     Ok(list)
 }
 
+/// Time window (in seconds) used to bound active EPG title searches.
+/// Programs must start within `[now - 6h, now]` and end within `(now, now + 6h]`
+/// so SQLite performs a tight indexed B-tree range scan on `idx_epg_time_window`.
+pub const ACTIVE_EPG_SEARCH_WINDOW_SECS: i64 = 6 * 3600;
+
+/// Escapes SQL LIKE wildcards (`%`, `_`, `\`) and wraps the trimmed query in `%...%`.
+pub fn build_like_contains_pattern(query: &str) -> Option<String> {
+    let trimmed = query.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let mut escaped = String::with_capacity(trimmed.len() + 2);
+    escaped.push('%');
+    for ch in trimmed.chars() {
+        if matches!(ch, '%' | '_' | '\\') {
+            escaped.push('\\');
+        }
+        escaped.push(ch);
+    }
+    escaped.push('%');
+    Some(escaped)
+}
+
+/// Returns distinct `(profile_id, channel_id)` pairs whose currently airing EPG program
+/// title contains `query` (case-insensitive), bounded to `[now - 6h, now]` for `start`
+/// and `(now, now + 6h]` for `stop`.
+pub fn search_active_channel_ids(
+    conn: &Connection,
+    profile_id: Option<i64>,
+    query: &str,
+    now: i64,
+) -> Result<Vec<(i64, String)>> {
+    let Some(pattern) = build_like_contains_pattern(query) else {
+        return Ok(Vec::new());
+    };
+
+    let min_start = now - ACTIVE_EPG_SEARCH_WINDOW_SECS;
+    let max_stop = now + ACTIVE_EPG_SEARCH_WINDOW_SECS;
+
+    let mut stmt = conn.prepare_cached(
+        "SELECT DISTINCT profile_id, channel_id
+         FROM epg_entries
+         WHERE (?1 IS NULL OR profile_id = ?1)
+           AND start >= ?2
+           AND start <= ?3
+           AND stop > ?3
+           AND stop <= ?4
+           AND title IS NOT NULL
+           AND title LIKE ?5 ESCAPE '\\'",
+    )?;
+
+    let rows = stmt.query_map(
+        params![profile_id, min_start, now, max_stop, pattern],
+        |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
+    )?;
+
+    let mut matches = Vec::new();
+    for row in rows {
+        matches.push(row?);
+    }
+    Ok(matches)
+}
+
 /// Deletes EPG entries that ended before the given timestamp (Unix Epoch Seconds).
 pub fn cleanup_old_entries(conn: &Connection, profile_id: i64, before_timestamp: i64) -> Result<usize> {
     let count = conn.execute(
@@ -179,5 +242,49 @@ mod tests {
         // Profile 2 entries must remain untouched
         let remaining_p2 = query_for_channel(&conn, 2, "ch1", 0, 5000).unwrap();
         assert_eq!(remaining_p2.len(), 1);
+    }
+
+    #[test]
+    fn test_search_active_channel_ids_respects_6h_bounds_and_like_escaping() {
+        let mut conn = setup_conn();
+        let now = 1_795_269_600i64;
+        let hour = 3600i64;
+
+        bulk_insert(
+            &mut conn,
+            &[
+                // Active within [now - 6h, now] and (now, now + 6h] -> MATCH
+                entry(1, "ch_match", now - hour, now + hour, "Evening News Live"),
+                // Exact boundary: starts at now - 6h, ends at now + 6h -> MATCH
+                entry(1, "ch_boundary", now - 6 * hour, now + 6 * hour, "News Marathon"),
+                // Started > 6h ago (e.g. 24h loop) -> EXCLUDED
+                entry(1, "ch_too_old_start", now - 6 * hour - 1, now + hour, "24h News Loop"),
+                // Ends > 6h from now -> EXCLUDED
+                entry(1, "ch_too_long_stop", now - hour, now + 6 * hour + 1, "Long News Special"),
+                // Past program -> EXCLUDED
+                entry(1, "ch_past", now - 2 * hour, now, "Past News"),
+                // Future program -> EXCLUDED
+                entry(1, "ch_future", now + 60, now + 2 * hour, "Upcoming News"),
+                // Profile 2 match -> included only when profile_id is None or Some(2)
+                entry(2, "ch_p2", now - hour, now + hour, "World News"),
+                // Literal % and _ characters to verify LIKE escaping
+                entry(1, "ch_percent", now - hour, now + hour, "100% Live_Show"),
+            ],
+        )
+        .unwrap();
+
+        let p1_hits = search_active_channel_ids(&conn, Some(1), "news", now).unwrap();
+        let mut p1_channels: Vec<_> = p1_hits.iter().map(|(_, c)| c.as_str()).collect();
+        p1_channels.sort();
+        assert_eq!(p1_channels, vec!["ch_boundary", "ch_match"]);
+
+        let all_hits = search_active_channel_ids(&conn, None, "news", now).unwrap();
+        assert_eq!(all_hits.len(), 3);
+
+        // Escaped wildcard search should only match literal "100%" and not every title
+        let pct_hits = search_active_channel_ids(&conn, Some(1), "100%", now).unwrap();
+        assert_eq!(pct_hits, vec![(1, "ch_percent".to_string())]);
+
+        assert!(search_active_channel_ids(&conn, Some(1), "   ", now).unwrap().is_empty());
     }
 }
