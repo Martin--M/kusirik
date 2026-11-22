@@ -97,8 +97,16 @@ export const getSeriesInfo = (profileId: number | null | undefined, seriesId: nu
 export const getEpgForChannel = (profileId: number | null | undefined, channelId: string, from: number | string, to: number | string) =>
   invoke<EpgEntry[]>('get_epg_for_channel', { profileId, channelId, from, to })
 
+export interface ActiveEpgMatch {
+  profile_id: number
+  channel_id: string
+}
+
 export const getEpgGuide = (profileId: number | null | undefined, from: number | string, to: number | string, offset = 0, limit = 50) =>
   invoke<GuideChannel[]>('get_epg_guide', { profileId, from, to, offset, limit })
+
+export const searchActiveEpgChannels = (profileId: number | null | undefined, query: string) =>
+  invoke<ActiveEpgMatch[]>('search_active_epg_channels', { profileId, query })
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 

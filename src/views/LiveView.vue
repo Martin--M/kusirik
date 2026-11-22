@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useLiveCategories, useLiveStreams } from '@/composables/useLiveStreams'
+import { useActiveEpgSearch } from '@/composables/useEpg'
 import { usePlayer } from '@/composables/usePlayer'
 import LiveChannelList from '@/components/live/LiveChannelList.vue'
 import CategorySidebar from '@/components/ui/CategorySidebar.vue'
@@ -159,6 +160,8 @@ const { data: rawStreams, isLoading: isLoadingStreams, error: streamsError } = u
   streamsQueryProfileId
 )
 
+const activeEpgMatches = useActiveEpgSearch(streamsQueryProfileId, searchQuery)
+
 // Reset selection when changing categories or toggle filters
 watch(selectedCategoryId, () => {
   selectedStream.value = null
@@ -196,14 +199,16 @@ const filteredStreams = computed(() => {
     filtered = filtered.filter(s => s.countries?.toLowerCase().split(',').map(c => c.trim()).includes(country))
   }
 
-  // Apply search query
+  // Apply search query (instant channel-name match + debounced active EPG title match)
   const query = searchQuery.value.toLowerCase().trim()
   if (query) {
+    const epgMatchSet = activeEpgMatches.value
     filtered = filtered.filter(
       (s) =>
         (s.name && s.name.toLowerCase().includes(query)) ||
         (s.epg_channel_id && s.epg_channel_id.toLowerCase().includes(query)) ||
-        (s.current_title && s.current_title.toLowerCase().includes(query))
+        (s.current_title && s.current_title.toLowerCase().includes(query)) ||
+        (s.epg_channel_id && epgMatchSet.has(`${s.profile_id}:${s.epg_channel_id}`))
     )
   }
 

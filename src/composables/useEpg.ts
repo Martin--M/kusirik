@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/vue-query'
-import { getEpgForChannel } from '@/lib/tauri-commands'
+import { getEpgForChannel, searchActiveEpgChannels } from '@/lib/tauri-commands'
 import type { MaybeRefOrGetter } from 'vue'
-import { toValue, ref } from 'vue'
+import { computed, onUnmounted, ref, toValue, watch } from 'vue'
 
 // Global ticking clock to keep track of current time across all channel rows
 export const globalNow = ref(Date.now())
@@ -46,5 +46,65 @@ export function useEpg(
     },
     enabled: () => !!toValue(channelId) && toValue(profileId) !== undefined,
     refetchInterval: 15 * 60 * 1000, // Refetch EPG data from backend every 15 minutes
+  })
+}
+
+/**
+ * Debounced on-demand search across currently airing EPG titles (bounded to +-6h).
+ * Returns a reactive Set of `"${profile_id}:${channel_id}"` keys with zero background polling.
+ */
+export function useActiveEpgSearch(
+  profileId: MaybeRefOrGetter<number | null | undefined>,
+  searchQuery: MaybeRefOrGetter<string>,
+  debounceMs = 200,
+) {
+  const debouncedQuery = ref('')
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+  watch(
+    () => toValue(searchQuery),
+    (raw) => {
+      if (debounceTimer !== null) {
+        clearTimeout(debounceTimer)
+        debounceTimer = null
+      }
+      const trimmed = raw.trim()
+      if (!trimmed) {
+        debouncedQuery.value = ''
+        return
+      }
+      debounceTimer = setTimeout(() => {
+        debouncedQuery.value = trimmed
+      }, debounceMs)
+    },
+    { immediate: true },
+  )
+
+  onUnmounted(() => {
+    if (debounceTimer !== null) {
+      clearTimeout(debounceTimer)
+    }
+  })
+
+  const queryResult = useQuery({
+    queryKey: [
+      'epg',
+      'active_search',
+      () => toValue(profileId),
+      debouncedQuery,
+    ],
+    queryFn: async () => {
+      const q = debouncedQuery.value
+      if (!q) return new Set<string>()
+      const matches = await searchActiveEpgChannels(toValue(profileId), q)
+      return new Set(matches.map((m) => `${m.profile_id}:${m.channel_id}`))
+    },
+    enabled: () => debouncedQuery.value.length > 0,
+    staleTime: 30_000,
+  })
+
+  return computed<Set<string>>(() => {
+    if (!debouncedQuery.value) return new Set<string>()
+    return queryResult.data.value ?? new Set<string>()
   })
 }

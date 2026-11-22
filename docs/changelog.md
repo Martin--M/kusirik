@@ -1,5 +1,10 @@
 # Kusirik
 
+## [Unreleased]
+
+### Features
+* **Live TV & Global Search by Current EPG Title** Searching in Live TV (debounced on-demand lookup) and Global Search now matches currently airing EPG program titles within a bounded ±6h window (`start >= now - 6h`, `stop <= now + 6h`) for fast indexed queries on desktop and mobile.
+
 ## v3.0.0
 
 ### Features
