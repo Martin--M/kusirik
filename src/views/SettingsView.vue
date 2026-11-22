@@ -29,6 +29,9 @@ import IconPlay from '@/components/icons/IconPlay.vue'
 import IconSync from '@/components/icons/IconSync.vue'
 import IconLogo from '@/components/icons/IconLogo.vue'
 import { checkIsAndroid } from '@/lib/device'
+import packageJson from '../../package.json'
+
+const appVersion = packageJson.version
 
 const router = useRouter()
 const profileStore = useProfileStore()
@@ -456,7 +459,7 @@ onMounted(async () => {
             <IconLogo class="about-brand-logo" />
             <div class="about-brand-meta">
               <h4 class="brand-title">Kusirik</h4>
-              <span class="brand-version">{{ $t('about.version', { version: '2.0.0' }) }}</span>
+              <span class="brand-version">{{ $t('about.version', { version: appVersion }) }}</span>
             </div>
           </div>
           <p class="about-desc">{{ $t('about.tagline') }}</p>
@@ -475,7 +478,7 @@ onMounted(async () => {
         <div class="modal-header-brand">
           <IconLogo class="modal-logo" />
           <h2 class="modal-app-name">kusirik</h2>
-          <span class="modal-version-tag">{{ $t('about.version', { version: '2.0.0' }) }}</span>
+          <span class="modal-version-tag">{{ $t('about.version', { version: appVersion }) }}</span>
           <p class="modal-tagline">{{ $t('about.tagline') }}</p>
           <span class="modal-tech-stack">{{ $t('about.techStack') }}</span>
         </div>

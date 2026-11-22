@@ -1,5 +1,29 @@
 # Kusirik
 
+## v3.0.0
+
+### Features
+* **Release Date & Date Added Sorting** Added release date and date-added sorting for Movies and TV Series, defaulting both catalogs to newest releases first with `added`/`last_modified` tie-breaking when bulk movie data only provides a title year.
+* **Series Resume & Watched Indicators** Track the last played episode ID in playback history, display watched badges on series cards and episode rows, and auto-expand the last played season accordion.
+* **About Section & Mobile Navigation** Added an About section and modal in Settings and added the History shortcut to mobile bottom navigation.
+* **Public IPTV Onboarding** Supported public IPTV profiles in the initial sync completion router check.
+
+### Performance & Architecture
+* **SQLite FTS5 Full-Text Search** Replaced `LIKE` table scans with SQLite FTS5 external-content virtual tables (`fts_vod`, `fts_series`, `fts_live`), automatic sync triggers, safe query sanitization, and BM25 relevance ranking.
+* **Dual-Connection SQLite Architecture** Separated writer and read-only (`query_only = ON`) SQLite connections in WAL mode with `busy_timeout` so UI reads remain responsive during background syncs.
+* **Integer Unix Epoch Schema** Flattened the database schema to a clean v1 baseline and converted all timestamp columns to 64-bit Unix epoch integers, updating frontend sorting and time calculations to direct numeric math (incompatible with v2.0.0 databases).
+* **EPG & Listing Query Optimizations** Added composite indexes for EPG time-window and channel lookups, replaced correlated EPG subqueries in live stream listings, and switched TV Guide channel queries from `EXISTS` to indexed `INNER JOIN`s.
+
+### Fixes
+* **SQLite Pragma Startup Crash** Configured returning pragmas (`busy_timeout` and `journal_mode = WAL`) via dedicated `rusqlite` APIs instead of `execute_batch` to work cleanly with `bundled-full`/`extra_check`.
+* **Live TV & EPG Timestamp Alignment** Aligned `LiveStreamApi.added` with the `INTEGER` epoch schema, normalized epoch-second timestamps across TV Guide, channel rows, and Settings sync status, and surfaced Live TV query errors in the UI.
+* **Media Player Launch Error Reporting** Surface exact spawn and fallback dispatcher errors in toast notifications instead of failing silently, and skip recording playback history when launching the external player fails.
+* **VOD Release Date Refinement** Parse ISO date strings when provided by `get_vod_streams` and opportunistically refine `vod_streams.release_date` from `get_vod_info` while preserving refined dates across resyncs.
+
+### Internal
+* **Unit Tests & Clippy Checks** Expanded backend coverage to 36 Rust unit tests, added a 22-test frontend unit test suite (`npm test` via `node:test`), extracted shared EPG/sorting helpers, and resolved all `cargo clippy --all-targets -- -D warnings` issues.
+* **Project Agent Rules** Added `.agent/rules/` guidelines for commit conventions and engineering best practices.
+
 ## v2.0.0
 
 ### Features
