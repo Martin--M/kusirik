@@ -2,11 +2,14 @@
 
 ## [Unreleased]
 
+## v3.1.0
+
 ### Features
 * **Live TV & Global Search by Current EPG Title** Searching in Live TV (debounced on-demand lookup) and Global Search now matches currently airing EPG program titles within a bounded ±6h window (`start >= now - 6h`, `stop <= now + 6h`) for fast indexed queries on desktop and mobile.
 
 ### Internal
 * **Public IPTV Stream Validator Script** Added `scripts/validate_public_iptv.ts` (`npm run validate:iptv`) to concurrently validate `iptv-org` streams via HTTP + HLS manifest/first-segment probing (with optional `--ffprobe` deep checks) and export `valid`/`invalid` reports in both JSON and CSV.
+* **Changelog Maintenance Rule** Added `.agent/rules/changelog.md` to keep `## [Unreleased]` updated alongside changes.
 
 ## v3.0.0
 
