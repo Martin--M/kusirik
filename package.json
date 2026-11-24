@@ -8,6 +8,7 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "node --test tests/*.test.ts",
+    "validate:iptv": "node scripts/validate_public_iptv.ts",
     "type-check": "vue-tsc --noEmit",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
